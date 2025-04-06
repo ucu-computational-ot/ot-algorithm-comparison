@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 
-# Sinkhorn for all dimensions
 def sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
 
     jax.config.update("jax_enable_x64", True)

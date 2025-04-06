@@ -6,7 +6,132 @@ import scipy.stats as stats
 
 
 def generate_gaussian_pdf(x, mean=0, std=1):
-    return stats.norm.pdf(x, loc=mean, scale=std)
+    pdf = stats.norm.pdf(x, loc=mean, scale=std)
+    return pdf / pdf.sum()
+
+
+def generate_2d_gaussian_pdf(x, y, mean=(0, 0), cov=((1, 0), (0, 1))):
+    """
+    Generates a 2D Gaussian PDF on a mesh grid.
+
+    Args:
+        x (np.array): X-coordinates of the mesh grid.
+        y (np.array): Y-coordinates of the mesh grid.
+        mean (tuple): Mean of the Gaussian distribution (default is (0, 0, 0)).
+        cov (tuple): Covariance matrix of the Gaussian distribution 
+                     (default is identity matrix).
+
+    Returns:
+        np.array: 3D Gaussian PDF values on the mesh grid.
+
+    Usage:
+        x = np.linspace(-2, 2, 2)
+        y = np.linspace(-2, 2, 2)
+
+        x, y = np.meshgrid(x, y)
+
+        gaussian = generate_2d_gaussian_pdf(x, y)
+    """
+    pos = np.stack((x, y), axis=-1)
+    rv = stats.multivariate_normal(mean=mean, cov=cov)
+    pdf = rv.pdf(pos)
+    return pdf / pdf.sum()
+
+
+def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0), (0, 0, 1))):
+    """
+    Generates a 3D Gaussian PDF on a mesh grid.
+
+    Args:
+        x (np.array): X-coordinates of the mesh grid.
+        y (np.array): Y-coordinates of the mesh grid.
+        z (np.array): Z-coordinates of the mesh grid.
+        mean (tuple): Mean of the Gaussian distribution (default is (0, 0, 0)).
+        cov (tuple): Covariance matrix of the Gaussian distribution 
+                     (default is identity matrix).
+
+    Returns:
+        np.array: 3D Gaussian PDF values on the mesh grid.
+
+    Usage:
+        x = np.linspace(-2, 2, 2)
+        y = np.linspace(-2, 2, 2)
+        z = np.linspace(-2, 2, 2)
+
+        x, y, z = np.meshgrid(x, y, z)
+
+        gaussian = generate_3d_gaussian_pdf(x, y, z)
+    """
+    pos = np.stack((x, y, z), axis=-1)
+    rv = stats.multivariate_normal(mean=mean, cov=cov)
+    pdf = rv.pdf(pos)
+    return pdf / pdf.sum()
+
+
+def generate_1d_gaussians_ds(x: np.ndarray):
+    means = np.arange(-6, 6)
+    std = np.linspace(0.1, 2, 10)
+    return [generate_gaussian_pdf(x, mean=mean, std=std) for mean, std in zip(means, std)]
+
+
+def generate_2d_gaussians_ds(x, y):
+    means = [
+        [-4, -4],
+        [-3, -3],
+        [-2, -2],
+        [-1, -1],
+        [0, 0],
+        [1, 1],
+        [2, 2],
+        [3, 3],
+        [4, 4],
+        [5, 5]
+    ]
+
+    covariances = [
+        np.array([[1, 0], [0, 1]]),
+        np.array([[0.5, 0], [0, 0.5]]),
+        np.array([[2, 0], [0, 2]]),
+        np.array([[1, 0.5], [0.5, 1]]),
+        np.array([[1, -0.5], [-0.5, 1]]),
+        np.array([[1.5, 0.3], [0.3, 1.5]]),
+        np.array([[0.8, -0.2], [-0.2, 0.8]]),
+        np.array([[1.2, 0.6], [0.6, 1.2]]),
+        np.array([[0.6, -0.4], [-0.4, 0.6]]),
+        np.array([[1.8, 0.2], [0.2, 1.8]])
+    ]
+    return [generate_2d_gaussian_pdf(x, y, mean=mean, cov=cov) for mean, cov in zip(means, covariances)]
+
+
+def generate_3d_gaussians_ds(x, y, z):
+    means = [
+        [-4, -4, -4],
+        [-3, -3, -3],
+        [-2, -2, -2],
+        [-1, -1, -1],
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3],
+        [4, 4, 4],
+        [5, 5, 5]
+    ]
+
+    covariances = [
+        np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+        np.array([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]),
+        np.array([[2, 0, 0], [0, 2, 0], [0, 0, 2]]),
+        np.array([[1, 0.5, 0], [0.5, 1, 0], [0, 0, 1]]),
+        np.array([[1, -0.5, 0], [-0.5, 1, 0], [0, 0, 1]]),
+        np.array([[1.5, 0.3, 0], [0.3, 1.5, 0], [0, 0, 1.5]]),
+        np.array([[0.8, -0.2, 0], [-0.2, 0.8, 0], [0, 0, 0.8]]),
+        np.array([[1.2, 0.6, 0], [0.6, 1.2, 0], [0, 0, 1.2]]),
+        np.array([[0.6, -0.4, 0], [-0.4, 0.6, 0], [0, 0, 0.6]]),
+        np.array([[1.8, 0.2, 0], [0.2, 1.8, 0], [0, 0, 1.8]])
+    ]
+    return [generate_3d_gaussian_pdf(x, y, z, mean=mean, cov=cov) for mean, cov in zip(means, covariances)]
+
+
 
 def generate_gamma_pdf(x, shape=1, scale=1):
     return stats.gamma.pdf(x, a=shape, scale=scale)
@@ -23,6 +148,10 @@ def generate_cauchy_pdf(x, loc=0, scale=1):
 def generate_normalized_white_noise(size, mean=0, std=1):
     noise = np.random.normal(loc=mean, scale=std, size=size)
     return (noise - np.mean(noise)) / np.std(noise)
+
+
+
+
 
 def get_ts_dataset() -> list[np.array]:
     """
