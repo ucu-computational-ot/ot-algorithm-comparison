@@ -1,26 +1,17 @@
 import numpy as np
 import itertools as it
 import matplotlib.pyplot as plt
-from uot.dataset import generate_1d_gaussians_ds
+from uot.dataset import generate_1d_gaussians_ds, generate_2d_gaussians_ds
 from algorithms.sinkhorn import sinkhorn
-from uot.experiment import OTProblem, Experiment, get_q_const, get_exact_solution
+from uot.experiment import OTProblem, Experiment, get_q_const, get_exact_solution, get_histograms
 
 
-x = np.linspace(-6, 6, 100)
-gaussians = generate_1d_gaussians_ds(x)
+x = np.linspace(-10, 10, 2)
+y = np.linspace(-10, 10, 2)
+x, y = np.meshgrid(x, y)
+gaussian_1, gaussian_2 = generate_2d_gaussians_ds(x, y)[:2]
+cost = get_q_const(points, points)
 
-fig, axes = plt.subplots(len(gaussians), 1, figsize=(10, 6 * len(gaussians)))
-
-for i, (gaussian, ax) in enumerate(zip(gaussians, axes)):
-    ax.plot(x, gaussian, label=f"Gaussian {i+1}")
-    ax.set_title(f"1D Gaussian Distribution {i+1}")
-    ax.set_xlabel("x")
-    ax.set_ylabel("Density")
-    ax.legend()
-    ax.grid(True)
-
-plt.tight_layout()
-plt.show()
 
 
 # gaussians = generate_1d_gaussians(x)

@@ -151,8 +151,6 @@ def generate_normalized_white_noise(size, mean=0, std=1):
 
 
 
-
-
 def get_ts_dataset() -> list[np.array]:
     """
     Reads a time series dataset from a CSV file, processes it by region, and returns 
