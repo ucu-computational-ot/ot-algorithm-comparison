@@ -18,4 +18,7 @@ def sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
         return ln_u, ln_v
 
     ln_u, ln_v = jax.lax.fori_loop(0, niter, body, (ln_u, ln_v))
-    return jnp.exp(ln_u[:, None] + ln_K + ln_v[None, :])
+
+    transport_plan = jnp.exp(ln_u[:, None] + ln_K + ln_v[None, :])
+    cost = jnp.sum(transport_plan * C).item()
+    return transport_plan, cost
