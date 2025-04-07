@@ -32,6 +32,20 @@ class Measure:
 
     def __repr__(self):
         return str(self) + '\n'
+    
+    def __hash__(self):
+        points, distribution = self.to_histogram()
+        return hash(self.name) & hash(tuple(points.flatten())) & \
+               hash(tuple(distribution.flatten())) & hash(tuple(self.kwargs.keys())) & \
+               hash(str(self.kwargs.values())) 
+    
+    def __eq__(self, other):
+        if not isinstance(other, Measure):
+            return False
+        return self.name == other.name and \
+               np.array_equal(self.support, other.support) and \
+               np.array_equal(self.distribution, other.distribution) and \
+               self.kwargs == other.kwargs
 
     def plot(self):
         if len(self.support) == 1:
