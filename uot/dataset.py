@@ -15,7 +15,7 @@ class Measure:
         self.distribution = distribution
         self.kwargs = kwargs
     
-    def to_hisgogram(self):
+    def to_histogram(self):
         """
         Converts the support and distribution data into histogram format.
         """
@@ -55,7 +55,7 @@ class Measure:
             plt.grid(False)
             plt.show()
         elif len(self.support) == 3:
-            points, distribution = self.to_hisgogram()
+            points, distribution = self.to_histogram()
             normalized_distribution =  (distribution - np.min(distribution)) / (np.max(distribution) - np.min(distribution))
             colormap = cm.get_cmap('viridis')
             colors = colormap(normalized_distribution)[:, :3]  

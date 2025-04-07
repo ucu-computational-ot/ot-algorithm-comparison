@@ -1,7 +1,7 @@
 import ot
 import itertools as it
 import numpy as np
-
+from uot.dataset import Measure
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -19,23 +19,24 @@ def get_histograms(grid, source, target):
     target_histogram = target.ravel()
     return points, source_hisgogram, target_histogram
 
-def generate_two_fold_problems(grid, distributions):
+def generate_two_fold_problems(grid, measures: list[Measure]):
     ot_problems = []
-    points = np.vstack([coordinate.ravel() for coordinate in grid]).T
-    cost = get_q_const(points, points)
-
-    for a, b in it.combinations(distributions, 2):
-        source_histogram, target_hisgogram = a.ravel(), b.ravel()
-        ot_problems.append(OTProblem(name="Simple transport", a=source_histogram, b=target_hisgogram, C=cost))
-
+    source_points, _ = measures[0].to_histogram()
+    target_points, _ = measures[1].to_histogram()
+    C = get_q_const(source_points, target_points)
+    for source_measure, target_measure in it.combinations(measures, 2):
+        ot_problems.append(OTProblem(name="Simple transport", 
+                                     source_measure=source_measure,
+                                     target_measure=target_measure,
+                                     C=C))
     return ot_problems
 
 class OTProblem:
 
-    def __init__(self, name: str, a: np.ndarray, b: np.ndarray, C: np.ndarray, kwargs: dict = None):
+    def __init__(self, name: str, source_measure: Measure, target_measure: Measure, C: np.ndarray, kwargs: dict = None):
         self.name = name
-        self.a = a
-        self.b = b
+        self.source_measure = source_measure
+        self.target_measure = target_measure
         self.C = C
         self.kwargs = kwargs
  
@@ -43,7 +44,7 @@ class OTProblem:
         return hash(tuple(self.a) + tuple(self.b) + tuple(self.C.flatten()))
     
     def __str__(self):
-        return f"<OTProblem: {self.name}>"
+        return f"<OTProblem: {self.name} source={self.source_measure}, target={self.target_measure}>"
 
 class Experiment:
 
