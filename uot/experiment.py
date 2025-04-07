@@ -1,4 +1,6 @@
 import ot
+import time
+import multiprocessing
 import numpy as np
 import pandas as pd
 import itertools as it
@@ -75,12 +77,69 @@ class Experiment:
         
         return results
     
+    def run_single(self, ot_problem: OTProblem) -> dict:
+        return self.run_function(ot_problem)
+
+    
 class ExperimentSuite:
+    MAX_RESULTS_IN_WORKER = 50
 
     def __init__(self, experiments: list[Experiment]):
         self.experiments = experiments
 
-    def run_suite(self, ot_problems: list[OTProblem]) -> pd.DataFrame:
+    def run_suite(self, ot_problems: list[OTProblem], njobs: int = 1) -> pd.DataFrame:
+        if njobs == 1:
+            return self._run_suite(ot_problems)
+        else:
+            return self._run_suite_multiprocess(ot_problems, njobs)
+    
+    def _run_suite_multiprocess(self, ot_problems: list[Experiment], njobs: int):
+
+        def _worker(queue, tasks):
+            results = []
+            for task in tasks:
+                experiment, ot_problem, ot_identifier = task
+                results.append((ot_identifier, experiment.run_single(ot_problem)))
+
+                if len(results) == self.MAX_RESULTS_IN_WORKER:
+                    queue.put(results)
+                    results = []
+
+            queue.put(results)
+
+        # added problems identifiers to reduce time for copying data from processes
+        ot_problems_ids = { ot_problem: identifier for identifier, ot_problem in enumerate(ot_problems) }
+        ids_to_ot_problem = dict(zip(ot_problems_ids.values(), ot_problems_ids.keys()))
+
+        tasks = [ (experiment, ot_problem, ot_problems_ids[ot_problem]) for ot_problem in ot_problems for experiment in self.experiments ]
+
+        q = multiprocessing.Queue()
+        tasks_per_worker = len(tasks) // njobs
+        processes = [ multiprocessing.Process(target=_worker, args=(q, tasks[i * tasks_per_worker: (i+1) * tasks_per_worker]))
+                      for i in range(njobs) ]
+
+        for p in processes:
+            p.start()
+
+        ot_problems_results = {ot_problem: {} for ot_problem in ot_problems}
+        while any(p.is_alive() for p in processes) or not q.empty():
+            time.sleep(0.5)
+            try:
+                results = q.get_nowait()
+                for (ot_identifier, result) in results:
+                    ot_problem = ids_to_ot_problem[ot_identifier]
+                    ot_problems_results[ot_problem].update(result)
+            except multiprocessing.queues.Empty:
+                pass
+        
+        df_rows = []
+        for ot_problem, results in ot_problems_results.items():
+            row_dict = ot_problem.to_dict() | results
+            df_rows.append(row_dict)
+
+        return pd.DataFrame(df_rows)
+
+    def _run_suite(self, ot_problems: list[OTProblem]) -> pd.DataFrame:
         results = []
         for experiment in self.experiments:
             results.append(experiment.run_experiment(ot_problems))
@@ -92,5 +151,4 @@ class ExperimentSuite:
                 row_dict.update(result[ot_problem])
             df_rows.append(row_dict)
 
-        return pd.DataFrame(df_rows)
-             
+        return pd.DataFrame(df_rows)       

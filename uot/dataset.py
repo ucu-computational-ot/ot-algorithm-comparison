@@ -7,6 +7,19 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
+def compare_measure_kwargs(source: dict, target: dict):
+    if source.keys() != source.keys():
+        return False  
+
+    for key in source:
+        if isinstance(source[key], np.ndarray) and isinstance(target[key], np.ndarray):
+            if not np.array_equal(source[key], target[key]):
+                return False  
+        elif source[key] != target[key]:
+            return False
+
+    return True  
+
 class Measure:
 
     def __init__(self, name, support: list[np.ndarray], distribution: np.ndarray, kwargs=None):
@@ -45,7 +58,7 @@ class Measure:
         return self.name == other.name and \
                np.array_equal(self.support, other.support) and \
                np.array_equal(self.distribution, other.distribution) and \
-               self.kwargs == other.kwargs
+               compare_measure_kwargs(self.kwargs, other.kwargs)
 
     def plot(self):
         if len(self.support) == 1:
