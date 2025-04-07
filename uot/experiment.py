@@ -16,11 +16,14 @@ def get_exact_solution(a: np.ndarray, b: np.ndarray, C: np.ndarray) -> tuple[np.
     T = ot.emd(a, b, C)
     return T, np.sum(T * C)
 
-def generate_two_fold_problems(grid, measures: list[Measure]):
+def generate_two_fold_problems(grid, measures: list[Measure], one_cost=False):
     ot_problems = []
-    source_points, _ = measures[0].to_histogram()
-    target_points, _ = measures[1].to_histogram()
-    C = get_q_const(source_points, target_points)
+    if one_cost:
+        source_points, _ = measures[0].to_histogram()
+        target_points, _ = measures[1].to_histogram()
+        C = get_q_const(source_points, target_points)
+    else:
+        C = get_q_const
     for source_measure, target_measure in it.combinations(measures, 2):
         ot_problems.append(OTProblem(name="Simple transport", 
                                      source_measure=source_measure,
@@ -35,9 +38,17 @@ class OTProblem:
         self.name = name
         self.source_measure = source_measure
         self.target_measure = target_measure
-        self.C = C
+        self._C = C
         self.kwargs = kwargs if kwargs is not None else {}
- 
+    
+    @property
+    def C(self):
+        if callable(self._C):
+            self._C = self._C(self.source_measure.get_flat_support(),
+                              self.target_measure.get_flat_support())
+            return self._C
+        return self._C
+
     def __hash__(self):
         return hash(self.name) + hash(str(self.source_measure.kwargs)) + hash(str(self.target_measure.kwargs))
         

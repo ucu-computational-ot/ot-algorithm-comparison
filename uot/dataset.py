@@ -32,9 +32,12 @@ class Measure:
         """
         Converts the support and distribution data into histogram format.
         """
-        support = np.vstack([coordinate.ravel() for coordinate in self.support]).T
+        support = self.get_flat_support()
         distribution = self.distribution.ravel()
         return support, distribution
+    
+    def get_flat_support(self):
+        return np.vstack([coordinate.ravel() for coordinate in self.support]).T
         
     def __str__(self):
         """
