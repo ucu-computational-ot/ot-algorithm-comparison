@@ -4,6 +4,66 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
+class Measure:
+
+    def __init__(self, name, support: list[np.ndarray], distribution: np.ndarray, kwargs=None):
+        self.name = name
+        self.support = support
+        self.distribution = distribution
+        self.kwargs = kwargs
+    
+    def to_hisgogram(self):
+        """
+        Converts the support and distribution data into histogram format.
+        """
+        support = np.vstack([coordinate.ravel() for coordinate in self.support]).T
+        distribution = self.distribution.ravel()
+        return support, distribution
+        
+    def __str__(self):
+        """
+        Returns a string representation of the Measure object, displaying its name and kwargs.
+        """
+        kwargs_str = ", ".join(f"{key}={value}" for key, value in (self.kwargs or {}).items())
+        return f"Measure(name='{self.name}', kwargs={{ {kwargs_str} }})".replace('\n', '')
+
+    def __repr__(self):
+        return str(self) + '\n'
+
+    def plot(self):
+        if len(self.support) == 1:
+            plt.figure(figsize=(8, 4))
+            plt.plot(self.support, self.distribution, label=self.name)
+            plt.xlabel("Support")
+            plt.ylabel("Distribution")
+            plt.title(f"1D Distribution: {self.name}")
+            plt.legend()
+            plt.grid(True)
+            plt.show()
+        elif len(self.support) == 2:
+            print(self.distribution)
+            x, y = self.support
+            plt.figure(figsize=(8, 6))
+            plt.imshow(self.distribution, extent=[x.min(), x.max(), y.min(), y.max()], origin='lower', cmap='viridis')
+            plt.colorbar(label="Density")
+            plt.title("2D Gaussian Distribution")
+            plt.xlabel("X-axis")
+            plt.ylabel("Y-axis")
+            plt.grid(False)
+            plt.show()
+        elif len(self.support) == 3:
+            points, distribution = self.to_hisgogram()
+            normalized_distribution =  (distribution - np.min(distribution)) / (np.max(distribution) - np.min(distribution))
+            colormap = cm.get_cmap('viridis')
+            colors = colormap(normalized_distribution)[:, :3]  
+            point_cloud = o3d.geometry.PointCloud()
+            point_cloud.points = o3d.utility.Vector3dVector(points)
+            point_cloud.colors = o3d.utility.Vector3dVector(colors)
+            o3d.visualization.draw_geometries([point_cloud])
+        
 
 def generate_gaussian_pdf(x, mean=0, std=1):
     pdf = stats.norm.pdf(x, loc=mean, scale=std)
@@ -71,7 +131,8 @@ def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0),
 def generate_1d_gaussians_ds(x: np.ndarray):
     means = np.arange(-6, 6)
     std = np.linspace(0.1, 2, 10)
-    return [generate_gaussian_pdf(x, mean=mean, std=std) for mean, std in zip(means, std)]
+    return [Measure(name="1D Gaussian", support=[x], distribution=generate_gaussian_pdf(x, mean=mean, std=std),
+                    kwargs={'mean': mean, 'std': std})  for mean, std in zip(means, std)]
 
 
 def generate_2d_gaussians_ds(x, y):
@@ -100,7 +161,8 @@ def generate_2d_gaussians_ds(x, y):
         np.array([[0.6, -0.4], [-0.4, 0.6]]),
         np.array([[1.8, 0.2], [0.2, 1.8]])
     ]
-    return [generate_2d_gaussian_pdf(x, y, mean=mean, cov=cov) for mean, cov in zip(means, covariances)]
+    return [Measure(name="2D Gaussian", support=[x, y], distribution=generate_2d_gaussian_pdf(x, y, mean=mean, cov=covariances),
+                    kwargs={'mean': mean, 'cov': covariances})  for mean, covariances in zip(means, covariances)]
 
 
 def generate_3d_gaussians_ds(x, y, z):
@@ -129,8 +191,9 @@ def generate_3d_gaussians_ds(x, y, z):
         np.array([[0.6, -0.4, 0], [-0.4, 0.6, 0], [0, 0, 0.6]]),
         np.array([[1.8, 0.2, 0], [0.2, 1.8, 0], [0, 0, 1.8]])
     ]
-    return [generate_3d_gaussian_pdf(x, y, z, mean=mean, cov=cov) for mean, cov in zip(means, covariances)]
 
+    return [Measure(name="3D Gaussian", support=[x, y, z], distribution=generate_3d_gaussian_pdf(x, y, z, mean=mean, cov=covariances),
+                    kwargs={'mean': mean, 'cov': covariances})  for mean, covariances in zip(means, covariances)]
 
 
 def generate_gamma_pdf(x, shape=1, scale=1):
