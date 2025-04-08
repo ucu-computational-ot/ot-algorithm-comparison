@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 def compare_measure_kwargs(source: dict, target: dict):
-    if source.keys() != source.keys():
+    if source.keys() != target.keys():
         return False  
 
     for key in source:
@@ -107,12 +107,12 @@ def generate_2d_gaussian_pdf(x, y, mean=(0, 0), cov=((1, 0), (0, 1))):
     Args:
         x (np.array): X-coordinates of the mesh grid.
         y (np.array): Y-coordinates of the mesh grid.
-        mean (tuple): Mean of the Gaussian distribution (default is (0, 0, 0)).
+        mean (tuple): Mean of the Gaussian distribution (default is (0, 0)).
         cov (tuple): Covariance matrix of the Gaussian distribution 
                      (default is identity matrix).
 
     Returns:
-        np.array: 3D Gaussian PDF values on the mesh grid.
+        np.array: 2D Gaussian PDF values on the mesh grid.
 
     Usage:
         x = np.linspace(-2, 2, 2)

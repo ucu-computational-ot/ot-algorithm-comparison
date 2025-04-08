@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import itertools as it
 from uot.dataset import Measure
+from algorithms.sinkhorn import sinkhorn
+from memory_profiler import memory_usage, profile
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -48,6 +50,14 @@ class OTProblem:
                               self.target_measure.get_flat_support())
             return self._C
         return self._C
+    
+    @property
+    def a(self):
+        return self.source_measure.to_histogram()[1]
+    
+    @property
+    def b(self):
+        return self.target_measure.to_histogram()[1]
 
     def __hash__(self):
         return hash(self.name) + hash(str(self.source_measure.kwargs)) + hash(str(self.target_measure.kwargs))
@@ -163,3 +173,41 @@ class ExperimentSuite:
             df_rows.append(row_dict)
 
         return pd.DataFrame(df_rows)       
+
+def precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+    exact_T, exact_dist = get_exact_solution(a, b, C)
+
+
+    output_T, output_dist = solver(a, b, C)
+
+    precision = np.abs(output_dist - exact_dist) / exact_dist
+    coupling_precision = np.sum(output_T - exact_T) / np.max(np.abs(exact_T))
+
+    return {'precision': precision, 'coupling_precision': np.mean(coupling_precision.item())}
+
+
+def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+
+    start_time = time.perf_counter()
+    _, _ = solver(a, b, C) 
+    end_time = time.perf_counter()
+
+    return {'time': end_time - start_time}
+
+
+# Requires if __name__ == '__main__' to work properly
+def memory_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+
+    mem_usage = memory_usage((solver, (a, b, C)))
+
+    return {'memory': max(mem_usage) - min(mem_usage)}
+
+
+def memory_profiler_out(ot_problem: OTProblem, solver: callable = sinkhorn):
+    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+
+    profiled_solver = profile(solver)
+    profiled_solver(a, b, C)
