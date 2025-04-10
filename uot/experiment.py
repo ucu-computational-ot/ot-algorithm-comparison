@@ -18,7 +18,7 @@ def get_exact_solution(a: np.ndarray, b: np.ndarray, C: np.ndarray) -> tuple[np.
     T = ot.emd(a, b, C)
     return T, np.sum(T * C)
 
-def generate_two_fold_problems(grid, measures: list[Measure], one_cost=False):
+def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cost=False):
     ot_problems = []
     if one_cost:
         source_points, _ = measures[0].to_histogram()
@@ -27,10 +27,12 @@ def generate_two_fold_problems(grid, measures: list[Measure], one_cost=False):
     else:
         C = get_q_const
     for source_measure, target_measure in it.combinations(measures, 2):
-        ot_problems.append(OTProblem(name="Simple transport", 
+        ot_problem = OTProblem(name="Simple transport", 
                                      source_measure=source_measure,
                                      target_measure=target_measure,
-                                     C=C))
+                                     C=C)
+        ot_problem.kwargs.update({'name': name})
+        ot_problems.append(ot_problem)
     return ot_problems
 
 
@@ -41,6 +43,10 @@ class OTProblem:
         self.source_measure = source_measure
         self.target_measure = target_measure
         self._C = C
+        
+        self._exact_cost = None
+        self._exact_map = None 
+
         self.kwargs = kwargs if kwargs is not None else {}
     
     @property
@@ -58,6 +64,18 @@ class OTProblem:
     @property
     def b(self):
         return self.target_measure.to_histogram()[1]
+
+    @property
+    def exact_cost(self):
+        if self._exact_cost is None:
+            self._exact_map, self._exact_cost = get_exact_solution(self.a, self.b, self.C)
+        return self._exact_cost
+
+    @property
+    def exact_map(self):
+        if self._exact_map is None:
+            self._exact_map, self._exact_cost = get_exact_solution(self.a, self.b, self.C)
+        return self._exact_map
 
     def __hash__(self):
         return hash(self.name) + hash(str(self.source_measure.kwargs)) + hash(str(self.target_measure.kwargs))
@@ -139,7 +157,7 @@ class ExperimentSuite:
         processes = [ multiprocessing.Process(target=_worker, args=(q, tasks[i * tasks_per_worker: (i+1) * tasks_per_worker]))
                       for i in range(njobs) ]
 
-        for p in processes:
+        for p in processes: 
             p.start()
 
         ot_problems_results = {ot_problem: {} for ot_problem in ot_problems}
@@ -176,15 +194,13 @@ class ExperimentSuite:
 
 def precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
-    exact_T, exact_dist = get_exact_solution(a, b, C)
-
+    exact_T, exact_dist = ot_problem.exact_map, ot_problem.exact_cost
 
     output_T, output_dist = solver(a, b, C)
-
     precision = np.abs(output_dist - exact_dist) / exact_dist
     coupling_precision = np.sum(output_T - exact_T) / np.max(np.abs(exact_T))
 
-    return {'precision': precision, 'coupling_precision': np.mean(coupling_precision.item())}
+    return {'cost_rerr': precision, 'coupling_rerr': np.mean(coupling_precision.item())}
 
 
 def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):

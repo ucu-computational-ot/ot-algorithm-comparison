@@ -53,3 +53,5 @@ Thumbs.db
 *.~undo-tree~
 
 datasets/
+
+results/

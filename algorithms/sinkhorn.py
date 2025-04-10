@@ -1,5 +1,8 @@
 import jax
 import jax.numpy as jnp
+from ott.solvers import linear
+from ott.geometry import geometry
+from ott.solvers.linear import sinkhorn
 
 def sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
 
@@ -22,3 +25,15 @@ def sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
     transport_plan = jnp.exp(ln_u[:, None] + ln_K + ln_v[None, :])
     cost = jnp.sum(transport_plan * C).item()
     return transport_plan, cost
+
+
+def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
+    jax.config.update("jax_enable_x64", True)
+    solution = linear.solve(
+                geometry.Geometry(cost_matrix=C, epsilon=epsilon),
+                lse_mode=True,
+                a=mu,
+                b=nu,
+            )
+    
+    return solution.matrix, solution.reg_ot_cost
