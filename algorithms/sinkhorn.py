@@ -1,39 +1,107 @@
+import ot
 import jax
+import numpy as np
 import jax.numpy as jnp
 from ott.solvers import linear
 from ott.geometry import geometry
-from ott.solvers.linear import sinkhorn
+from ott.geometry import pointcloud
 
-def sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
+import jax
+import jax.numpy as jnp
+from jax.scipy.special import logsumexp
 
-    jax.config.update("jax_enable_x64", True)
+@jax.jit
+def coupling_tensor(u: jnp.ndarray,
+                    v: jnp.ndarray,
+                    cost: jnp.ndarray,
+                    epsilon: float) -> jnp.ndarray:
+    return jnp.exp((u[:, None] + v[None, :] - cost) / epsilon)
 
-    ln_K = -C / epsilon
-    ln_mu = jnp.log(mu)
-    ln_nu = jnp.log(nu)
-    ln_u = jnp.ones_like(ln_mu)
-    ln_v = jnp.ones_like(ln_nu)
+@jax.jit
+def tensor_marginals(matrix: jnp.ndarray):
+    row_marginal = jnp.sum(matrix, axis=1)      # sum over columns
+    column_marginal = jnp.sum(matrix, axis=0)   # sum over rows
+    return (row_marginal, column_marginal)
 
-    def body(i, ln_uv):
-        ln_u, ln_v = ln_uv
-        ln_u = ln_mu - jax.scipy.special.logsumexp(ln_K + ln_v[None, :], axis=1)
-        ln_v = ln_nu - jax.scipy.special.logsumexp(ln_K.T + ln_u[None, :], axis=1)
-        return ln_u, ln_v
+@jax.jit
+def compute_error(u: jnp.ndarray,
+                  v: jnp.ndarray,
+                  a: jnp.ndarray,
+                  b: jnp.ndarray,
+                  cost: jnp.ndarray,
+                  epsilon: float) -> float:
+    P = coupling_tensor(u, v, cost, epsilon)
+    row_marginal, col_marginal = tensor_marginals(P)
+    return jnp.max(
+        jnp.array([
+            jnp.linalg.norm(a - row_marginal),
+            jnp.linalg.norm(b - col_marginal)
+        ])
+    ) 
 
-    ln_u, ln_v = jax.lax.fori_loop(0, niter, body, (ln_u, ln_v))
 
-    transport_plan = jnp.exp(ln_u[:, None] + ln_K + ln_v[None, :])
-    cost = jnp.sum(transport_plan * C).item()
-    return transport_plan, cost
-
-
-def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, niter=1000):
-    jax.config.update("jax_enable_x64", True)
-    solution = linear.solve(
-                geometry.Geometry(cost_matrix=C, epsilon=epsilon),
-                lse_mode=True,
-                a=mu,
-                b=nu,
-            )
+@jax.jit
+def sinkhorn(a: jnp.ndarray,
+             b: jnp.ndarray,
+             cost: jnp.ndarray,
+             reg: float = 1e-3,
+             precision: float = 1e-4,
+             max_iters: int = 10_000):
     
-    return solution.matrix, solution.reg_ot_cost
+    n = a.shape[0]
+    m = b.shape[0]
+
+    # Initialize dual variables
+    u = jnp.zeros(n)
+    v = jnp.zeros(m)
+
+    # Define the loop condition
+    def cond_fn(carry):
+        u_, v_, i_, err_ = carry
+        return jnp.logical_and(err_ > precision, i_ < max_iters)
+
+    # Define one iteration body
+    def body_fn(carry):
+        u_, v_, i_, e = carry
+
+        u_upd = u_ + reg * jnp.log(a) - reg * logsumexp((u_[:, None] + v_[None, :] - cost) / reg, axis=1)
+        v_upd = v_ + reg * jnp.log(b) - reg * logsumexp((u_upd[:, None] + v_[None, :] - cost) / reg, axis=0)
+
+        err_upd = jax.lax.cond(
+            i_ % 10 == 0,
+            lambda: compute_error(u_upd, v_upd, a, b, cost, reg),
+            lambda: e
+        )
+
+        return (u_upd, v_upd, i_ + 1, err_upd)
+
+    # Run the loop
+    init_err = compute_error(u, v, a, b, cost, reg)
+    u_final, v_final, i_final, final_err = jax.lax.while_loop(
+        cond_fn,
+        body_fn,
+        (u, v, jnp.array(0), init_err)
+    )
+
+    P = coupling_tensor(u_final, v_final, cost, reg)
+    return P, jnp.sum(P * cost)
+
+
+def sink(a, b, cost, epsilon=1e-3):
+    return linear.solve(
+        geometry.Geometry(cost_matrix=cost, epsilon=epsilon),
+        a=a,
+        b=b,
+        lse_mode=True,
+        threshold=1e-4
+    )
+
+sink_2vmap = jax.jit(sink)
+
+def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, threshold=1e-4):
+    solution = sink_2vmap(mu, nu, C)
+    return solution.matrix, jnp.sum(solution.matrix * C)
+
+def pot_sinkhorn(a, b, C, epsilon=0.001):
+    P = ot.sinkhorn(a, b, C, reg=epsilon, stopThr=1e-4)
+    return P, np.sum(P * C)

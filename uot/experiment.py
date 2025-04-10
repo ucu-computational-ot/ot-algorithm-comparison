@@ -1,12 +1,16 @@
 import ot
+import jax
 import time
 import multiprocessing
 import numpy as np
 import pandas as pd
 import itertools as it
+import jax.numpy as jnp
 from uot.dataset import Measure
 from algorithms.sinkhorn import sinkhorn
 from memory_profiler import memory_usage, profile
+from uot.analysis import get_agg_table
+
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -65,6 +69,15 @@ class OTProblem:
     def b(self):
         return self.target_measure.to_histogram()[1]
 
+    def to_jax_arrays(self, regularization=1e-30):
+        C = self.C
+        C /= self.C.max()
+
+        a = jnp.array(self.a + regularization)
+        b = jnp.array(self.b + regularization)
+        C = jnp.array(C + regularization)
+        return a, b, C
+
     @property
     def exact_cost(self):
         if self._exact_cost is None:
@@ -101,7 +114,35 @@ class OTProblem:
         problem_dict.update(target_kwargs)
         problem_dict.update(self.kwargs)
         return problem_dict
+
+
+class RunResult:
     
+    def __init__(self, name: str, result_df: pd.DataFrame, run_kwargs: dict):
+        self.name = name
+        self.result_df = result_df
+        self.run_kwargs = run_kwargs
+
+    def display_result(self):
+        self.display_header() 
+        print(self.result_df)
+
+    def display_agg(self):
+        self.display_header()
+        print(get_agg_table(self.result_df))
+
+    def get_agg(self):
+        return get_agg_table(self.result_df)
+
+    def display_header(self):
+        print("Name", self.name)
+        for key, value in self.run_kwargs.items():
+            print(f"{key}: {value}")
+        print('='*100)
+
+    def export(self, filepath: str) -> None:
+        self.result_df.to_csv(filepath)
+
 
 class Experiment:
 
@@ -109,10 +150,12 @@ class Experiment:
         self.name = name
         self.run_function = run_function
 
-    def run_experiment(self, ot_problems: list[OTProblem]) -> dict:
+    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, **kwargs) -> dict:
         results = {}
         for ot_problem in ot_problems:
-            results[ot_problem] = self.run_function(ot_problem)
+            results[ot_problem] = self.run_function(ot_problem, **kwargs)
+            if progress_callback is not None:
+                progress_callback()
         
         return results
     
@@ -126,9 +169,10 @@ class ExperimentSuite:
     def __init__(self, experiments: list[Experiment]):
         self.experiments = experiments
 
-    def run_suite(self, ot_problems: list[OTProblem], njobs: int = 1) -> pd.DataFrame:
+    def run_suite(self, name: str, ot_problems: list[OTProblem], njobs: int = 1,
+                  progress_callback: callable = None, **kwargs) -> pd.DataFrame:
         if njobs == 1:
-            return self._run_suite(ot_problems)
+            return self._run_suite(name, ot_problems, progress_callback=progress_callback, **kwargs)
         else:
             return self._run_suite_multiprocess(ot_problems, njobs)
     
@@ -178,10 +222,10 @@ class ExperimentSuite:
 
         return pd.DataFrame(df_rows)
 
-    def _run_suite(self, ot_problems: list[OTProblem]) -> pd.DataFrame:
+    def _run_suite(self, name, ot_problems: list[OTProblem], progress_callback: callable = None, **kwargs) -> RunResult:
         results = []
         for experiment in self.experiments:
-            results.append(experiment.run_experiment(ot_problems))
+            results.append(experiment.run_experiment(ot_problems, progress_callback=progress_callback, **kwargs))
 
         df_rows = []
         for ot_problem in ot_problems:
@@ -190,32 +234,36 @@ class ExperimentSuite:
                 row_dict.update(result[ot_problem])
             df_rows.append(row_dict)
 
-        return pd.DataFrame(df_rows)       
+        result = RunResult(name=name, result_df=pd.DataFrame(df_rows), run_kwargs=kwargs)
+
+        return result
 
 def precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
-    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+    a, b, C = ot_problem.to_jax_arrays()
     exact_T, exact_dist = ot_problem.exact_map, ot_problem.exact_cost
 
+    jax.config.update("jax_enable_x64", True)
+    
     output_T, output_dist = solver(a, b, C)
     precision = np.abs(output_dist - exact_dist) / exact_dist
-    coupling_precision = np.sum(output_T - exact_T) / np.max(np.abs(exact_T))
+    coupling_precision = np.sum(np.abs(output_T - exact_T)) / np.prod(output_T.shape)
 
-    return {'cost_rerr': precision, 'coupling_rerr': np.mean(coupling_precision.item())}
+    return {'cost_rerr': precision, 'coupling_avg_err': np.mean(coupling_precision.item())}
 
 
 def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
-    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+    a, b, C = ot_problem.to_jax_arrays()
 
     start_time = time.perf_counter()
     _, _ = solver(a, b, C) 
     end_time = time.perf_counter()
 
-    return {'time': end_time - start_time}
+    return {'time': (end_time - start_time) * 1000}
 
 
 # Requires if __name__ == '__main__' to work properly
 def memory_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
-    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+    a, b, C = ot_problem.to_jax_arrays()
 
     mem_usage = memory_usage((solver, (a, b, C)))
 
@@ -223,7 +271,7 @@ def memory_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
 
 
 def memory_profiler_out(ot_problem: OTProblem, solver: callable = sinkhorn):
-    a, b, C = ot_problem.a, ot_problem.b, ot_problem.C
+    a, b, C = ot_problem.to_jax_arrays()
 
     profiled_solver = profile(solver)
     profiled_solver(a, b, C)
