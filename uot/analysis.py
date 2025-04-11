@@ -12,7 +12,6 @@ def get_agg_table(df):
                 memory_mean = ('memory', 'mean'),
                 memory_std = ('memory', lambda x: np.std(x, ddof=1))
         ).reset_index()
-        df = df.round(5)
         return df.sort_values('name')
 
 
@@ -25,3 +24,24 @@ def get_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
                 std = df[f"{field}_std"].astype(str)
                 comparison_df[name] = mean + "±" + std
         return comparison_df
+        
+def get_mean_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
+        comparison_df = pd.DataFrame()
+        comparison_df['dataset'] = list(dfs.values())[0].name
+
+        for name, df in dfs.items():
+                comparison_df[name] = df[f"{field}_mean"]
+        return comparison_df
+
+def get_std_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
+        comparison_df = pd.DataFrame()
+        comparison_df['dataset'] = list(dfs.values())[0].name
+
+        for name, df in dfs.items():
+                comparison_df[name] = df[f"{field}_std"]
+        return comparison_df
+
+
+        
+
+        
