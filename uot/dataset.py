@@ -447,7 +447,7 @@ def generate_ds(dim: int, distributions: list[str], grid: list[np.ndarray], numb
                         inputs[var] = generate_random_covariance(dim, kwargs['cov_range'])
                     else:
                         inputs[var] = generate_random_covariance(dim)
-                    
+
                     continue
 
                 if f'{var}_range' in kwargs:
@@ -492,3 +492,98 @@ def generate_random_covariance(dim: int, cov_range: tuple = (0.5, 2), off_diag_r
         cov += np.eye(dim) * (abs(min_eigenvalue) + 1e-6)
 
     return cov
+
+
+def generate_ds_lazy(dim: int, distributions: list[str], grid: list[np.ndarray], number: int, **kwargs):
+    """
+    Lazily generates a dataset for 1D, 2D, or 3D distributions with multiple distribution types.
+
+    Args:
+        dim (int): Dimensionality of the dataset (1, 2, or 3).
+        distributions (list[str]): List of distribution types (e.g., ['gaussian', 'gamma', 'beta']).
+        grid (list[np.ndarray]): List of mesh grid arrays for the dimensions.
+        number (int): Total number of measures to generate.
+        **kwargs: Additional parameters for the distributions.
+
+    Yields:
+        Measure: A Measure object with randomly generated characteristics.
+    """
+    if dim not in [1, 2, 3]:
+        raise ValueError("dim must be 1, 2, or 3.")
+
+    if len(grid) != dim:
+        raise ValueError(f"Expected {dim} grid arrays, but got {len(grid)}.")
+    
+    basic_ranges = {
+        'mean_range': (-5, 5),
+        'std_range': (0.5, 2),
+        'shape_range': (1, 5),
+        'scale_range': (0.1, 2),
+        'loc_range': (-5, 5),
+        'scale_range': (0.1, 2),
+        'alpha_range': (0.1, 5),
+        'beta_range': (0.1, 5),
+    }
+
+    distribution_map = {
+        'gaussian': {
+            1: generate_gaussian_pdf,
+            2: generate_2d_gaussian_pdf,
+            3: generate_3d_gaussian_pdf
+        },
+        'gamma': {
+            1: generate_gamma_pdf,
+        },
+        'beta': {
+            1: generate_beta_pdf,
+        },
+        'uniform': {
+            1: generate_uniform_pdf,
+        },
+        'cauchy': {
+            1: generate_cauchy_pdf,
+        }
+    }
+
+    for distribution in distributions:
+        if distribution not in distribution_map:
+            raise ValueError(f"Unsupported distribution: {distribution}.")
+        if distribution_map[distribution].get(dim) is None:
+            raise ValueError(f"Unsupported distribution for {dim}D: {distribution}.")
+
+    num_distributions = len(distributions)
+
+    for i in range(number):
+        distribution = distributions[i % num_distributions]
+
+        vars_data = inspect.signature(distribution_map[distribution][dim]).parameters
+        vars = list(vars_data.keys() - {'x', 'y', 'z'})
+
+        inputs = {}
+
+        if dim == 1:
+            for var in vars:
+                if f'{var}_range' in kwargs:
+                    inputs[var] = np.random.uniform(*kwargs[f'{var}_range'])
+                elif f'{var}_range' in basic_ranges:
+                    inputs[var] = np.random.uniform(*basic_ranges[f'{var}_range'])
+                elif '=' not in str(vars_data[var]):
+                    raise ValueError(f"Missing range for {var}.")
+            pdf = distribution_map[distribution][dim](grid[0], **inputs)
+            yield Measure(name=f"{dim}D {distribution}", support=[grid[0]], distribution=pdf, kwargs=inputs)
+        else:
+            for var in vars:
+                if var == 'cov':
+                    if 'cov_range' in kwargs:
+                        inputs[var] = generate_random_covariance(dim, kwargs['cov_range'])
+                    else:
+                        inputs[var] = generate_random_covariance(dim)
+                    continue
+                if f'{var}_range' in kwargs:
+                    inputs[var] = tuple(np.random.uniform(*kwargs[f'{var}_range']) for _ in range(dim))
+                elif f'{var}_range' in basic_ranges:
+                    inputs[var] = tuple(np.random.uniform(*basic_ranges[f'{var}_range']) for _ in range(dim))
+                elif '=' not in str(vars_data[var]):
+                    raise ValueError(f"Missing range for {var}.")
+            pdf = distribution_map[distribution][dim](*grid, **inputs)
+            yield Measure(name=f"{dim}D {distribution}", support=grid, distribution=pdf, kwargs=inputs)
