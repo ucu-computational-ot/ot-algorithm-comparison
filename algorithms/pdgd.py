@@ -135,9 +135,14 @@ def pdhg_quadratic_ot(
         xs=None,
         length=max_outer_iter
     )
-    if done:
-        jax.debug.print("Algorithm converged at {} total iterations", k)
-    else:
-        jax.debug.print("Algorithm didn't converge, so stopped after {} total iterations", k)
+    # if done:
+    #     jax.debug.print("Algorithm converged at {} total iterations", k)
+    # else:
+    #     jax.debug.print("Algorithm didn't converge, so stopped after {} total iterations", k)
 
     return P_final, lam_final, eta_final, iters
+
+
+def pdhg_algorithm(a: jnp.ndarray, b: jnp.ndarray, C: jnp.ndarray):
+    P, *_ = pdhg_quadratic_ot(alpha=a, beta=b, C = C, eps=0)
+    return P, jnp.sum(P * C)
