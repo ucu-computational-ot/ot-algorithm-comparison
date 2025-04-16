@@ -68,6 +68,12 @@ def get_problemset(name: str):
     distributions = sorted(distributions.split('|'))
     dim = int(dim[0])
 
+    if dim not in [1, 2, 3]:
+        raise ValueError(f"Invalid dimension: {dim}. Expected 1, 2, or 3.")
+
+    if len(size.split('x')) != dim:
+        raise ValueError(f"Invalid size format: {size}. Expected format: {'x'.join(['<size>'] * dim)}.")
+
     filename = f"./datasets/{dim}D/{size}_{'_'.join(distributions)}.pkl"
     
     if os.path.exists(filename):
