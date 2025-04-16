@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
-from uot.dataset import Measure
+from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file
 from uot.analysis import get_agg_table
+import os.path
 
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -36,6 +37,51 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problem.kwargs.update({'name': name})
         ot_problems.append(ot_problem)
     return ot_problems
+
+def create_problemset(dim: int, distributions: dict[str, int], grid_size: int):
+    """
+    Generates a set of OT problems based on the specified dimensions, distributions, and grid size.
+
+    Args:
+        dim (int): Dimensionality of the dataset (1, 2, or 3).
+        distributions (dict): Dictionary containing distribution types and their counts.
+        grid_size (int): Size of the grid for the measures.
+
+    Returns:
+        list[OTProblem]: A list of OTProblem objects.
+    """
+    grids = get_grids(dim, [grid_size])
+    coefficients = generate_coefficients(dim, distributions)
+    measures = generate_measures(dim, coefficients, grids)
+    name = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'_'.join(distributions)}"
+
+    try:
+        problems = generate_two_fold_problems(None, measures[name.replace('_', '|')], name=name)
+    except KeyError:
+        print(f"KeyError: {name.replace('_', '|')} not found in measures. Available keys: {list(measures.keys())}")
+        return
+
+    return problems
+
+def get_problemset(name: str):
+    size, dim, distributions = name.split(' ')
+    distributions = sorted(distributions.split('|'))
+    dim = int(dim[0])
+
+    filename = f"./datasets/{dim}D/{size}_{'_'.join(distributions)}.pkl"
+    
+    if os.path.exists(filename):
+        return load_from_file(filename)
+
+    else:
+        distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
+        problems = create_problemset(dim, distribution_counts, int(size.split('x')[0]))
+
+        if not problems:
+            raise ValueError(f"Failed to create problems for {name}. Check the parameters.")
+
+        save_to_file(problems, filename)
+        return problems
 
 def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
     """
