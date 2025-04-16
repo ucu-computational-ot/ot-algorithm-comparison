@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
-from uot.dataset import Measure
+from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file
 from uot.analysis import get_agg_table
+import os.path
 
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -36,6 +37,91 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problem.kwargs.update({'name': name})
         ot_problems.append(ot_problem)
     return ot_problems
+
+def create_problemset(dim: int, distributions: dict[str, int], grid_size: int):
+    """
+    Generates a set of OT problems based on the specified dimensions, distributions, and grid size.
+
+    Args:
+        dim (int): Dimensionality of the dataset (1, 2, or 3).
+        distributions (dict): Dictionary containing distribution types and their counts.
+        grid_size (int): Size of the grid for the measures.
+
+    Returns:
+        list[OTProblem]: A list of OTProblem objects.
+    """
+    grids = get_grids(dim, [grid_size])
+    coefficients = generate_coefficients(dim, distributions)
+    measures = generate_measures(dim, coefficients, grids)
+    name = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'_'.join(distributions)}"
+
+    try:
+        problems = generate_two_fold_problems(None, measures[name.replace('_', '|')], name=name)
+    except KeyError:
+        print(f"KeyError: {name.replace('_', '|')} not found in measures. Available keys: {list(measures.keys())}")
+        return
+
+    return problems
+
+def get_problemset(name: str):
+    size, dim, distributions = name.split(' ')
+    distributions = sorted(distributions.split('|'))
+    dim = int(dim[0])
+
+    if dim not in [1, 2, 3]:
+        raise ValueError(f"Invalid dimension: {dim}. Expected 1, 2, or 3.")
+
+    if len(size.split('x')) != dim:
+        raise ValueError(f"Invalid size format: {size}. Expected format: {'x'.join(['<size>'] * dim)}.")
+
+    filename = f"./datasets/{dim}D/{size}_{'_'.join(distributions)}.pkl"
+    
+    if os.path.exists(filename):
+        return load_from_file(filename)
+
+    else:
+        distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
+        problems = create_problemset(dim, distribution_counts, int(size.split('x')[0]))
+
+        if not problems:
+            raise ValueError(f"Failed to create problems for {name}. Check the parameters.")
+
+        save_to_file(problems, filename)
+        return problems
+
+def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
+    """
+    Lazily generates two-fold OT problems from a generator of measures.
+
+    Args:
+        grid (list[np.ndarray]): The grid used for the measures.
+        measures_generator (generator): A generator yielding Measure objects.
+        name (str): Name of the OT problems.
+        one_cost (bool): Whether to compute a single cost matrix for all problems.
+
+    Yields:
+        OTProblem: An OTProblem object for each pair of measures.
+    """
+
+    if one_cost:
+        first_measure = next(measures_generator)
+        second_measure = next(measures_generator)
+        source_points, _ = first_measure.to_histogram()
+        target_points, _ = second_measure.to_histogram()
+        C = get_q_const(source_points, target_points)
+        measures_generator = it.chain([first_measure, second_measure], measures_generator)  # Reinsert the first two measures
+    else:
+        C = get_q_const
+
+    for source_measure, target_measure in it.combinations(measures_generator, 2):
+        ot_problem = OTProblem(
+            name="Simple transport",
+            source_measure=source_measure,
+            target_measure=target_measure,
+            C=C
+        )
+        ot_problem.kwargs.update({'name': name})
+        yield ot_problem
 
 
 class OTProblem:
