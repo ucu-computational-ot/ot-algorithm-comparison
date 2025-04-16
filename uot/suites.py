@@ -33,7 +33,7 @@ def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
 def memory_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
 
-    mem_usage = memory_usage((solver, (a, b, C)))
+    mem_usage = memory_usage((solver, (a, b, C)), interval=1e-4)
 
     return {'memory': max(mem_usage) - min(mem_usage)}
 
