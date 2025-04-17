@@ -1,5 +1,6 @@
 import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
+os.environ["JAX_PLATFORMS"] = "cpu"
+
 import numpy as np
 from uot.experiment import generate_two_fold_problems
 from uot.suites import standard_suite
@@ -33,7 +34,7 @@ problems =  problems_1d + problems_2d
 
 problems = [problem for sublist in problems for problem in sublist]
 
-with tqdm(total=1 * 3 * len(problems), desc="Running experiments") as pbar:
+with tqdm(total=4 * 3 * len(problems), desc="Running experiments") as pbar:
     progress_callback = lambda: pbar.update(1)
 
     own_sinkhorn_result = standard_suite.run_suite(name="JAX-Sinkhorn", ot_problems=problems,
