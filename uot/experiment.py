@@ -38,7 +38,7 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problems.append(ot_problem)
     return ot_problems
 
-def create_problemset(dim: int, distributions: dict[str, int], grid_size: int):
+def create_problemset(dim: int, distributions: dict[str, int], grid_size: int, coefficients = None):
     """
     Generates a set of OT problems based on the specified dimensions, distributions, and grid size.
 
@@ -51,19 +51,20 @@ def create_problemset(dim: int, distributions: dict[str, int], grid_size: int):
         list[OTProblem]: A list of OTProblem objects.
     """
     grids = get_grids(dim, [grid_size])
-    coefficients = generate_coefficients(dim, distributions)
+    if coefficients is None:
+        coefficients = generate_coefficients(dim, distributions)
     measures = generate_measures(dim, coefficients, grids)
-    name = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'_'.join(distributions)}"
+    name = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'_'.join(sorted(distributions))}"
 
     try:
         problems = generate_two_fold_problems(None, measures[name.replace('_', '|')], name=name)
-    except KeyError:
+    except KeyError as e:
         print(f"KeyError: {name.replace('_', '|')} not found in measures. Available keys: {list(measures.keys())}")
         return
 
     return problems
 
-def get_problemset(name: str):
+def get_problemset(name: str, coeffs = None, create: bool = False):
     size, dim, distributions = name.split(' ')
     distributions = sorted(distributions.split('|'))
     dim = int(dim[0])
@@ -76,18 +77,25 @@ def get_problemset(name: str):
 
     filename = f"./datasets/{dim}D/{size}_{'_'.join(distributions)}.pkl"
     
-    if os.path.exists(filename):
+    if os.path.exists(filename) and not create:
         return load_from_file(filename)
 
-    else:
-        distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
-        problems = create_problemset(dim, distribution_counts, int(size.split('x')[0]))
+    elif create:
+        if os.path.exists(filename):
+            filename = filename.replace('.pkl', '_1.pkl')
+            i = 2
+            while os.path.exists(filename):
+                filename = filename.replace(f"_{i-1}.pkl", f"_{i}.pkl")
+                i += 1
 
-        if not problems:
-            raise ValueError(f"Failed to create problems for {name}. Check the parameters.")
+    distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
+    problems = create_problemset(dim, distribution_counts, int(size.split('x')[0]), coeffs)
 
-        save_to_file(problems, filename)
-        return problems
+    if not problems:
+        raise ValueError(f"Failed to create problems for {name}. Check the parameters.")
+
+    save_to_file(problems, filename)
+    return problems
 
 def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
     """
