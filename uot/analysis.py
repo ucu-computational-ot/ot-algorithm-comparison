@@ -1,17 +1,13 @@
 import numpy as np
 import pandas as pd
+from IPython.display import display, HTML
 
-def get_agg_table(df):
-        df = df.groupby('name').agg(
-                time_mean = ('time', 'mean'),
-                time_std = ('time', lambda x: np.std(x, ddof=1)),
-                cost_rerr_mean = ('cost_rerr', "mean"),
-                cost_rerr_std = ('cost_rerr', lambda x: np.std(x, ddof=1)),
-                coupling_avg_err_mean = ('coupling_avg_err', 'mean'),
-                coupling_avg_err_std = ('coupling_avg_err', lambda x: np.std(x, ddof=1)),
-                memory_mean = ('memory', 'mean'),
-                memory_std = ('memory', lambda x: np.std(x, ddof=1))
-        ).reset_index()
+def get_agg_table(df, metrics: list[str]):
+        aggregation_rules = {f"{metric}_mean": (metric, 'mean') for metric in metrics} | \
+                            {f"{metric}_std": (metric, lambda x: np.std(x, ddof=1)) for metric in metrics }
+
+        
+        df = df.groupby('name').agg(**aggregation_rules).reset_index()
         return df.sort_values('name')
 
 
@@ -41,7 +37,27 @@ def get_std_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
                 comparison_df[name] = df[f"{field}_std"]
         return comparison_df
 
+def display_mean_and_std(agg_dfs, column: str):
+    mean_comparison = get_mean_comparison_table(agg_dfs, column)
+    std_comparison = get_std_comparison_table(agg_dfs, column)
 
-        
+    mean_html = mean_comparison.style.highlight_min(axis=1, subset=mean_comparison.columns[1:],
+                                    props='color:white; font-weight:bold; background-color:darkblue;').to_html()
 
-        
+    std_html = std_comparison.style.highlight_min(axis=1, subset=std_comparison.columns[1:],
+                                    props='color:white; font-weight:bold; background-color:darkblue;').to_html()
+
+    combined_html = f"""
+    <h3 style="text-align:center;">{column} mean and std</h3>
+    <div style="display: flex; justify-content: space-around;">
+        <div>{mean_html}</div>
+        <div>{std_html}</div>
+    </div>
+    """
+    return display(HTML(combined_html))
+
+def display_all_metrics(results: dict[str, pd.DataFrame], metrics_names: list[str]):
+    agg_dfs = {solver_name: get_agg_table(result.df, metrics=metrics_names) for solver_name, result in results.items()}
+
+    for metrics_name in metrics_names:
+        display_mean_and_std(agg_dfs, metrics_name)
