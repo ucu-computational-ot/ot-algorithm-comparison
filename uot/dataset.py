@@ -240,7 +240,8 @@ def generate_uniform_pdf(x, lower=0, width=1):
 def generate_cauchy_pdf(x, loc=0, scale=1):
     return stats.cauchy.pdf(x, loc=loc, scale=scale)
 
-def generate_normalized_white_noise(size, mean=0, std=1):
+def generate_normalized_white_noise(x, mean=0, std=1):
+    size = x.shape
     noise = np.random.normal(loc=mean, scale=std, size=size)
     return (noise - np.mean(noise)) / np.std(noise)
 
@@ -312,6 +313,25 @@ def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0),
     rv = stats.multivariate_normal(mean=mean, cov=cov)
     return rv.pdf(pos)
 
+def generate_normalized_white_noise_2d(x, y, mean=0, std=1):
+    """
+    Generates normalized white noise on a 2D mesh grid.
+
+    Args:
+        x (np.array): X-coordinates of the mesh grid.
+        y (np.array): Y-coordinates of the mesh grid.
+        mean (float): Mean of the white noise distribution (default is 0).
+        std (float): Standard deviation of the white noise distribution (default is 1).
+
+    Returns:
+        np.array: Normalized white noise values on the 2D mesh grid.
+    """
+    shape = x.shape
+    mean = mean[0]
+    std = std[0]
+    noise = np.random.normal(loc=mean, scale=std, size=shape)
+    return (noise - np.mean(noise)) / np.std(noise)
+
 
 def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
     """
@@ -328,6 +348,8 @@ def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
         np.array: Normalized white noise values on the 3D mesh grid.
     """
     shape = x.shape
+    mean = mean[0]
+    std = std[0]
     noise = np.random.normal(loc=mean, scale=std, size=shape)
     return (noise - np.mean(noise)) / np.std(noise)
 
@@ -383,6 +405,8 @@ def generate_random_covariance(dim: int, cov_range: tuple = (0.5, 2), off_diag_r
     min_eigenvalue = np.min(np.linalg.eigvalsh(cov))
     if min_eigenvalue <= 0:
         cov += np.eye(dim) * (abs(min_eigenvalue) + 1e-6)
+    
+    cov = np.round(cov, 2)
 
     return cov
 
@@ -419,6 +443,9 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         ),
         'cauchy': (
             'loc', 'scale'
+        ),
+        'white-noise': (
+            'mean', 'std'
         )
     }
 
@@ -437,7 +464,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
   
                 for param in distribution_parameters[distribution]:
                     if f'{param}_range' in basic_ranges:
-                        cur_params.append(np.random.uniform(*basic_ranges[f'{param}_range']))
+                        cur_params.append(round(np.random.uniform(*basic_ranges[f'{param}_range']), 2))
                     else:
                         raise ValueError(f"Missing range for {param}.")
 
@@ -458,7 +485,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
                     if distribution == 'gaussian' and param == 'std':
                         cur_params.append(generate_random_covariance(dim))
                     elif f'{param}_range' in basic_ranges:
-                        cur_params.append(tuple(np.random.uniform(*basic_ranges[f'{param}_range']) for _ in range(dim)))
+                        cur_params.append(tuple(round(np.random.uniform(*basic_ranges[f'{param}_range']), 2) for _ in range(dim)))
                     else:
                         raise ValueError(f"Missing range for {param}.")
 
@@ -539,6 +566,11 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
         },
         'cauchy': {
             1: generate_cauchy_pdf,
+        },
+        'white-noise': {
+            1: generate_normalized_white_noise,
+            2: generate_normalized_white_noise_2d,
+            3: generate_normalized_white_noise_3d
         }
     }
 
