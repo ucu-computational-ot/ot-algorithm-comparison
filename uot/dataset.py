@@ -229,23 +229,27 @@ def generate_3d_gaussians_ds(x, y, z):
 
 
 def generate_gamma_pdf(x, shape=1, scale=1):
-    return stats.gamma.pdf(x, a=shape, scale=scale)
+    pdf = stats.gamma.pdf(x, a=shape, scale=scale)
+    return pdf / pdf.sum()
+    
 
 def generate_beta_pdf(x, alpha=1, beta=1):
-    return stats.beta.pdf(x, a=alpha, b=beta)
+    pdf = stats.beta.pdf(x, a=alpha, b=beta)
+    pdf = np.nan_to_num(pdf, nan=0.0, posinf=0, neginf=0)
+    return pdf / pdf.sum()
 
 def generate_uniform_pdf(x, lower=0, width=1):
-    return stats.uniform.pdf(x, loc=lower, scale=width)
+    pdf = stats.uniform.pdf(x, loc=lower, scale=width)
+    return pdf / pdf.sum()
 
 def generate_cauchy_pdf(x, loc=0, scale=1):
-    return stats.cauchy.pdf(x, loc=loc, scale=scale)
+    pdf = stats.cauchy.pdf(x, loc=loc, scale=scale)
+    return pdf / pdf.sum()
 
 def generate_normalized_white_noise(x, mean=0, std=1):
     size = x.shape
     noise = np.random.normal(loc=mean, scale=std, size=size)
     return (noise - np.mean(noise)) / np.std(noise)
-
-
 
 def get_ts_dataset() -> list[np.array]:
     """

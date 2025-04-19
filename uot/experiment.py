@@ -8,6 +8,7 @@ import itertools as it
 import jax.numpy as jnp
 from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file
 from uot.analysis import get_agg_table
+from tqdm import tqdm
 import os.path
 
 
@@ -132,6 +133,25 @@ def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cos
         yield ot_problem
 
 
+def run_experiment(suite: 'ExperimentSuite', problemsets_names: list[str], solvers: dict[str, callable]) -> dict[str, 'RunResult']:
+    problem_sets = [
+        get_problemset(problemset_name) for problemset_name in problemsets_names
+    ]
+
+    problems = [problem for problem_set in problem_sets for problem in problem_set]
+    results = {}
+
+    with tqdm(total=len(solvers) * len(suite.experiments) * len(problems), desc="Running experiments") as pbar:
+        progress_callback = lambda: pbar.update(1)
+
+        for solver_name, solver in solvers.items():
+            solver_result = suite.run_suite(name=solver_name, ot_problems=problems,
+                                                    progress_callback=progress_callback, solver=solver)
+            results[solver_name] = solver_result
+    
+    return results
+
+
 class OTProblem:
 
     def __init__(self, name: str, source_measure: Measure, target_measure: Measure, C: np.ndarray, kwargs: dict = None):
@@ -212,19 +232,19 @@ class RunResult:
     
     def __init__(self, name: str, result_df: pd.DataFrame, run_kwargs: dict):
         self.name = name
-        self.result_df = result_df
+        self.df = result_df
         self.run_kwargs = run_kwargs
 
     def display_result(self):
         self.display_header() 
-        print(self.result_df)
+        print(self.df)
 
     def display_agg(self):
         self.display_header()
-        print(get_agg_table(self.result_df))
+        print(get_agg_table(self.df))
 
     def get_agg(self):
-        return get_agg_table(self.result_df)
+        return get_agg_table(self.df)
 
     def display_header(self):
         print("Name", self.name)
@@ -233,7 +253,7 @@ class RunResult:
         print('='*100)
 
     def export(self, filepath: str) -> None:
-        self.result_df.to_csv(filepath)
+        self.df.to_csv(filepath)
 
 
 class Experiment:
