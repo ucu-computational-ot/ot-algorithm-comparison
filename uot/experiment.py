@@ -39,6 +39,88 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problems.append(ot_problem)
     return ot_problems
 
+def generate_data_problems(data_type: str, num_points: int, num_samples: int = 10, create_grids: bool = True):
+    """
+    Generates OT problems from data files in the Data folder.
+    
+    Args:
+        data_type (str): The type of data to use (e.g., 'CauchyDensity', 'ClassicImages')
+        num_points (int): The number of points/resolution (e.g., 32, 64, 128, 256, 512)
+        num_samples (int): Maximum number of samples to use (default: 10)
+        create_grids (bool): Whether to create grid points for the measures (default: True)
+    
+    Returns:
+        list[OTProblem]: A list of OTProblem objects created from the data
+
+    Full list of data types:
+        - WhiteNoise
+        - Cauchy density
+        - GRFmoderate
+        - GRFrough
+        - GRFsmooth
+        - LogGRF
+        - LogitGRF
+        - MicroscopyImages
+        - Shapes
+        - ClassicImages
+    """
+    data_folder = os.path.join("Data", data_type)
+    
+    if not os.path.exists(data_folder):
+        raise ValueError(f"Data folder '{data_folder}' does not exist")
+    
+    file_pattern = f"data{num_points}_"
+    data_files = [f for f in os.listdir(data_folder) if file_pattern in f]
+    
+    if len(data_files) > num_samples:
+        data_files = data_files[:num_samples]
+    
+    measures = []
+    for file_name in data_files:
+        file_path = os.path.join(data_folder, file_name)
+        data = pd.read_csv(file_path, header=None).values
+        
+        data = data / data.sum()
+        
+        if create_grids:
+            
+            x = np.linspace(0, 1, data.shape[1])
+            y = np.linspace(0, 1, data.shape[0])
+            grid = np.meshgrid(x, y)
+            
+            measure = Measure(
+                name=f"{data_type}_{file_name.replace('.csv', '')}",
+                support=grid,
+                distribution=data,
+                kwargs={"data_type": data_type, "file_name": file_name}
+            )
+        else:
+            flat_data = data.flatten()
+            
+            indices = np.arange(len(flat_data))
+            
+            measure = Measure(
+                name=f"{data_type}_{file_name.replace('.csv', '')}",
+                support=[indices],
+                distribution=flat_data,
+                kwargs={"data_type": data_type, "file_name": file_name}
+            )
+        
+        measures.append(measure)
+    
+    problems = []
+    for source_measure, target_measure in it.combinations(measures, 2):
+        ot_problem = OTProblem(
+            name=f"{data_type} {num_points}x{num_points}",
+            source_measure=source_measure,
+            target_measure=target_measure,
+            C=get_q_const
+        )
+        ot_problem.kwargs.update({"data_type": data_type, "num_points": num_points})
+        problems.append(ot_problem)
+    
+    return problems
+
 def create_problemset(dim: int, distributions: dict[str, int], grid_size: int, coefficients = None):
     """
     Generates a set of OT problems based on the specified dimensions, distributions, and grid size.
