@@ -146,8 +146,7 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
     mesh_files = [f for f in os.listdir(mesh_folder) if f.endswith('.ply')]
     
     if len(mesh_files) > num_samples:
-        import random
-        mesh_files = random.sample(mesh_files, num_samples)
+        mesh_files = mesh_files[:num_samples]
     
     if color_mode.lower() == "r":
         channels = [0]
