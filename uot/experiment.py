@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
+import open3d as o3d
 from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
 from uot.analysis import get_agg_table
 from tqdm import tqdm
 import os.path
 import os
-import open3d as o3d
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -122,7 +122,7 @@ def generate_data_problems(data_type: str, num_points: int, num_samples: int = 1
     
     return problems
 
-def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, color_channel: int = 0):
+def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, color_mode: str = "rgb_avg"):
     """
     Generates OT problems from 3D colored mesh files in the Reference_3D_colored_meshes folder.
     
@@ -130,12 +130,14 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
         num_points (int, optional): The number of points to sample from each 3D mesh. 
                                    If None, uses the actual number of vertices in each mesh.
         num_samples (int): Maximum number of mesh files to use (default: 10)
-        color_channel (int): The color channel to use for the distribution (0=red, 1=green, 2=blue) (default: 0)
+        color_mode (str): How to handle color channels:
+                          - "r", "g", "b": Use a single color channel
+                          - "rgb_avg": Use all three color channels combined
+                          - "separate": Create separate problems for each color channel
     
     Returns:
         list[OTProblem]: A list of OTProblem objects created from the 3D meshes
     """
-    
     mesh_folder = "Reference_3D_colored_meshes"
     
     if not os.path.exists(mesh_folder):
@@ -147,12 +149,30 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
         import random
         mesh_files = random.sample(mesh_files, num_samples)
     
-    measures = []
+    if color_mode.lower() == "r":
+        channels = [0]
+        channel_names = ["red"]
+    elif color_mode.lower() == "g":
+        channels = [1]
+        channel_names = ["green"]
+    elif color_mode.lower() == "b":
+        channels = [2]
+        channel_names = ["blue"]
+    elif color_mode.lower() == "rgb_avg":
+        channels = [None]
+        channel_names = ["rgb_avg"]
+    elif color_mode.lower() == "separate":
+        channels = [0, 1, 2]
+        channel_names = ["red", "green", "blue"]
+    else:
+        raise ValueError(f"Invalid color_mode: {color_mode}. Must be 'r', 'g', 'b', 'rgb_avg', or 'separate'")
+    
+    measures_by_channel = {channel_name: [] for channel_name in channel_names}
+    
     for file_name in mesh_files:
         file_path = os.path.join(mesh_folder, file_name)
         
         try:
-
             mesh = o3d.io.read_triangle_mesh(file_path)
             
             mesh_num_points = len(np.asarray(mesh.vertices))
@@ -167,43 +187,65 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
             points = np.asarray(sampled_points.points)
             colors = np.asarray(sampled_points.colors)
             
-            distribution = colors[:, color_channel]
-            distribution = distribution / distribution.sum()
-
-            measure = Measure(
-                name=f"3DMesh_{file_name.replace('.ply', '')}",
-                support=[points[:, 0], points[:, 1], points[:, 2]],
-                distribution=distribution,
-                kwargs={
-                    "mesh_name": file_name, 
-                    "color_channel": color_channel, 
-                    "num_points": len(points)
-                }
-            )
-            measures.append(measure)
+            for channel, channel_name in zip(channels, channel_names):
+                if channel is None:
+                    distribution = colors.mean(axis=1)
+                    distribution = distribution / distribution.sum()
+                    
+                    measure = Measure(
+                        name=f"3DMesh_{file_name.replace('.ply', '')}_rgb_avg",
+                        support=[points[:, 0], points[:, 1], points[:, 2]],
+                        distribution=distribution,
+                        kwargs={
+                            "mesh_name": file_name, 
+                            "color_mode": "rgb_avg", 
+                            "num_points": len(points)
+                        }
+                    )
+                    measures_by_channel["rgb_avg"].append(measure)
+                else:
+                    distribution = colors[:, channel]
+                    distribution = distribution / distribution.sum()
+                
+                    measure = Measure(
+                        name=f"3DMesh_{file_name.replace('.ply', '')}_{channel_name}",
+                        support=[points[:, 0], points[:, 1], points[:, 2]],
+                        distribution=distribution,
+                        kwargs={
+                            "mesh_name": file_name, 
+                            "color_channel": channel,
+                            "color_name": channel_name,
+                            "num_points": len(points)
+                        }
+                    )
+                    measures_by_channel[channel_name].append(measure)
+                
         except Exception as e:
             print(f"Error loading {file_name}: {e}")
     
-    problems = []
-    for source_measure, target_measure in it.combinations(measures, 2):
-        source_points = source_measure.kwargs.get("num_points")
-        target_points = target_measure.kwargs.get("num_points")
-        
-        ot_problem = OTProblem(
-            name=f"3D_Colored_Mesh_{source_points}x{target_points}pts",
-            source_measure=source_measure,
-            target_measure=target_measure,
-            C=get_q_const
-        )
-        ot_problem.kwargs.update({
-            "data_type": "3D_Colored_Mesh", 
-            "source_points": source_points,
-            "target_points": target_points,
-            "color_channel": color_channel
-        })
-        problems.append(ot_problem)
+
+    all_problems = []
     
-    return problems
+    for channel_name, measures in measures_by_channel.items():
+        for source_measure, target_measure in it.combinations(measures, 2):
+            source_points = source_measure.kwargs.get("num_points")
+            target_points = target_measure.kwargs.get("num_points")
+            
+            ot_problem = OTProblem(
+                name=f"3D_Colored_Mesh_{channel_name}_{source_points}x{target_points}pts",
+                source_measure=source_measure,
+                target_measure=target_measure,
+                C=get_q_const
+            )
+            ot_problem.kwargs.update({
+                "data_type": "3D_Colored_Mesh", 
+                "source_points": source_points,
+                "target_points": target_points,
+                "color_mode": channel_name
+            })
+            all_problems.append(ot_problem)
+    
+    return all_problems
 
 def create_problemset(dim: int, distributions: dict[str, int], grid_size: int, coefficients = None):
     """
