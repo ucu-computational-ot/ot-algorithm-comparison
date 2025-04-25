@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
-from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file
+from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
 from uot.analysis import get_agg_table
 from tqdm import tqdm
 import os.path
-
+import os
+import open3d as o3d
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -117,6 +118,89 @@ def generate_data_problems(data_type: str, num_points: int, num_samples: int = 1
             C=get_q_const
         )
         ot_problem.kwargs.update({"data_type": data_type, "num_points": num_points})
+        problems.append(ot_problem)
+    
+    return problems
+
+def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, color_channel: int = 0):
+    """
+    Generates OT problems from 3D colored mesh files in the Reference_3D_colored_meshes folder.
+    
+    Args:
+        num_points (int, optional): The number of points to sample from each 3D mesh. 
+                                   If None, uses the actual number of vertices in each mesh.
+        num_samples (int): Maximum number of mesh files to use (default: 10)
+        color_channel (int): The color channel to use for the distribution (0=red, 1=green, 2=blue) (default: 0)
+    
+    Returns:
+        list[OTProblem]: A list of OTProblem objects created from the 3D meshes
+    """
+    
+    mesh_folder = "Reference_3D_colored_meshes"
+    
+    if not os.path.exists(mesh_folder):
+        raise ValueError(f"Mesh folder '{mesh_folder}' does not exist")
+    
+    mesh_files = [f for f in os.listdir(mesh_folder) if f.endswith('.ply')]
+    
+    if len(mesh_files) > num_samples:
+        import random
+        mesh_files = random.sample(mesh_files, num_samples)
+    
+    measures = []
+    for file_name in mesh_files:
+        file_path = os.path.join(mesh_folder, file_name)
+        
+        try:
+
+            mesh = o3d.io.read_triangle_mesh(file_path)
+            
+            mesh_num_points = len(np.asarray(mesh.vertices))
+            sampling_points = num_points if num_points is not None else mesh_num_points
+            
+            if sampling_points > mesh_num_points:
+                print(f"Warning: Requested {sampling_points} points but {file_name} only has {mesh_num_points} vertices. Using all vertices.")
+                sampled_points = mesh
+            else:
+                sampled_points = mesh.sample_points_uniformly(sampling_points)
+            
+            points = np.asarray(sampled_points.points)
+            colors = np.asarray(sampled_points.colors)
+            
+            distribution = colors[:, color_channel]
+            distribution = distribution / distribution.sum()
+
+            measure = Measure(
+                name=f"3DMesh_{file_name.replace('.ply', '')}",
+                support=[points[:, 0], points[:, 1], points[:, 2]],
+                distribution=distribution,
+                kwargs={
+                    "mesh_name": file_name, 
+                    "color_channel": color_channel, 
+                    "num_points": len(points)
+                }
+            )
+            measures.append(measure)
+        except Exception as e:
+            print(f"Error loading {file_name}: {e}")
+    
+    problems = []
+    for source_measure, target_measure in it.combinations(measures, 2):
+        source_points = source_measure.kwargs.get("num_points")
+        target_points = target_measure.kwargs.get("num_points")
+        
+        ot_problem = OTProblem(
+            name=f"3D_Colored_Mesh_{source_points}x{target_points}pts",
+            source_measure=source_measure,
+            target_measure=target_measure,
+            C=get_q_const
+        )
+        ot_problem.kwargs.update({
+            "data_type": "3D_Colored_Mesh", 
+            "source_points": source_points,
+            "target_points": target_points,
+            "color_channel": color_channel
+        })
         problems.append(ot_problem)
     
     return problems
