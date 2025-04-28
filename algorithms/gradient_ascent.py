@@ -81,37 +81,8 @@ def gradient_vanilla_logsumexp(
     return phi, psi, plan
 
 
-
-def gradient_ascent_opt(
-    a, 
-    b, 
-    C,
-    eps=1e-3,
-    optimizer=optax.sgd,
-    max_iterations=100_000,
-    tol=1e-4
-):
-    marginals = jnp.array([a, b])
-    potentials = jnp.zeros_like(marginals)
-    opt_state = optimizer.init(potentials)
-
-    def objective(potentials: jax.Array):
-        """Computes the dual objective with logsumexp stabilization."""
-        potentials_reshaped = [potentials[i].reshape(shapes[i]) for i in range(N)]
-        potentials_sum = sum(potentials_reshaped)
-        log_sub_entropy = (potentials_sum - C) / eps
-        max_log_sub_entropy = jnp.max(log_sub_entropy, axis=0, keepdims=True)
-        stable_sum = jnp.exp(max_log_sub_entropy) * jnp.sum(
-            jnp.exp(log_sub_entropy - max_log_sub_entropy), axis=0
-        )
-        dual = potentials * marginals
-        return jnp.sum(dual - eps * stable_sum)
-
-
-
-
-
 # Gradient using optax
+@jax.jit
 def gradient_ascent_opt_multimarginal(
     C,
     marginals,
@@ -125,9 +96,10 @@ def gradient_ascent_opt_multimarginal(
 
     shapes = [tuple(n if j == i else 1 for j in range(N)) for i in range(N)]
     potentials = jnp.zeros_like(marginals)
-    optimizer = optax.adam(learning_rate=learning_rate)
+    optimizer = optax.sgd(learning_rate=learning_rate)
     opt_state = optimizer.init(potentials)
 
+    @jax.jit
     def objective(potentials: jax.Array):
         """Computes the dual objective with logsumexp stabilization."""
         potentials_reshaped = [potentials[i].reshape(shapes[i]) for i in range(N)]
@@ -140,15 +112,18 @@ def gradient_ascent_opt_multimarginal(
         dual = potentials * marginals
         return jnp.sum(dual - eps * stable_sum)
 
+    objective_gradient = jax.value_and_grad(objective)
+
+    @jax.jit
     def step(state: tuple[int, jax.Array, optax.OptState, float, bool]):
         """Performs one gradient ascent step."""
         i, potentials, opt_state, prev_loss, _ = state
-        loss, grad = jax.value_and_grad(objective)(potentials)
+        loss, grad = objective_gradient(potentials)
         # minus gradient because we are performing gradient ascent
         updates, opt_state = optimizer.update(-grad, opt_state, potentials)
         potentials = optax.apply_updates(potentials, updates)
         # L-infinity norm
-        max_change = jnp.max(jnp.abs(potentials - state[0]))
+        max_change = jnp.max(jnp.abs(potentials - state[1]))
         has_converged = max_change < tol
         return i + 1, potentials, opt_state, loss, has_converged
     
@@ -164,12 +139,10 @@ def gradient_ascent_opt_multimarginal(
     return final_potentials
 
 
-
-
 def gradient_ascent(a, b, C, eps = 1e-3):
     marginals = jnp.array([a, b])
     
-    final_potentials = gradient_ascent_opt_multimarginal(C, marginals, eps=eps)
+    final_potentials = gradient_ascent_opt_multimarginal(C, marginals, eps=eps, learning_rate=1e-3).block_until_ready()
     P = jnp.exp(
         (final_potentials[0][None, :] + final_potentials[1][:, None] - C) / eps
     )

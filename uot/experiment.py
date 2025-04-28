@@ -241,7 +241,7 @@ class RunResult:
 
     def display_agg(self):
         self.display_header()
-        print(get_agg_table(self.df))
+        print(get_agg_table(self.df, ['time', 'cost_rerr', 'coupling_avg_err']))
 
     def get_agg(self):
         return get_agg_table(self.df)

@@ -84,8 +84,11 @@ def sinkhorn(a: jnp.ndarray,
     )
 
     P = coupling_tensor(u_final, v_final, cost, reg)
-    return P, jnp.sum(P * cost)
+    return P
 
+def jax_sinkhorn(a, b, C, epsilon=1e-3):
+    P = sinkhorn(a, b, C).block_until_ready()
+    return P, jnp.sum(P * C)
 
 def sink(a, b, cost, epsilon=1e-3):
     return linear.solve(
@@ -100,6 +103,7 @@ sink_2vmap = jax.jit(sink)
 
 def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, threshold=1e-4):
     solution = sink_2vmap(mu, nu, C)
+    solution.matrix.block_until_ready()
     return solution.matrix, jnp.sum(solution.matrix * C)
 
 def pot_sinkhorn(a, b, C, epsilon=0.001):

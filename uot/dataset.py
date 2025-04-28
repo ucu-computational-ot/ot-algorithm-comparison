@@ -68,7 +68,7 @@ class Measure:
     def plot(self):
         if len(self.support) == 1:
             plt.figure(figsize=(8, 4))
-            plt.plot(self.support, self.distribution, label=self.name)
+            plt.plot(self.support[0], self.distribution, label=self.name)
             plt.xlabel("Support")
             plt.ylabel("Distribution")
             plt.title(f"1D Distribution: {self.name}")

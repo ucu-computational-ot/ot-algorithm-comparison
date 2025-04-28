@@ -1,30 +1,23 @@
 import jax
+import jaxlib
 import time
+import jaxlib.xla_extension
 import numpy as np
 from algorithms.sinkhorn import sinkhorn
 from memory_profiler import memory_usage, profile
 from uot.experiment import OTProblem, Experiment, ExperimentSuite
 
-
-def precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+def time_precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
-    exact_T, exact_dist = ot_problem.exact_map, ot_problem.exact_cost
-    jax.config.update("jax_enable_x64", True)
-    
+    start_time = time.perf_counter()
     output_T, output_dist = solver(a, b, C)
+    end_time = time.perf_counter()
+
+    exact_T, exact_dist = ot_problem.exact_map, ot_problem.exact_cost
     precision = np.abs(output_dist - exact_dist) / exact_dist
     coupling_precision = np.sum(np.abs(output_T - exact_T)) / np.prod(output_T.shape)
 
-    return {'cost_rerr': precision, 'coupling_avg_err': np.mean(coupling_precision.item())}
-
-
-def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
-    a, b, C = ot_problem.to_jax_arrays()
-    start_time = time.perf_counter()
-    _, _ = solver(a, b, C) 
-    end_time = time.perf_counter()
-
-    return {'time': (end_time - start_time) * 1000}
+    return {'time': (end_time - start_time) * 1000, 'cost_rerr': precision, 'coupling_avg_err': coupling_precision}
 
 
 # Requires if __name__ == '__main__' to work properly
@@ -44,8 +37,8 @@ def memory_profiler_out(ot_problem: OTProblem, solver: callable = sinkhorn):
 
 
 time_precision_suite = ExperimentSuite(experiments=[
-    Experiment("Measure time", run_function=time_experiment),
-    Experiment("Measure precision", run_function=precision_experiment),
+    Experiment("Measure time and precision", run_function=time_precision_experiment),
+    # Experiment("Measure time and precision", run_function=time_precision_experiment),
 ])
 
 memory_suite = ExperimentSuite(experiments=[
