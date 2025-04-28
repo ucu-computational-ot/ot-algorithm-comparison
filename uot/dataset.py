@@ -8,6 +8,7 @@ import pickle
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from itertools import product
 
 def compare_measure_kwargs(source: dict, target: dict):
     if source.keys() != target.keys():
@@ -246,7 +247,8 @@ def generate_cauchy_pdf(x, loc=0, scale=1):
     pdf = stats.cauchy.pdf(x, loc=loc, scale=scale)
     return pdf / pdf.sum()
 
-def generate_normalized_white_noise(size, mean=0, std=1):
+def generate_normalized_white_noise(x, mean=0, std=1):
+    size = x.shape
     noise = np.random.normal(loc=mean, scale=std, size=size)
     return (noise - np.mean(noise)) / np.std(noise)
 
@@ -316,6 +318,25 @@ def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0),
     rv = stats.multivariate_normal(mean=mean, cov=cov)
     return rv.pdf(pos)
 
+def generate_normalized_white_noise_2d(x, y, mean=0, std=1):
+    """
+    Generates normalized white noise on a 2D mesh grid.
+
+    Args:
+        x (np.array): X-coordinates of the mesh grid.
+        y (np.array): Y-coordinates of the mesh grid.
+        mean (float): Mean of the white noise distribution (default is 0).
+        std (float): Standard deviation of the white noise distribution (default is 1).
+
+    Returns:
+        np.array: Normalized white noise values on the 2D mesh grid.
+    """
+    shape = x.shape
+    mean = mean[0]
+    std = std[0]
+    noise = np.random.normal(loc=mean, scale=std, size=shape)
+    return (noise - np.mean(noise)) / np.std(noise)
+
 
 def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
     """
@@ -332,6 +353,8 @@ def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
         np.array: Normalized white noise values on the 3D mesh grid.
     """
     shape = x.shape
+    mean = mean[0]
+    std = std[0]
     noise = np.random.normal(loc=mean, scale=std, size=shape)
     return (noise - np.mean(noise)) / np.std(noise)
 
@@ -362,113 +385,106 @@ def load_3d_data(label: str, color: int, n: int):
     return points, distribution
 
 
-def generate_random_covariance(dim: int, cov_range: tuple = (0.5, 2), off_diag_range: tuple = (-0.5, 0.5)):
+def generate_random_covariance(
+    dim: int,
+    diag_linspace: np.ndarray = np.linspace(0.5, 2.0, 10),
+    offdiag_linspace: np.ndarray = np.linspace(-0.3, 0.3, 7)):
     """
-    Generates a random symmetric positive definite covariance matrix.
+    Generates a random symmetric positive definite covariance matrix
+    with diagonal and off-diagonal elements sampled from linspace.
 
     Args:
-        dim (int): Dimensionality of the covariance matrix (2 or 3).
-        cov_range (tuple): Range for the diagonal elements (variances).
+        dim (int): Dimension (2 or 3).
+        diag_linspace (np.ndarray): Values to sample diagonals from.
+        offdiag_linspace (np.ndarray): Values to sample off-diagonals from.
 
     Returns:
-        np.ndarray: A random symmetric positive definite covariance matrix.
+        np.ndarray: A positive definite covariance matrix.
     """
     if dim not in [2, 3]:
-        raise ValueError("Covariance matrix generation is only supported for 2D or 3D.")
+        raise ValueError("Only 2D or 3D covariance supported.")
 
-    diag = np.random.uniform(*cov_range, size=dim)
+    diag = np.random.choice(diag_linspace, size=dim, replace=True)
 
-    off_diag = np.random.uniform(*off_diag_range, size=(dim, dim))
-    off_diag = (off_diag + off_diag.T) / 2
-    np.fill_diagonal(off_diag, 0)
+    cov = np.diag(diag)
+    indices = np.triu_indices(dim, k=1)
+    for i, j in zip(*indices):
+        val = np.random.choice(offdiag_linspace)
+        cov[i, j] = val
+        cov[j, i] = val
 
-    cov = np.diag(diag) + off_diag
+    min_eig = np.min(np.linalg.eigvalsh(cov))
+    if min_eig <= 0:
+        cov += np.eye(dim) * (abs(min_eig) + 1e-6)
 
-    min_eigenvalue = np.min(np.linalg.eigvalsh(cov))
-    if min_eigenvalue <= 0:
-        cov += np.eye(dim) * (abs(min_eigenvalue) + 1e-6)
-
-    return cov
+    return np.round(cov, 2)
 
 def generate_coefficients(dim: int, distributions: dict[str, int]):
-
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
-    
+
     basic_ranges = {
-        'mean_range': (-5, 5),
-        'std_range': (0.5, 2),
-        'shape_range': (1, 5),
-        'scale_range': (0.1, 2),
-        'loc_range': (-5, 5),
-        'scale_range': (0.1, 2),
-        'alpha_range': (0.1, 5),
-        'beta_range': (0.1, 5),
-        'width_range': (5, 10),
-        'lower_range': (-5, 5),
+        'mean_range': (-10, 10),
+        'std_range': (0.2, 6),
+        'shape_range': (1, 10),
+        'scale_range': (0.1, 6),
+        'loc_range': (-10, 10),
+        'alpha_range': (0.1, 10),
+        'beta_range': (0.1, 10),
+        'width_range': (5, 20),
+        'lower_range': (-10, 10),
     }
 
     distribution_parameters = {
-        'gaussian': (
-            'mean', 'std'
-        ),
-        'gamma': (
-            'shape', 'scale'
-        ),
-        'beta': (
-            'alpha', 'beta'
-        ),
-        'uniform': (
-            'lower', 'width'
-        ),
-        'cauchy': (
-            'loc', 'scale'
-        )
+        'gaussian': ('mean', 'std'),
+        'gamma': ('shape', 'scale'),
+        'beta': ('alpha', 'beta'),
+        'uniform': ('lower', 'width'),
+        'cauchy': ('loc', 'scale'),
+        'white-noise': ('mean', 'std'),
     }
 
     results = {}
 
-    if dim == 1:
-        for distribution in distributions:
+    for distribution in distributions:
+        if distribution not in distribution_parameters:
+            raise ValueError(f"Unsupported distribution: {distribution}")
 
-            results[distribution] = set()
-            if distribution not in distribution_parameters:
-                raise ValueError(f"Unsupported distribution: {distribution}.")
-            
-            for _ in range(distributions[distribution]):
+        num_to_generate = distributions[distribution]
+        param_names = distribution_parameters[distribution]
+        param_ranges = []
 
-                cur_params = []
-  
-                for param in distribution_parameters[distribution]:
-                    if f'{param}_range' in basic_ranges:
-                        cur_params.append(np.random.uniform(*basic_ranges[f'{param}_range']))
-                    else:
-                        raise ValueError(f"Missing range for {param}.")
+        for param in param_names:
+            if f"{param}_range" not in basic_ranges:
+                raise ValueError(f"Missing range for {param}.")
+            values = np.linspace(*basic_ranges[f"{param}_range"], 10)
+            if dim == 1:
+                param_ranges.append(values)
+            else:
+                param_ranges.append(list(product(values, repeat=dim)))
 
-                results[distribution].add(tuple(cur_params))
+        if distribution == 'gaussian' and dim > 1:
+            mean_choices = list(product(np.linspace(*basic_ranges['mean_range'], 10), repeat=dim))
+            np.random.shuffle(mean_choices)
+            selected_means = mean_choices[:num_to_generate]
+            result = []
+            for mean in selected_means:
+                cov = generate_random_covariance(dim)
+                result.append((tuple(np.round(mean, 2)), cov))
+            results[distribution] = result
 
-    else:
-        for distribution in distributions:
+        else:
+            all_combinations = list(product(*param_ranges))
+            np.random.shuffle(all_combinations)
+            selected_combinations = all_combinations[:num_to_generate]
 
-            results[distribution] = []
-            if distribution not in distribution_parameters:
-                raise ValueError(f"Unsupported distribution: {distribution}.")
-            
-            for _ in range(distributions[distribution]):
+            rounded_combinations = [
+                tuple(np.round(combination, 2)) for combination in selected_combinations
+            ]
+            results[distribution] = rounded_combinations
 
-                cur_params = []
-  
-                for param in distribution_parameters[distribution]:
-                    if distribution == 'gaussian' and param == 'std':
-                        cur_params.append(generate_random_covariance(dim))
-                    elif f'{param}_range' in basic_ranges:
-                        cur_params.append(tuple(np.random.uniform(*basic_ranges[f'{param}_range']) for _ in range(dim)))
-                    else:
-                        raise ValueError(f"Missing range for {param}.")
-
-                results[distribution].append(tuple(cur_params))
-    
     return results
+
 
 def generate_grid(dim: int, grid_size: int, start: int = -5, end: int = 5):
     """
@@ -543,6 +559,11 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
         },
         'cauchy': {
             1: generate_cauchy_pdf,
+        },
+        'white-noise': {
+            1: generate_normalized_white_noise,
+            2: generate_normalized_white_noise_2d,
+            3: generate_normalized_white_noise_3d
         }
     }
 

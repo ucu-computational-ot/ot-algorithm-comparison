@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
-from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file
+import open3d as o3d
+from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
 from uot.analysis import get_agg_table
 from tqdm import tqdm
 import os.path
-
+import os
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -38,6 +39,212 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problem.kwargs.update({'name': name})
         ot_problems.append(ot_problem)
     return ot_problems
+
+def generate_data_problems(data_type: str, num_points: int, num_samples: int = 10, create_grids: bool = True):
+    """
+    Generates OT problems from data files in the Data folder.
+    
+    Args:
+        data_type (str): The type of data to use (e.g., 'CauchyDensity', 'ClassicImages')
+        num_points (int): The number of points/resolution (e.g., 32, 64, 128, 256, 512)
+        num_samples (int): Maximum number of samples to use (default: 10)
+        create_grids (bool): Whether to create grid points for the measures (default: True)
+    
+    Returns:
+        list[OTProblem]: A list of OTProblem objects created from the data
+
+    Full list of data types:
+        - WhiteNoise
+        - Cauchy density
+        - GRFmoderate
+        - GRFrough
+        - GRFsmooth
+        - LogGRF
+        - LogitGRF
+        - MicroscopyImages
+        - Shapes
+        - ClassicImages
+    """
+    data_folder = os.path.join("Data", data_type)
+    
+    if not os.path.exists(data_folder):
+        raise ValueError(f"Data folder '{data_folder}' does not exist")
+    
+    file_pattern = f"data{num_points}_"
+    data_files = [f for f in os.listdir(data_folder) if file_pattern in f]
+    
+    if len(data_files) > num_samples:
+        data_files = data_files[:num_samples]
+    
+    measures = []
+    for file_name in data_files:
+        file_path = os.path.join(data_folder, file_name)
+        data = pd.read_csv(file_path, header=None).values
+        
+        data = data / data.sum()
+        
+        if create_grids:
+            
+            x = np.linspace(0, 1, data.shape[1])
+            y = np.linspace(0, 1, data.shape[0])
+            grid = np.meshgrid(x, y)
+            
+            measure = Measure(
+                name=f"{data_type}_{file_name.replace('.csv', '')}",
+                support=grid,
+                distribution=data,
+                kwargs={"data_type": data_type, "file_name": file_name}
+            )
+        else:
+            flat_data = data.flatten()
+            
+            indices = np.arange(len(flat_data))
+            
+            measure = Measure(
+                name=f"{data_type}_{file_name.replace('.csv', '')}",
+                support=[indices],
+                distribution=flat_data,
+                kwargs={"data_type": data_type, "file_name": file_name}
+            )
+        
+        measures.append(measure)
+    
+    problems = []
+    for source_measure, target_measure in it.combinations(measures, 2):
+        ot_problem = OTProblem(
+            name=f"{data_type} {num_points}x{num_points}",
+            source_measure=source_measure,
+            target_measure=target_measure,
+            C=get_q_const
+        )
+        ot_problem.kwargs.update({"data_type": data_type, "num_points": num_points})
+        problems.append(ot_problem)
+    
+    return problems
+
+def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, color_mode: str = "rgb_avg"):
+    """
+    Generates OT problems from 3D colored mesh files in the Reference_3D_colored_meshes folder.
+    
+    Args:
+        num_points (int, optional): The number of points to sample from each 3D mesh. 
+                                   If None, uses the actual number of vertices in each mesh.
+        num_samples (int): Maximum number of mesh files to use (default: 10)
+        color_mode (str): How to handle color channels:
+                          - "r", "g", "b": Use a single color channel
+                          - "rgb_avg": Use all three color channels combined
+                          - "separate": Create separate problems for each color channel
+    
+    Returns:
+        list[OTProblem]: A list of OTProblem objects created from the 3D meshes
+    """
+    mesh_folder = "Reference_3D_colored_meshes"
+    
+    if not os.path.exists(mesh_folder):
+        raise ValueError(f"Mesh folder '{mesh_folder}' does not exist")
+    
+    mesh_files = [f for f in os.listdir(mesh_folder) if f.endswith('.ply')]
+    
+    if len(mesh_files) > num_samples:
+        mesh_files = mesh_files[:num_samples]
+    
+    if color_mode.lower() == "r":
+        channels = [0]
+        channel_names = ["red"]
+    elif color_mode.lower() == "g":
+        channels = [1]
+        channel_names = ["green"]
+    elif color_mode.lower() == "b":
+        channels = [2]
+        channel_names = ["blue"]
+    elif color_mode.lower() == "rgb_avg":
+        channels = [None]
+        channel_names = ["rgb_avg"]
+    elif color_mode.lower() == "separate":
+        channels = [0, 1, 2]
+        channel_names = ["red", "green", "blue"]
+    else:
+        raise ValueError(f"Invalid color_mode: {color_mode}. Must be 'r', 'g', 'b', 'rgb_avg', or 'separate'")
+    
+    measures_by_channel = {channel_name: [] for channel_name in channel_names}
+    
+    for file_name in mesh_files:
+        file_path = os.path.join(mesh_folder, file_name)
+        
+        try:
+            mesh = o3d.io.read_triangle_mesh(file_path)
+            
+            mesh_num_points = len(np.asarray(mesh.vertices))
+            sampling_points = num_points if num_points is not None else mesh_num_points
+            
+            if sampling_points > mesh_num_points:
+                print(f"Warning: Requested {sampling_points} points but {file_name} only has {mesh_num_points} vertices. Using all vertices.")
+                sampled_points = mesh
+            else:
+                sampled_points = mesh.sample_points_uniformly(sampling_points)
+            
+            points = np.asarray(sampled_points.points)
+            colors = np.asarray(sampled_points.colors)
+            
+            for channel, channel_name in zip(channels, channel_names):
+                if channel is None:
+                    distribution = colors.mean(axis=1)
+                    distribution = distribution / distribution.sum()
+                    
+                    measure = Measure(
+                        name=f"3DMesh_{file_name.replace('.ply', '')}_rgb_avg",
+                        support=[points[:, 0], points[:, 1], points[:, 2]],
+                        distribution=distribution,
+                        kwargs={
+                            "mesh_name": file_name, 
+                            "color_mode": "rgb_avg", 
+                            "num_points": len(points)
+                        }
+                    )
+                    measures_by_channel["rgb_avg"].append(measure)
+                else:
+                    distribution = colors[:, channel]
+                    distribution = distribution / distribution.sum()
+                
+                    measure = Measure(
+                        name=f"3DMesh_{file_name.replace('.ply', '')}_{channel_name}",
+                        support=[points[:, 0], points[:, 1], points[:, 2]],
+                        distribution=distribution,
+                        kwargs={
+                            "mesh_name": file_name, 
+                            "color_channel": channel,
+                            "color_name": channel_name,
+                            "num_points": len(points)
+                        }
+                    )
+                    measures_by_channel[channel_name].append(measure)
+                
+        except Exception as e:
+            print(f"Error loading {file_name}: {e}")
+    
+
+    all_problems = []
+    
+    for channel_name, measures in measures_by_channel.items():
+        for source_measure, target_measure in it.combinations(measures, 2):
+            source_points = source_measure.kwargs.get("num_points")
+            target_points = target_measure.kwargs.get("num_points")
+            
+            ot_problem = OTProblem(
+                name=f"3D_Colored_Mesh_{channel_name}_{source_points}x{target_points}pts",
+                source_measure=source_measure,
+                target_measure=target_measure,
+                C=get_q_const
+            )
+            ot_problem.kwargs.update({
+                "data_type": "3D_Colored_Mesh", 
+                "source_points": source_points,
+                "target_points": target_points,
+                "color_mode": channel_name
+            })
+            all_problems.append(ot_problem)
+    
+    return all_problems
 
 def create_problemset(dim: int, distributions: dict[str, int], grid_size: int, coefficients = None):
     """
