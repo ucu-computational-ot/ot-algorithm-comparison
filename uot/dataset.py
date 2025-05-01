@@ -642,7 +642,6 @@ def generate_random_ds(dim: int, distributions: list[str], grid: list[np.ndarray
         'shape_range': (1, 5),
         'scale_range': (0.1, 2),
         'loc_range': (-5, 5),
-        'scale_range': (0.1, 2),
         'alpha_range': (0.1, 5),
         'beta_range': (0.1, 5),
     }

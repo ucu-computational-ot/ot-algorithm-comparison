@@ -1,7 +1,5 @@
 import ot
-import jax
-import time
-import multiprocessing
+import gc
 import numpy as np
 import pandas as pd
 import itertools as it
@@ -36,7 +34,7 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
                                      source_measure=source_measure,
                                      target_measure=target_measure,
                                      C=C)
-        ot_problem.kwargs.update({'name': name})
+        ot_problem.kwargs.update({'dataset': name})
         ot_problems.append(ot_problem)
     return ot_problems
 
@@ -65,7 +63,7 @@ def generate_data_problems(data_type: str, num_points: int, num_samples: int = 1
         - Shapes
         - ClassicImages
     """
-    data_folder = os.path.join("Data", data_type)
+    data_folder = os.path.join("datasets", "DOTmark_1.0", "Data", data_type)
     
     if not os.path.exists(data_folder):
         raise ValueError(f"Data folder '{data_folder}' does not exist")
@@ -117,36 +115,36 @@ def generate_data_problems(data_type: str, num_points: int, num_samples: int = 1
             target_measure=target_measure,
             C=get_q_const
         )
+        ot_problem.kwargs.update({'dataset': f"{data_type} {num_points}x{num_points}"})
         ot_problem.kwargs.update({"data_type": data_type, "num_points": num_points})
         problems.append(ot_problem)
     
     return problems
 
-def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, color_mode: str = "rgb_avg"):
+def generate_3d_mesh_problems(num_points: int = None, num_meshes: int = 10, color_mode: str = "r"):
     """
     Generates OT problems from 3D colored mesh files in the Reference_3D_colored_meshes folder.
     
     Args:
         num_points (int, optional): The number of points to sample from each 3D mesh. 
                                    If None, uses the actual number of vertices in each mesh.
-        num_samples (int): Maximum number of mesh files to use (default: 10)
+        num_meshes (int): Maximum number of mesh files to use (default: 10)
         color_mode (str): How to handle color channels:
                           - "r", "g", "b": Use a single color channel
-                          - "rgb_avg": Use all three color channels combined
                           - "separate": Create separate problems for each color channel
     
     Returns:
         list[OTProblem]: A list of OTProblem objects created from the 3D meshes
     """
-    mesh_folder = "Reference_3D_colored_meshes"
+    mesh_folder = os.path.join("datasets", "color_meshes")
     
     if not os.path.exists(mesh_folder):
         raise ValueError(f"Mesh folder '{mesh_folder}' does not exist")
     
     mesh_files = [f for f in os.listdir(mesh_folder) if f.endswith('.ply')]
     
-    if len(mesh_files) > num_samples:
-        mesh_files = mesh_files[:num_samples]
+    if len(mesh_files) > num_meshes:
+        mesh_files = mesh_files[:num_meshes]
     
     if color_mode.lower() == "r":
         channels = [0]
@@ -157,14 +155,11 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
     elif color_mode.lower() == "b":
         channels = [2]
         channel_names = ["blue"]
-    elif color_mode.lower() == "rgb_avg":
-        channels = [None]
-        channel_names = ["rgb_avg"]
     elif color_mode.lower() == "separate":
         channels = [0, 1, 2]
         channel_names = ["red", "green", "blue"]
     else:
-        raise ValueError(f"Invalid color_mode: {color_mode}. Must be 'r', 'g', 'b', 'rgb_avg', or 'separate'")
+        raise ValueError(f"Invalid color_mode: {color_mode}. Must be 'r', 'g', 'b', or 'separate'")
     
     measures_by_channel = {channel_name: [] for channel_name in channel_names}
     
@@ -187,38 +182,22 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
             colors = np.asarray(sampled_points.colors)
             
             for channel, channel_name in zip(channels, channel_names):
-                if channel is None:
-                    distribution = colors.mean(axis=1)
-                    distribution = distribution / distribution.sum()
-                    
-                    measure = Measure(
-                        name=f"3DMesh_{file_name.replace('.ply', '')}_rgb_avg",
-                        support=[points[:, 0], points[:, 1], points[:, 2]],
-                        distribution=distribution,
-                        kwargs={
-                            "mesh_name": file_name, 
-                            "color_mode": "rgb_avg", 
-                            "num_points": len(points)
-                        }
-                    )
-                    measures_by_channel["rgb_avg"].append(measure)
-                else:
-                    distribution = colors[:, channel]
-                    distribution = distribution / distribution.sum()
-                
-                    measure = Measure(
-                        name=f"3DMesh_{file_name.replace('.ply', '')}_{channel_name}",
-                        support=[points[:, 0], points[:, 1], points[:, 2]],
-                        distribution=distribution,
-                        kwargs={
-                            "mesh_name": file_name, 
-                            "color_channel": channel,
-                            "color_name": channel_name,
-                            "num_points": len(points)
-                        }
-                    )
-                    measures_by_channel[channel_name].append(measure)
-                
+                distribution = colors[:, channel]
+                distribution = distribution / distribution.sum()
+            
+                measure = Measure(
+                    name=f"3DMesh_{file_name.replace('.ply', '')}_{channel_name}",
+                    support=[points[:, 0], points[:, 1], points[:, 2]],
+                    distribution=distribution,
+                    kwargs={
+                        "mesh_name": file_name, 
+                        "color_channel": channel,
+                        "color_name": channel_name,
+                        "num_points": len(points)
+                    }
+                )
+                measures_by_channel[channel_name].append(measure)
+            
         except Exception as e:
             print(f"Error loading {file_name}: {e}")
     
@@ -237,6 +216,7 @@ def generate_3d_mesh_problems(num_points: int = None, num_samples: int = 10, col
                 C=get_q_const
             )
             ot_problem.kwargs.update({
+                'dataset': f"3D_Colored_Mesh_{channel_name}_{source_points}x{target_points}pts",
                 "data_type": "3D_Colored_Mesh", 
                 "source_points": source_points,
                 "target_points": target_points,
@@ -340,12 +320,15 @@ def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cos
         yield ot_problem
 
 
-def run_experiment(suite: 'ExperimentSuite', problemsets_names: list[str], solvers: dict[str, callable]) -> dict[str, 'RunResult']:
-    problem_sets = [
-        get_problemset(problemset_name) for problemset_name in problemsets_names
-    ]
+def run_experiment(suite: 'ExperimentSuite',
+                   solvers: dict[str, callable],
+                   problemsets_names: list[str] = None,
+                   problems: list["OTProblem"] = None) -> dict[str, 'RunResult']:
 
-    problems = [problem for problem_set in problem_sets for problem in problem_set]
+    if problemsets_names is not None:
+        problem_sets = [get_problemset(problemset_name) for problemset_name in problemsets_names]
+        problems = [problem for problem_set in problem_sets for problem in problem_set]
+    
     results = {}
 
     with tqdm(total=len(solvers) * len(suite.experiments) * len(problems), desc="Running experiments") as pbar:
@@ -353,7 +336,7 @@ def run_experiment(suite: 'ExperimentSuite', problemsets_names: list[str], solve
 
         for solver_name, solver in solvers.items():
             solver_result = suite.run_suite(name=solver_name, ot_problems=problems,
-                                                    progress_callback=progress_callback, solver=solver)
+                                            progress_callback=progress_callback, solver=solver)
             results[solver_name] = solver_result
     
     return results
@@ -365,8 +348,10 @@ class OTProblem:
         self.name = name
         self.source_measure = source_measure
         self.target_measure = target_measure
+
+        self._C_cache = None
         self._C = C
-        
+
         self._exact_cost = None
         self._exact_map = None 
 
@@ -374,11 +359,11 @@ class OTProblem:
     
     @property
     def C(self):
-        if callable(self._C):
-            self._C = self._C(self.source_measure.get_flat_support(),
-                              self.target_measure.get_flat_support())
-            return self._C
-        return self._C
+        if callable(self._C) and self._C_cache is None:
+            self._C_cache = self._C(self.source_measure.get_flat_support(),
+                               self.target_measure.get_flat_support())
+            return self._C_cache
+        return self._C_cache
     
     @property
     def a(self):
@@ -387,6 +372,12 @@ class OTProblem:
     @property
     def b(self):
         return self.target_measure.to_histogram()[1]
+
+    def free_memory(self):
+        del self._C_cache
+        self._C_cache = None
+        self._exact_cost = None
+        self._exact_map = None
 
     def to_jax_arrays(self, regularization=1e-30):
         C = self.C
@@ -426,41 +417,13 @@ class OTProblem:
         return f"<OTProblem: {self.name} source={self.source_measure}, target={self.target_measure}>"
 
     def to_dict(self) -> dict:
-        problem_dict = {'name': self.name, 'source_measure_name': self.source_measure.name, 'target_measure_name': self.target_measure.name}
+        problem_dict = {'problem': self.name, 'source_measure_name': self.source_measure.name, 'target_measure_name': self.target_measure.name}
         source_kwargs = { f"source_{key}": value for key, value in self.source_measure.kwargs.items() }
         target_kwargs = { f"target_{key}": value for key, value in self.target_measure.kwargs.items() }
         problem_dict.update(source_kwargs)
         problem_dict.update(target_kwargs)
         problem_dict.update(self.kwargs)
         return problem_dict
-
-
-class RunResult:
-    
-    def __init__(self, name: str, result_df: pd.DataFrame, run_kwargs: dict):
-        self.name = name
-        self.df = result_df
-        self.run_kwargs = run_kwargs
-
-    def display_result(self):
-        self.display_header() 
-        print(self.df)
-
-    def display_agg(self):
-        self.display_header()
-        print(get_agg_table(self.df, ['time', 'cost_rerr', 'coupling_avg_err']))
-
-    def get_agg(self):
-        return get_agg_table(self.df)
-
-    def display_header(self):
-        print("Name", self.name)
-        for key, value in self.run_kwargs.items():
-            print(f"{key}: {value}")
-        print('='*100)
-
-    def export(self, filepath: str) -> None:
-        self.df.to_csv(filepath)
 
 
 class Experiment:
@@ -471,10 +434,13 @@ class Experiment:
 
     def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, **kwargs) -> dict:
         results = {}
-        for ot_problem in ot_problems:
+        for i, ot_problem in enumerate(ot_problems):
             results[ot_problem] = self.run_function(ot_problem, **kwargs)
             if progress_callback is not None:
                 progress_callback()
+            ot_problem.free_memory()
+            if i % 100 == 0:
+                gc.collect()
         
         return results
     
@@ -490,58 +456,6 @@ class ExperimentSuite:
 
     def run_suite(self, name: str, ot_problems: list[OTProblem], njobs: int = 1,
                   progress_callback: callable = None, **kwargs) -> pd.DataFrame:
-        if njobs == 1:
-            return self._run_suite(name, ot_problems, progress_callback=progress_callback, **kwargs)
-        else:
-            return self._run_suite_multiprocess(ot_problems, njobs)
-    
-    def _run_suite_multiprocess(self, ot_problems: list[Experiment], njobs: int):
-
-        def _worker(queue, tasks):
-            results = []
-            for task in tasks:
-                experiment, ot_problem, ot_identifier = task
-                results.append((ot_identifier, experiment.run_single(ot_problem)))
-
-                if len(results) == self.MAX_RESULTS_IN_WORKER:
-                    queue.put(results)
-                    results = []
-
-            queue.put(results)
-
-        # added problems identifiers to reduce time for copying data from processes
-        ot_problems_ids = { ot_problem: identifier for identifier, ot_problem in enumerate(ot_problems) }
-        ids_to_ot_problem = dict(zip(ot_problems_ids.values(), ot_problems_ids.keys()))
-
-        tasks = [ (experiment, ot_problem, ot_problems_ids[ot_problem]) for ot_problem in ot_problems for experiment in self.experiments ]
-
-        q = multiprocessing.Queue()
-        tasks_per_worker = len(tasks) // njobs
-        processes = [ multiprocessing.Process(target=_worker, args=(q, tasks[i * tasks_per_worker: (i+1) * tasks_per_worker]))
-                      for i in range(njobs) ]
-
-        for p in processes: 
-            p.start()
-
-        ot_problems_results = {ot_problem: {} for ot_problem in ot_problems}
-        while any(p.is_alive() for p in processes) or not q.empty():
-            time.sleep(0.5)
-            try:
-                results = q.get_nowait()
-                for (ot_identifier, result) in results:
-                    ot_problem = ids_to_ot_problem[ot_identifier]
-                    ot_problems_results[ot_problem].update(result)
-            except multiprocessing.queues.Empty:
-                pass
-        
-        df_rows = []
-        for ot_problem, results in ot_problems_results.items():
-            row_dict = ot_problem.to_dict() | results
-            df_rows.append(row_dict)
-
-        return pd.DataFrame(df_rows)
-
-    def _run_suite(self, name, ot_problems: list[OTProblem], progress_callback: callable = None, **kwargs) -> RunResult:
         results = []
         for experiment in self.experiments:
             results.append(experiment.run_experiment(ot_problems, progress_callback=progress_callback, **kwargs))
@@ -553,6 +467,7 @@ class ExperimentSuite:
                 row_dict.update(result[ot_problem])
             df_rows.append(row_dict)
 
-        result = RunResult(name=name, result_df=pd.DataFrame(df_rows), run_kwargs=kwargs)
+        df = pd.DataFrame(df_rows)
+        df['name'] = name
 
-        return result
+        return df

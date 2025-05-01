@@ -44,7 +44,7 @@ def compute_error(u: jnp.ndarray,
 def sinkhorn(a: jnp.ndarray,
              b: jnp.ndarray,
              cost: jnp.ndarray,
-             reg: float = 1e-3,
+             epsilon: float = 1e-3,
              precision: float = 1e-4,
              max_iters: int = 10_000):
     
@@ -64,30 +64,30 @@ def sinkhorn(a: jnp.ndarray,
     def body_fn(carry):
         u_, v_, i_, e = carry
 
-        u_upd = u_ + reg * jnp.log(a) - reg * logsumexp((u_[:, None] + v_[None, :] - cost) / reg, axis=1)
-        v_upd = v_ + reg * jnp.log(b) - reg * logsumexp((u_upd[:, None] + v_[None, :] - cost) / reg, axis=0)
+        u_upd = u_ + epsilon * jnp.log(a) - epsilon * logsumexp((u_[:, None] + v_[None, :] - cost) / epsilon, axis=1)
+        v_upd = v_ + epsilon * jnp.log(b) - epsilon * logsumexp((u_upd[:, None] + v_[None, :] - cost) / epsilon, axis=0)
 
         err_upd = jax.lax.cond(
             i_ % 10 == 0,
-            lambda: compute_error(u_upd, v_upd, a, b, cost, reg),
+            lambda: compute_error(u_upd, v_upd, a, b, cost, epsilon),
             lambda: e
         )
 
         return (u_upd, v_upd, i_ + 1, err_upd)
 
     # Run the loop
-    init_err = compute_error(u, v, a, b, cost, reg)
+    init_err = compute_error(u, v, a, b, cost, epsilon)
     u_final, v_final, i_final, final_err = jax.lax.while_loop(
         cond_fn,
         body_fn,
         (u, v, jnp.array(0), init_err)
     )
 
-    P = coupling_tensor(u_final, v_final, cost, reg)
-    return P
+    return u_final, v_final
 
 def jax_sinkhorn(a, b, C, epsilon=1e-3):
-    P = sinkhorn(a, b, C).block_until_ready()
+    u_final, v_final = sinkhorn(a, b, C).block_until_ready()
+    P = coupling_tensor(u_final, v_final, cost, reg)
     return P, jnp.sum(P * C)
 
 def sink(a, b, cost, epsilon=1e-3):

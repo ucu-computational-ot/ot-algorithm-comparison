@@ -7,34 +7,34 @@ def get_agg_table(df, metrics: list[str]):
                             {f"{metric}_std": (metric, lambda x: np.std(x, ddof=1)) for metric in metrics }
 
         
-        df = df.groupby('name').agg(**aggregation_rules).reset_index()
-        return df.sort_values('name')
+        df = df.groupby('dataset').agg(**aggregation_rules).reset_index()
+        return df
 
 
-def get_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
+def get_mean_comparison_table(df: dict[str, pd.DataFrame], field: str):
         comparison_df = pd.DataFrame()
-        comparison_df['dataset'] = list(dfs.values())[0].name
+        comparison_df['dataset'] = df.dataset.unique()
 
-        for name, df in dfs.items():
-                mean = df[f"{field}_mean"].astype(str)
-                std = df[f"{field}_std"].astype(str)
-                comparison_df[name] = mean + "±" + std
-        return comparison_df
-        
-def get_mean_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
-        comparison_df = pd.DataFrame()
-        comparison_df['dataset'] = list(dfs.values())[0].name
+        dfs = [df[df.name == name] for name in df.name.unique()]
+        agg_dfs = {df.name.iloc[0]: get_agg_table(df, [field]) for df in dfs}
 
-        for name, df in dfs.items():
-                comparison_df[name] = df[f"{field}_mean"]
+        for name, df in agg_dfs.items():
+                mean_column = f"{field}_mean"
+                df = df[['dataset', mean_column]].rename(columns={mean_column: name})
+                comparison_df = pd.merge(comparison_df, df, on='dataset', how='inner')
         return comparison_df
 
-def get_std_comparison_table(dfs: dict[str, pd.DataFrame], field: str):
+def get_std_comparison_table(df: pd.DataFrame, field: str):
         comparison_df = pd.DataFrame()
-        comparison_df['dataset'] = list(dfs.values())[0].name
+        comparison_df['dataset'] = df.dataset.unique()
 
-        for name, df in dfs.items():
-                comparison_df[name] = df[f"{field}_std"]
+        dfs = [df[df.name == name] for name in df.name.unique()]
+        agg_dfs = {df.name.iloc[0]: get_agg_table(df, [field]) for df in dfs}
+
+        for name, df in agg_dfs.items():
+                std_column = f"{field}_std"
+                df = df[['dataset', std_column]].rename(columns={std_column: name})
+                comparison_df = pd.merge(comparison_df, df, on='dataset', how='inner')
         return comparison_df
 
 def display_mean_and_std(agg_dfs, column: str):
