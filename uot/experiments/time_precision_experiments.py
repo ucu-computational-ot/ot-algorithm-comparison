@@ -5,19 +5,21 @@ import sys
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from algorithms.sinkhorn import jax_sinkhorn, ott_jax_sinkhorn
-from algorithms.gradient_ascent import gradient_ascent
-from algorithms.lbfgs import dual_lbfgs
-from algorithms.lp import pot_lp
-from uot.experiment import run_experiment, generate_data_problems, generate_3d_mesh_problems, get_problemset
-from uot.suites import time_precision_suite
+from uot.algorithms.sinkhorn import jax_sinkhorn, ott_jax_sinkhorn
+from uot.algorithms.gradient_ascent import gradient_ascent
+from uot.algorithms.lbfgs import dual_lbfgs
+from uot.algorithms.lp import pot_lp
+from uot.algorithms.col_gen import col_gen
+from uot.core.experiment import run_experiment, generate_data_problems, generate_3d_mesh_problems, get_problemset
+from uot.core.analysis import get_agg_table
+from uot.core.suites import time_precision_suite
 
 solvers = {
     'pot-lp': pot_lp,
-    # 'second-order-lbfgs': dual_lbfgs,
+    'second-order-lbfgs': dual_lbfgs,
     'ott-jax-sinkhorn': ott_jax_sinkhorn,
     'jax-sinkhorn': jax_sinkhorn,
-    'optax-grad-ascent': gradient_ascent
+    'optax-grad-ascent': gradient_ascent,
 }
 
 # algorithms that use jax jit 
@@ -110,4 +112,5 @@ for dataset in result_df.dataset.unique():
         if len(algorithm_results):
             result_df.drop(algorithm_results.index[0], inplace=True)
 
-result_df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
+# result_df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
+print(get_agg_table(result_df, ['cost_rerr', 'coupling_avg_err']))

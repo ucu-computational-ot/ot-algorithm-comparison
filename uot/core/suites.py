@@ -1,11 +1,8 @@
-import jax
-import jaxlib
 import time
-import jaxlib.xla_extension
 import numpy as np
-from algorithms.sinkhorn import sinkhorn
+from uot.algorithms.sinkhorn import sinkhorn
 from memory_profiler import memory_usage, profile
-from uot.experiment import OTProblem, Experiment, ExperimentSuite
+from uot.core.experiment import OTProblem, Experiment, ExperimentSuite
 
 def time_precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()

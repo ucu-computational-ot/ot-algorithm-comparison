@@ -5,8 +5,7 @@ import pandas as pd
 import itertools as it
 import jax.numpy as jnp
 import open3d as o3d
-from uot.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
-from uot.analysis import get_agg_table
+from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
 from tqdm import tqdm
 import os.path
 import os

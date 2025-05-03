@@ -56,3 +56,6 @@ datasets/
 
 results/
 color_transfer_results/
+# pixi environments
+.pixi
+*.egg-info

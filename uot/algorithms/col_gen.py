@@ -136,7 +136,7 @@ def genetic_column_generation(
     cost_history = np.empty((maxiter, 1))
     dual_value_history = np.empty((maxiter, l))
 
-    with trange(maxiter) as t:
+    with range(maxiter) as t:
         for i in t:
             alpha_I, cost = solve_rmp(AI, cI, marginal)
             cost_history[i] = cost
