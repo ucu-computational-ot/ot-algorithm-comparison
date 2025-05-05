@@ -322,7 +322,7 @@ def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cos
 def run_experiment(suite: 'ExperimentSuite',
                    solvers: dict[str, callable],
                    problemsets_names: list[str] = None,
-                   problems: list["OTProblem"] = None) -> dict[str, 'RunResult']:
+                   problems: list["OTProblem"] = None) -> pd.DataFrame:
 
     if problemsets_names is not None:
         problem_sets = [get_problemset(problemset_name) for problemset_name in problemsets_names]
@@ -361,6 +361,7 @@ class OTProblem:
         if callable(self._C) and self._C_cache is None:
             self._C_cache = self._C(self.source_measure.get_flat_support(),
                                self.target_measure.get_flat_support())
+            self._C_cache /= self._C_cache.max()
             return self._C_cache
         return self._C_cache
     
@@ -378,13 +379,11 @@ class OTProblem:
         self._exact_cost = None
         self._exact_map = None
 
-    def to_jax_arrays(self, regularization=1e-30):
-        C = self.C
-        C /= self.C.max()
+    def to_jax_arrays(self):
+        a = jnp.array(self.a)
+        b = jnp.array(self.b)
+        C = jnp.array(self.C)
 
-        a = jnp.array(self.a + regularization)
-        b = jnp.array(self.b + regularization)
-        C = jnp.array(C + regularization)
         return a, b, C
 
     @property
@@ -416,7 +415,7 @@ class OTProblem:
         return f"<OTProblem: {self.name} source={self.source_measure}, target={self.target_measure}>"
 
     def to_dict(self) -> dict:
-        problem_dict = {'problem': self.name, 'source_measure_name': self.source_measure.name, 'target_measure_name': self.target_measure.name}
+        problem_dict = {'source_measure_name': self.source_measure.name, 'target_measure_name': self.target_measure.name}
         source_kwargs = { f"source_{key}": value for key, value in self.source_measure.kwargs.items() }
         target_kwargs = { f"target_{key}": value for key, value in self.target_measure.kwargs.items() }
         problem_dict.update(source_kwargs)

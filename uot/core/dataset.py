@@ -424,7 +424,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         raise ValueError("dim must be 1, 2, or 3.")
 
     basic_ranges = {
-        'mean_range': (-10, 10),
+        'mean_range': (-5, 5),
         'std_range': (0.2, 6),
         'shape_range': (1, 10),
         'scale_range': (0.1, 6),

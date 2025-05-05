@@ -4,11 +4,12 @@ import numpy as np
 import jax.numpy as jnp
 from ott.solvers import linear
 from ott.geometry import geometry
-from ott.geometry import pointcloud
 
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
+
+from uot.algorithms.utils import regularize_input
 
 @jax.jit
 def coupling_tensor(u: jnp.ndarray,
@@ -85,11 +86,12 @@ def sinkhorn(a: jnp.ndarray,
 
     return u_final, v_final
 
-def jax_sinkhorn(a, b, C, epsilon=1e-1):
-    u_final, v_final = sinkhorn(a, b, C, epsilon)
-    u_final.block_until_ready()
-    v_final.block_until_ready()
-    P = coupling_tensor(u_final, v_final, C, epsilon)
+def jax_sinkhorn(a, b, C, epsilon=1e-3):
+    a, b, C = regularize_input(a, b, C)
+    u, v = sinkhorn(a, b, C, epsilon)
+    u.block_until_ready()
+    v.block_until_ready()
+    P = coupling_tensor(u, v, C, epsilon)
     return P, jnp.sum(P * C)
 
 def sink(a, b, cost, epsilon=1e-3):
@@ -107,7 +109,3 @@ def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, threshold=1e-4):
     solution = sink_2vmap(mu, nu, C)
     solution.matrix.block_until_ready()
     return solution.matrix, jnp.sum(solution.matrix * C)
-
-def pot_sinkhorn(a, b, C, epsilon=0.001):
-    P = ot.sinkhorn(a, b, C, reg=epsilon, stopThr=1e-4)
-    return P, np.sum(P * C)

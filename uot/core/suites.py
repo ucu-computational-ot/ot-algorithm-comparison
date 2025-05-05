@@ -17,6 +17,15 @@ def time_precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn
     return {'time': (end_time - start_time) * 1000, 'cost_rerr': precision, 'coupling_avg_err': coupling_precision}
 
 
+def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+    a, b, C = ot_problem.to_jax_arrays()
+    start_time = time.perf_counter()
+    _, _ = solver(a, b, C)
+    end_time = time.perf_counter()
+
+    return {'time': (end_time - start_time) * 1000}
+
+
 # Requires if __name__ == '__main__' to work properly
 def memory_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
@@ -36,6 +45,10 @@ def memory_profiler_out(ot_problem: OTProblem, solver: callable = sinkhorn):
 time_precision_suite = ExperimentSuite(experiments=[
     Experiment("Measure time and precision", run_function=time_precision_experiment),
     # Experiment("Measure time and precision", run_function=time_precision_experiment),
+])
+
+time_suite =  ExperimentSuite(experiments=[
+    Experiment("Measure time", run_function=time_experiment)
 ])
 
 memory_suite = ExperimentSuite(experiments=[

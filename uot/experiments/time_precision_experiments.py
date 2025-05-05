@@ -2,80 +2,78 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import sys
+import argparse
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from uot.algorithms.sinkhorn import jax_sinkhorn, ott_jax_sinkhorn
+from uot.algorithms.sinkhorn import jax_sinkhorn
 from uot.algorithms.gradient_ascent import gradient_ascent
-from uot.algorithms.lbfgs import dual_lbfgs
+from uot.algorithms.lbfgs import lbfgs_ot
 from uot.algorithms.lp import pot_lp
-from uot.algorithms.col_gen import col_gen
-from uot.core.experiment import run_experiment, generate_data_problems, generate_3d_mesh_problems, get_problemset
+from uot.core.experiment import run_experiment, generate_data_problems, get_problemset
 from uot.core.analysis import get_agg_table
-from uot.core.suites import time_precision_suite
+from uot.core.suites import time_precision_suite, time_suite
 
 solvers = {
     'pot-lp': pot_lp,
-    'second-order-lbfgs': dual_lbfgs,
-    'ott-jax-sinkhorn': ott_jax_sinkhorn,
+    'lbfgs': lbfgs_ot,
     'jax-sinkhorn': jax_sinkhorn,
     'optax-grad-ascent': gradient_ascent,
 }
 
 # algorithms that use jax jit 
 jit_algorithms = [
-    'ott-jax-sinkhorn', 'jax-sinkhorn', 'optax-grad-ascent'
+    'jax-sinkhorn', 'optax-grad-ascent', 'lbfgs'
 ]
 
 problemset_names_1D = [
-    "32 1D gamma",
-    "64 1D gamma",
-    "256 1D gamma",
-    "512 1D gamma",
-    "1024 1D gamma",
-    "2048 1D gamma",
+    # "32 1D gamma",
+    # "64 1D gamma",
+    # "256 1D gamma",
+    # "512 1D gamma",
+    # "1024 1D gamma",
+    # "2048 1D gamma",
 
-    "32 1D gaussian",
-    "64 1D gaussian",
-    "256 1D gaussian",
-    "512 1D gaussian",
-    "1024 1D gaussian",
+    # "32 1D gaussian",
+    # "64 1D gaussian",
+    # "256 1D gaussian",
+    # "512 1D gaussian",
+    # "1024 1D gaussian",
     "2048 1D gaussian",
 
-    "32 1D beta",
-    "64 1D beta",
-    "256 1D beta",
-    "512 1D beta",
-    "1024 1D beta",
-    "2048 1D beta",
+    # "32 1D beta",
+    # "64 1D beta",
+    # "256 1D beta",
+    # "512 1D beta",
+    # "1024 1D beta",
+    # "2048 1D beta",
 
-    '32 1D gaussian|gamma|beta|cauchy',
-    '64 1D gaussian|gamma|beta|cauchy',
-    '128 1D gaussian|gamma|beta|cauchy',
-    '256 1D gaussian|gamma|beta|cauchy',
-    '512 1D gaussian|gamma|beta|cauchy',
-    '1024 1D gaussian|gamma|beta|cauchy',
-    '2048 1D gaussian|gamma|beta|cauchy',
-    
+    # '32 1D gaussian|gamma|beta|cauchy',
+    # '64 1D gaussian|gamma|beta|cauchy',
+    # '128 1D gaussian|gamma|beta|cauchy',
+    # '256 1D gaussian|gamma|beta|cauchy',
+    # '512 1D gaussian|gamma|beta|cauchy',
+    # '1024 1D gaussian|gamma|beta|cauchy',
+    # '2048 1D gaussian|gamma|beta|cauchy',
 ]
 
 
 problem_sets_names_2D = [
-    ('WhiteNoise', 32),
-    ('CauchyDensity', 32),
-    ('GRFmoderate', 32),
-    ('GRFrough', 32),
-    ('GRFsmooth', 32),
-    ('LogGRF', 32),
-    ('LogitGRF', 32),
-    ('MicroscopyImages', 32),
-    ('Shapes', 32),
-    ('ClassicImages', 32)
+    # ('WhiteNoise', 32),
+    # ('CauchyDensity', 32),
+    # ('GRFmoderate', 32),
+    # ('GRFrough', 32),
+    # ('GRFsmooth', 32),
+    # ('LogGRF', 32),
+    # ('LogitGRF', 32),
+    # ('MicroscopyImages', 32),
+    # ('Shapes', 32),
+    # ('ClassicImages', 32)
 ]
 
 problem_sets_3D = [
-    generate_3d_mesh_problems(1024, num_meshes=10),
-    generate_3d_mesh_problems(2048, num_meshes=10),
+    # generate_3d_mesh_problems(1024, num_meshes=10),
+    # generate_3d_mesh_problems(2048, num_meshes=10),
 ]
 
 problem_sets = [get_problemset(name) for name in problemset_names_1D] + \
@@ -84,7 +82,6 @@ problem_sets = [get_problemset(name) for name in problemset_names_1D] + \
 
 problems = [problem for problemset in problem_sets 
                     for problem in problemset]
-
 
 for problem in problems:
     source_distribution = problem.source_measure.distribution
@@ -102,7 +99,46 @@ for problem in problems:
         print(target_distribution)
         sys.exit()
 
-results = run_experiment(suite=time_precision_suite, problems=problems, solvers=solvers)
+
+parser = argparse.ArgumentParser(description="Run time precision experiments.")
+parser.add_argument(
+    "--algorithms",
+    nargs="+",
+    default=list(solvers.keys()),
+    help="List of algorithms to run experiments on. Use 'all' to run on all algorithms."
+)
+parser.add_argument(
+    "--save",
+    action="store_true",
+    help="Flag to save the results to a CSV file."
+)
+parser.add_argument(
+    "--show_agg",
+    action="store_true",
+    help="Flag to display the aggregated results table."
+)
+parser.add_argument(
+    "--show",
+    action="store_true",
+    help="Flag to display the full results dataframe."
+)
+parser.add_argument(
+    "--folds",
+    type=int,
+    default=5,
+    help="Number of folds for cross-validation or repeated experiments."
+)
+
+args = parser.parse_args()
+
+if "all" in args.algorithms:
+    selected_solvers = solvers
+else:
+    selected_solvers = {key: solvers[key] for key in args.algorithms if key in solvers}
+
+problems = problems * args.folds
+
+results = run_experiment(suite=time_suite, problems=problems, solvers=selected_solvers)
 
 result_df = pd.concat(list(results.values()))
 
@@ -112,5 +148,15 @@ for dataset in result_df.dataset.unique():
         if len(algorithm_results):
             result_df.drop(algorithm_results.index[0], inplace=True)
 
-# result_df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
-print(get_agg_table(result_df, ['cost_rerr', 'coupling_avg_err']))
+if args.save:
+    result_df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
+
+if args.show:
+    print(result_df)
+
+if args.show_agg:
+    dfs = [result_df[result_df.name == name] for name in result_df.name.unique()]
+
+    for df in dfs:
+        print("Solver", df.name.iloc[0])
+        print(get_agg_table(df, ['time']))

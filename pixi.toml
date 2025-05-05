@@ -8,4 +8,6 @@ version = "0.1.0"
 color-transfer = "python -m uot.color_transfer.color_transfer"
 tp-experiment = "python -m uot.experiments.time_precision_experiments"
 
+playground = "python -m uot.test.playground"
+
 [dependencies]
