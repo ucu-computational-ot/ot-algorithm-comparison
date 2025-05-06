@@ -425,14 +425,14 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
 
     basic_ranges = {
         'mean_range': (-5, 5),
-        'std_range': (0.2, 6),
-        'shape_range': (1, 10),
-        'scale_range': (0.1, 6),
-        'loc_range': (-10, 10),
-        'alpha_range': (0.1, 10),
-        'beta_range': (0.1, 10),
-        'width_range': (5, 20),
-        'lower_range': (-10, 10),
+        'std_range': (0.5, 4.0),
+        'shape_range': (1, 5),
+        'scale_range': (0.5, 3.0),
+        'loc_range': (-8, 8),
+        'alpha_range': (0.5, 5.0),
+        'beta_range': (0.5, 5.0),
+        'width_range': (2, 8),
+        'lower_range': (-8, 5),
     }
 
     distribution_parameters = {
@@ -457,26 +457,52 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         for param in param_names:
             if f"{param}_range" not in basic_ranges:
                 raise ValueError(f"Missing range for {param}.")
-            values = np.linspace(*basic_ranges[f"{param}_range"], 10)
+            
+            num_points = max(10, num_to_generate * 2)
+            values = np.linspace(*basic_ranges[f"{param}_range"], num_points)
+            
             if dim == 1:
                 param_ranges.append(values)
             else:
                 param_ranges.append(list(product(values, repeat=dim)))
 
         if distribution == 'gaussian' and dim > 1:
-            mean_choices = list(product(np.linspace(*basic_ranges['mean_range'], 10), repeat=dim))
-            np.random.shuffle(mean_choices)
-            selected_means = mean_choices[:num_to_generate]
+            mean_values = np.linspace(*basic_ranges['mean_range'], max(10, num_to_generate))
+            mean_choices = list(product(mean_values, repeat=dim))
+            
+            step = max(1, len(mean_choices) // num_to_generate)
+            selected_means = mean_choices[::step][:num_to_generate]
+            
             result = []
-            for mean in selected_means:
-                cov = generate_random_covariance(dim)
-                result.append((tuple(np.round(mean, 2)), cov))
+            
+            diag_values = np.linspace(0.5, 3.0, 10)
+            offdiag_values = np.linspace(-0.3, 0.3, 7)
+            
+            for i, mean in enumerate(selected_means):
+                diag_indices = [(i + j) % len(diag_values) for j in range(dim)]
+                offdiag_idx = i % len(offdiag_values)
+                
+                diag = np.array([diag_values[idx] for idx in diag_indices])
+                cov = np.diag(diag)
+                
+                indices = np.triu_indices(dim, k=1)
+                for idx in range(len(indices[0])):
+                    row, col = indices[0][idx], indices[1][idx]
+                    val = offdiag_values[offdiag_idx]
+                    cov[row, col] = cov[col, row] = val
+                
+                min_eig = np.min(np.linalg.eigvalsh(cov))
+                if min_eig <= 0:
+                    cov += np.eye(dim) * (abs(min_eig) + 1e-6)
+                
+                result.append((tuple(np.round(mean, 2)), np.round(cov, 2)))
+            
             results[distribution] = result
-
         else:
             all_combinations = list(product(*param_ranges))
-            np.random.shuffle(all_combinations)
-            selected_combinations = all_combinations[:num_to_generate]
+            
+            step = max(1, len(all_combinations) // num_to_generate)
+            selected_combinations = all_combinations[::step][:num_to_generate]
 
             rounded_combinations = [
                 tuple(np.round(combination, 2)) for combination in selected_combinations
@@ -486,7 +512,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
     return results
 
 
-def generate_grid(dim: int, grid_size: int, start: int = -5, end: int = 5):
+def generate_grid(dim: int, grid_size: int, start: int = -10, end: int = 10):
     """
     Generates a mesh grid for the specified dimensionality and size.
 

@@ -5,7 +5,6 @@ from scipy.optimize import linprog
 from scipy.linalg import lstsq
 from matplotlib import pyplot as plt
 
-from tqdm import trange
 
 ##############################################################################################
 # Taken from https://github.com/aipyth/gencol_ot
@@ -136,39 +135,37 @@ def genetic_column_generation(
     cost_history = np.empty((maxiter, 1))
     dual_value_history = np.empty((maxiter, l))
 
-    with range(maxiter) as t:
-        for i in t:
-            alpha_I, cost = solve_rmp(AI, cI, marginal)
-            cost_history[i] = cost
-            y_star = solve_dual(AI, cI, marginal)
-            dual_value_history[i, :] = y_star
+    for i in range(maxiter):
+        alpha_I, cost = solve_rmp(AI, cI, marginal)
+        cost_history[i] = cost
+        y_star = solve_dual(AI, cI, marginal)
+        dual_value_history[i, :] = y_star
 
-            while gain <= 0 and samples <= maxsamples:
-                # Select a random active column of AI
-                parent_index = random.choice(np.where(alpha_I > 0)[0])
-                parent = AI[:, parent_index]
-                child = mutate_parent(parent, l)
-                c_child = compute_cost(child, N, cost_matrix)
+        while gain <= 0 and samples <= maxsamples:
+            # Select a random active column of AI
+            parent_index = random.choice(np.where(alpha_I > 0)[0])
+            parent = AI[:, parent_index]
+            child = mutate_parent(parent, l)
+            c_child = compute_cost(child, N, cost_matrix)
 
-                # Calculate gain from adding the child column
-                gain = np.dot(child.T, y_star) - c_child
+            # Calculate gain from adding the child column
+            gain = np.dot(child.T, y_star) - c_child
 
-                samples += 1
+            samples += 1
 
-            # Update AI and cI with the new child column if there's a positive gain
-            if gain > 0:
-                AI = np.hstack((AI, child[:, np.newaxis]))
-                # cI = np.hstack((cI, c_child))
-                cI = np.append(cI, c_child)
-                if AI.shape[1] > beta * l:
-                    # Clear the oldest inactive columns
-                    inactive_indices = np.where(alpha_I == 0)[0]
-                    AI = np.delete(AI, inactive_indices[:l], axis=1)
-                    cI = np.delete(cI, inactive_indices[:l])
+        # Update AI and cI with the new child column if there's a positive gain
+        if gain > 0:
+            AI = np.hstack((AI, child[:, np.newaxis]))
+            # cI = np.hstack((cI, c_child))
+            cI = np.append(cI, c_child)
+            if AI.shape[1] > beta * l:
+                # Clear the oldest inactive columns
+                inactive_indices = np.where(alpha_I == 0)[0]
+                AI = np.delete(AI, inactive_indices[:l], axis=1)
+                cI = np.delete(cI, inactive_indices[:l])
 
-            iter += 1
+        iter += 1
 
-            t.set_postfix(samples=samples, cost=cost)
 
     # Return the final set of columns and configuration
     alpha_I, cost = solve_rmp(AI, cI, marginal)
