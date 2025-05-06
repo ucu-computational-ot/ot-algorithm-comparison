@@ -319,26 +319,47 @@ def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cos
         yield ot_problem
 
 
-def run_experiment(suite: 'ExperimentSuite',
+def run_experiment(experiment: 'Experiment',
                    solvers: dict[str, callable],
-                   problemsets_names: list[str] = None,
-                   problems: list["OTProblem"] = None) -> pd.DataFrame:
+                   problems: list["OTProblem"] = None,
+                   jit_algorithms = None) -> pd.DataFrame:
 
-    if problemsets_names is not None:
-        problem_sets = [get_problemset(problemset_name) for problemset_name in problemsets_names]
-        problems = [problem for problem_set in problem_sets for problem in problem_set]
+
+    for problem in problems:
+        source_distribution = problem.source_measure.distribution
+        target_distribution = problem.target_measure.distribution
+        
+        if np.any(np.logical_or(np.isnan(source_distribution), np.isinf(source_distribution))):
+            print(f"Detected problem in: {problem}")
+            print("Source distribution contains NaN or Inf")
+            print(source_distribution)
+            raise ValueError("Nan or Inf in source distributions")
+        
+        if np.any(np.logical_or(np.isnan(target_distribution), np.isinf(target_distribution))):
+            print(f"Detected problem in: {problem}")
+            print("Source distribution contains NaN or Inf")
+            print(target_distribution)
+            raise ValueError("Nan or Inf in target distributions")
     
-    results = {}
+    dfs = []
 
-    with tqdm(total=len(solvers) * len(suite.experiments) * len(problems), desc="Running experiments") as pbar:
+    with tqdm(total=len(solvers) * len(problems), desc="Running experiments") as pbar:
         progress_callback = lambda: pbar.update(1)
 
         for solver_name, solver in solvers.items():
-            solver_result = suite.run_suite(name=solver_name, ot_problems=problems,
+            solver_result = experiment.run_experiment(name=solver_name, ot_problems=problems,
                                             progress_callback=progress_callback, solver=solver)
-            results[solver_name] = solver_result
-    
-    return results
+            dfs.append(solver_result)
+
+    df = pd.concat(dfs)
+
+    for dataset in df.dataset.unique():
+        for algorithm_name in jit_algorithms:
+            algorithm_results = df[(df.dataset == dataset) & (df.name == algorithm_name)]
+            if len(algorithm_results):
+                df.drop(algorithm_results.index[0], inplace=True)
+
+    return df
 
 
 class OTProblem:
@@ -430,7 +451,7 @@ class Experiment:
         self.name = name
         self.run_function = run_function
 
-    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, **kwargs) -> dict:
+    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, name: str = None, **kwargs) -> dict:
         results = {}
         for i, ot_problem in enumerate(ot_problems):
             results[ot_problem] = self.run_function(ot_problem, **kwargs)
@@ -439,33 +460,17 @@ class Experiment:
             ot_problem.free_memory()
             if i % 100 == 0:
                 gc.collect()
-        
-        return results
-    
-    def run_single(self, ot_problem: OTProblem) -> dict:
-        return self.run_function(ot_problem)
-
-    
-class ExperimentSuite:
-    MAX_RESULTS_IN_WORKER = 50
-
-    def __init__(self, experiments: list[Experiment]):
-        self.experiments = experiments
-
-    def run_suite(self, name: str, ot_problems: list[OTProblem], njobs: int = 1,
-                  progress_callback: callable = None, **kwargs) -> pd.DataFrame:
-        results = []
-        for experiment in self.experiments:
-            results.append(experiment.run_experiment(ot_problems, progress_callback=progress_callback, **kwargs))
 
         df_rows = []
         for ot_problem in ot_problems:
             row_dict = ot_problem.to_dict() 
-            for result in results:
-                row_dict.update(result[ot_problem])
+            row_dict.update(results[ot_problem])
             df_rows.append(row_dict)
 
         df = pd.DataFrame(df_rows)
         df['name'] = name
 
         return df
+    
+    def run_single(self, ot_problem: OTProblem) -> dict:
+        return self.run_function(ot_problem)

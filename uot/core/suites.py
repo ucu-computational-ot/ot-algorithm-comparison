@@ -2,9 +2,9 @@ import time
 import numpy as np
 from uot.algorithms.sinkhorn import sinkhorn
 from memory_profiler import memory_usage, profile
-from uot.core.experiment import OTProblem, Experiment, ExperimentSuite
+from uot.core.experiment import OTProblem, Experiment
 
-def time_precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+def time_precision_experiment_func(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
     start_time = time.perf_counter()
     output_T, output_dist = solver(a, b, C)
@@ -17,7 +17,7 @@ def time_precision_experiment(ot_problem: OTProblem, solver: callable = sinkhorn
     return {'time': (end_time - start_time) * 1000, 'cost_rerr': precision, 'coupling_avg_err': coupling_precision}
 
 
-def time_experiment(ot_problem: OTProblem, solver: callable = sinkhorn):
+def time_experiment_func(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
     start_time = time.perf_counter()
     _, _ = solver(a, b, C)
@@ -42,16 +42,8 @@ def memory_profiler_out(ot_problem: OTProblem, solver: callable = sinkhorn):
     profiled_solver(a, b, C)
 
 
-time_precision_suite = ExperimentSuite(experiments=[
-    Experiment("Measure time and precision", run_function=time_precision_experiment),
-    # Experiment("Measure time and precision", run_function=time_precision_experiment),
-])
+time_precision_experiment = Experiment("Measure time and precision", run_function=time_precision_experiment_func)
 
-time_suite =  ExperimentSuite(experiments=[
-    Experiment("Measure time", run_function=time_experiment)
-])
+time_experiment = Experiment("Measure time", run_function=time_experiment_func)
 
-memory_suite = ExperimentSuite(experiments=[
-    Experiment("Measure memory", run_function=memory_experiment)
-])
 

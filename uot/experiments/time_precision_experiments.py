@@ -12,7 +12,7 @@ from uot.algorithms.lbfgs import lbfgs_ot
 from uot.algorithms.lp import pot_lp
 from uot.core.experiment import run_experiment, generate_data_problems, get_problemset
 from uot.core.analysis import get_agg_table
-from uot.core.suites import time_precision_suite, time_suite
+from uot.core.suites import time_precision_experiment, time_experiment
 
 solvers = {
     'pot-lp': pot_lp,
@@ -31,7 +31,7 @@ problemset_names_1D = [
     # "64 1D gamma",
     # "256 1D gamma",
     # "512 1D gamma",
-    # "1024 1D gamma",
+    "1024 1D gamma",
     # "2048 1D gamma",
 
     # "32 1D gaussian",
@@ -39,7 +39,7 @@ problemset_names_1D = [
     # "256 1D gaussian",
     # "512 1D gaussian",
     # "1024 1D gaussian",
-    "2048 1D gaussian",
+    # "2048 1D gaussian",
 
     # "32 1D beta",
     # "64 1D beta",
@@ -68,7 +68,7 @@ problem_sets_names_2D = [
     # ('LogitGRF', 32),
     # ('MicroscopyImages', 32),
     # ('Shapes', 32),
-    # ('ClassicImages', 32)
+    # ('ClassicImages', 64)
 ]
 
 problem_sets_3D = [
@@ -82,6 +82,7 @@ problem_sets = [get_problemset(name) for name in problemset_names_1D] + \
 
 problems = [problem for problemset in problem_sets 
                     for problem in problemset]
+
 
 for problem in problems:
     source_distribution = problem.source_measure.distribution
@@ -138,24 +139,18 @@ else:
 
 problems = problems * args.folds
 
-results = run_experiment(suite=time_suite, problems=problems, solvers=selected_solvers)
 
-result_df = pd.concat(list(results.values()))
+df = run_experiment(experiment=time_experiment, problems=problems, solvers=selected_solvers, jit_algorithms=jit_algorithms)
 
-for dataset in result_df.dataset.unique():
-    for algorithm_name in jit_algorithms:
-        algorithm_results = result_df[(result_df.dataset == dataset) & (result_df.name == algorithm_name)]
-        if len(algorithm_results):
-            result_df.drop(algorithm_results.index[0], inplace=True)
 
 if args.save:
-    result_df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
+    df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
 
 if args.show:
-    print(result_df)
+    print(df)
 
 if args.show_agg:
-    dfs = [result_df[result_df.name == name] for name in result_df.name.unique()]
+    dfs = [df[df.name == name] for name in df.name.unique()]
 
     for df in dfs:
         print("Solver", df.name.iloc[0])

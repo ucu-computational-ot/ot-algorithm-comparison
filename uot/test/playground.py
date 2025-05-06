@@ -1,11 +1,31 @@
+import jax
+jax.config.update("jax_enable_x64", True)
+
+import time
 from uot.algorithms.lp import pot_lp
-from uot.core.experiment import get_problemset
+from uot.algorithms.sinkhorn import jax_sinkhorn
+from uot.core.experiment import generate_data_problems, get_problemset
 
-problem = get_problemset("1024 1D gaussian")[8]
+problem = get_problemset("1024 1D gamma")[0]
 
-a, b, C = problem.a, problem.b, problem.C
-_, cost = pot_lp(a, b, C)
+N = 10
+a, b, C = problem.to_jax_arrays()
 
-print("Exact cost", problem.exact_cost)
-print("Recumputed", cost)
+total = 0
+for i in range(N):
+    print(i)
+    start = time.perf_counter()
+    _, cost = pot_lp(a, b, C)
+    end = time.perf_counter()
+    total += end - start
+print("LP:",  1000 * total / N)
+
+total = 0
+for i in range(N):
+    print(i)
+    start = time.perf_counter()
+    _, cost = jax_sinkhorn(a, b, C)
+    end = time.perf_counter()
+    total += end - start
+print("JAX:",  1000 * total / N)
 
