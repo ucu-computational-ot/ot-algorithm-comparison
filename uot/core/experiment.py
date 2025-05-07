@@ -39,7 +39,7 @@ def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cos
         ot_problems.append(ot_problem)
     return ot_problems
 
-def generate_data_problems(data_type: str, num_points: int, num_samples: int = 10, create_grids: bool = True):
+def generate_data_problems(data_type: str, num_points: int, num_samples: int = 10):
     """
     Generates OT problems from data files in the Data folder.
     
@@ -82,29 +82,16 @@ def generate_data_problems(data_type: str, num_points: int, num_samples: int = 1
         
         data = data / data.sum()
         
-        if create_grids:
-            
-            x = np.linspace(0, 1, data.shape[1])
-            y = np.linspace(0, 1, data.shape[0])
-            grid = np.meshgrid(x, y)
-            
-            measure = Measure(
-                name=f"{data_type}_{file_name.replace('.csv', '')}",
-                support=grid,
-                distribution=data,
-                kwargs={"data_type": data_type, "file_name": file_name}
-            )
-        else:
-            flat_data = data.flatten()
-            
-            indices = np.arange(len(flat_data))
-            
-            measure = Measure(
-                name=f"{data_type}_{file_name.replace('.csv', '')}",
-                support=[indices],
-                distribution=flat_data,
-                kwargs={"data_type": data_type, "file_name": file_name}
-            )
+        x = np.linspace(0, 1, data.shape[1])
+        y = np.linspace(0, 1, data.shape[0])
+        grid = np.meshgrid(x, y)
+        
+        measure = Measure(
+            name=f"{data_type}_{file_name.replace('.csv', '')}",
+            support=grid,
+            distribution=data,
+            kwargs={"data_type": data_type, "file_name": file_name}
+        )
         
         measures.append(measure)
     
@@ -227,64 +214,72 @@ def generate_3d_mesh_problems(num_points: int = None, num_meshes: int = 10, colo
     
     return all_problems
 
-def create_problemset(dim: int, distributions: dict[str, int], grid_size: int, coefficients = None):
-    """
-    Generates a set of OT problems based on the specified dimensions, distributions, and grid size.
-
-    Args:
-        dim (int): Dimensionality of the dataset (1, 2, or 3).
-        distributions (dict): Dictionary containing distribution types and their counts.
-        grid_size (int): Size of the grid for the measures.
-
-    Returns:
-        list[OTProblem]: A list of OTProblem objects.
-    """
-    grids = get_grids(dim, [grid_size])
-    if coefficients is None:
-        coefficients = generate_coefficients(dim, distributions)
-    measures = generate_measures(dim, coefficients, grids)
-    name = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'_'.join(sorted(distributions))}"
-
-    try:
-        problems = generate_two_fold_problems(None, measures[name.replace('_', '|')], name=name)
-    except KeyError as e:
-        print(f"KeyError: {name.replace('_', '|')} not found in measures. Available keys: {list(measures.keys())}")
-        return
-
-    return problems
-
-def get_problemset(name: str, coeffs = None, create: bool = False):
-    size, dim, distributions = name.split(' ')
-    distributions = sorted(distributions.split('|'))
-    dim = int(dim[0])
+def get_distribution_problemset(name: str, coeffs=None):
+    size, dim_str, distributions_str = name.split(' ')
+    distributions = sorted(distributions_str.split('|'))
+    dim = int(dim_str[0])
 
     if dim not in [1, 2, 3]:
         raise ValueError(f"Invalid dimension: {dim}. Expected 1, 2, or 3.")
 
-    if len(size.split('x')) != dim:
+    size_parts = size.split('x')
+    if len(size_parts) != dim:
         raise ValueError(f"Invalid size format: {size}. Expected format: {'x'.join(['<size>'] * dim)}.")
-
-    filename = f"./datasets/{dim}D/{size}_{'_'.join(distributions)}.pkl"
     
-    if os.path.exists(filename) and not create:
-        return load_from_file(filename)
-
-    elif create:
-        if os.path.exists(filename):
-            filename = filename.replace('.pkl', '_1.pkl')
-            i = 2
-            while os.path.exists(filename):
-                filename = filename.replace(f"_{i-1}.pkl", f"_{i}.pkl")
-                i += 1
-
+    grid_size = int(size_parts[0])
+    
     distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
-    problems = create_problemset(dim, distribution_counts, int(size.split('x')[0]), coeffs)
+    
+    if coeffs is None:
+        coeffs = generate_coefficients(dim, distribution_counts)
+    
+    grids = get_grids(dim, [grid_size], start=-10, end=10)
+    measures = generate_measures(dim, coeffs, grids)
+    
+    measure_key = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'|'.join(distributions)}"
+    
+    try:
+        problems = generate_two_fold_problems(None, measures[measure_key], name=measure_key)
+        return problems
+    except KeyError as e:
+        available_keys = list(measures.keys())
+        raise KeyError(f"Key '{measure_key}' not found in measures. Available keys: {available_keys}")
 
-    if not problems:
-        raise ValueError(f"Failed to create problems for {name}. Check the parameters.")
-
-    save_to_file(problems, filename)
-    return problems
+def get_problemset(problem_spec, coeffs=None, **kwargs):
+    if isinstance(problem_spec, str):
+        return get_distribution_problemset(problem_spec, coeffs)
+    
+    if not isinstance(problem_spec, tuple) or len(problem_spec) < 3:
+        raise ValueError("Problem spec must be either a string or a tuple (type, name, num_points[, dims])")
+    
+    prob_type, name, num_points = problem_spec[:3]
+    dims = problem_spec[3] if len(problem_spec) > 3 else 1
+    
+    if prob_type.lower() == "distribution":
+        if dims == 1:
+            size_str = f"{num_points}"
+        elif dims == 2:
+            size_str = f"{num_points}x{num_points}"
+        elif dims == 3:
+            size_str = f"{num_points}x{num_points}x{num_points}"
+        else:
+            raise ValueError(f"Invalid dimension: {dims}. Expected 1, 2, or 3.")
+        
+        problem_str = f"{size_str} {dims}D {name}"
+        return get_distribution_problemset(problem_str, coeffs)
+    
+    elif prob_type.lower() == "3d_mesh":
+        color_mode = name
+        num_meshes = kwargs.get("num_meshes", 10)
+        return generate_3d_mesh_problems(num_points=num_points, color_mode=color_mode, num_meshes=num_meshes)
+    
+    elif prob_type.lower() == "data":
+        data_type = name
+        num_samples = kwargs.get("num_samples", 10)
+        return generate_data_problems(data_type=data_type, num_points=num_points, num_samples=num_samples)
+    
+    else:
+        raise ValueError(f"Unknown problem type: {prob_type}. Expected 'distribution', '3d_mesh', or 'data'")
 
 def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
     """
