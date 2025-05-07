@@ -1,14 +1,16 @@
 import ot
 import gc
+import os
+import os.path
 import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
 import open3d as o3d
+from functools import partial
 from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, Measure
 from tqdm import tqdm
-import os.path
-import os
+
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -17,7 +19,7 @@ def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return ot.dist(x.reshape((n, -1)), y.reshape((m, -1)))
 
 def get_exact_solution(a: np.ndarray, b: np.ndarray, C: np.ndarray) -> tuple[np.ndarray, float]:
-    T = ot.emd(a, b, C)
+    T = ot.emd(a, b, C, numItermax=10000000, numThreads=os.cpu_count())
     return T, np.sum(T * C)
 
 def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cost=False):
@@ -250,10 +252,10 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
     if not isinstance(problem_spec, tuple) or len(problem_spec) < 3:
         raise ValueError("Problem spec must be either a string or a tuple (type, name, num_points[, dims])")
     
-    prob_type, name, num_points = problem_spec[:3]
+    dimensionality, name, num_points = problem_spec[:3]
     dims = problem_spec[3] if len(problem_spec) > 3 else 1
     
-    if prob_type.lower() == "distribution":
+    if dimensionality == 1:
         if dims == 1:
             size_str = f"{num_points}"
         elif dims == 2:
@@ -265,25 +267,43 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
         
         problem_str = f"{size_str} {dims}D {name}"
         return get_distribution_problemset(problem_str, coeffs)
-    
-    elif prob_type.lower() == "3d_mesh":
-        color_mode = name
-        num_meshes = kwargs.get("num_meshes", 10)
-        return generate_3d_mesh_problems(num_points=num_points, color_mode=color_mode, num_meshes=num_meshes)
-    
-    elif prob_type.lower() == "data":
+
+    elif dimensionality == 2:
         data_type = name
         num_samples = kwargs.get("num_samples", 10)
         return generate_data_problems(data_type=data_type, num_points=num_points, num_samples=num_samples)
     
+    elif dimensionality == 3:
+        color_mode = name
+        num_meshes = kwargs.get("num_meshes", 10)
+        return generate_3d_mesh_problems(num_points=num_points, color_mode='r', num_meshes=num_meshes)
+   
     else:
-        raise ValueError(f"Unknown problem type: {prob_type}. Expected 'distribution', '3d_mesh', or 'data'")
+        raise ValueError(f"Unknown problem type: {dimensionality}. Expected 'distribution', '3d_mesh', or 'data'")
 
 def run_experiment(experiment: 'Experiment',
-                   solvers: dict[str, callable],
-                   problems: list["OTProblem"] = None,
-                   jit_algorithms = None) -> pd.DataFrame:
+                   jit_algorithms=None,
+                   solvers: dict[str, callable] = None,
+                   problemsets_names: list[tuple] = None,
+                   folds: int = 1) -> pd.DataFrame:
+    """
+    Executes a series of experiments using specified solvers on a set of problems.
+    Args:
+        experiment (Experiment): The experiment object that defines how to run the experiments.
+        solvers (dict[str, callable]): A dictionary where keys are solver names and values are tuples 
+            containing the solver function and optional sets of keyword arguments for the solver.
+        problemsets_names (list[tuple]): A list of problem set names to retrieve and use in the experiments.
+        jit_algorithms (list[str], optional): A list of algorithm names to exclude from the results. Defaults to None.
+        folds (int, optional): The number of folds for cross-validation. Defaults to 1.
+    Returns:
+        pd.DataFrame: A DataFrame containing the results of the experiments, including solver names 
+        and any additional parameters used.
+    """
 
+    problem_sets = [get_problemset(name) for name in problemsets_names]
+    problems = [problem for problemset in problem_sets for problem in problemset]
+
+    problems *= folds
 
     for problem in problems:
         source_distribution = problem.source_measure.distribution
@@ -303,12 +323,26 @@ def run_experiment(experiment: 'Experiment',
     
     dfs = []
 
-    with tqdm(total=len(solvers) * len(problems), desc="Running experiments") as pbar:
+    solvers_number = sum(len(kwargs) if kwargs else 1 for _, kwargs in solvers.values())
+
+    with tqdm(total=solvers_number * len(problems), desc="Running experiments") as pbar:
         progress_callback = lambda: pbar.update(1)
 
         for solver_name, solver in solvers.items():
-            solver_result = experiment.run_experiment(name=solver_name, ot_problems=problems,
-                                            progress_callback=progress_callback, solver=solver)
+            
+            solver_function, kwargs_sets = solver
+            kwargs_sets = kwargs_sets if kwargs_sets else [{}]
+            solvers = [(partial(solver_function, **kwargs), kwargs) for kwargs in kwargs_sets]
+
+            for solver, kwargs in solvers:
+                pbar.set_description(f"Solver: {solver_name}({kwargs})")
+                solver_result = experiment.run_experiment(ot_problems=problems, progress_callback=progress_callback, solver=solver)
+
+                solver_result['name'] = solver_name
+                
+                for kwarg_name, value in kwargs.items():
+                    solver_result[kwarg_name] = value
+            
             dfs.append(solver_result)
 
     df = pd.concat(dfs)
@@ -411,10 +445,13 @@ class Experiment:
         self.name = name
         self.run_function = run_function
 
-    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, name: str = None, **kwargs) -> dict:
+    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, solver = None) -> dict:
         results = {}
         for i, ot_problem in enumerate(ot_problems):
-            results[ot_problem] = self.run_function(ot_problem, **kwargs)
+
+            run_function = partial(self.run_function, solver=solver)
+
+            results[ot_problem] = run_function(ot_problem)
             if progress_callback is not None:
                 progress_callback()
             ot_problem.free_memory()
@@ -427,10 +464,7 @@ class Experiment:
             row_dict.update(results[ot_problem])
             df_rows.append(row_dict)
 
-        df = pd.DataFrame(df_rows)
-        df['name'] = name
-
-        return df
+        return pd.DataFrame(df_rows)
     
     def run_single(self, ot_problem: OTProblem) -> dict:
         return self.run_function(ot_problem)

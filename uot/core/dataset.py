@@ -1,7 +1,10 @@
+import zipfile
+import requests
 import open3d as o3d
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+import os
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -465,6 +468,22 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
                 output[entry].append(mes)
         
     return output
+
+def download_dataset():
+    URL = "https://drive.usercontent.google.com/download?id=1h2LA05z19P1BWUH5v2ph0gvXKS_wxS8W&export=download&confirm=t&uuid=8ec0d845-fa17-4a8e-8211-ac9214564b85&at=APcmpoxvi8f0AvQwJflzKLsBtg7_:1746613211647"
+    FILENAME = "dataset.zip"
+
+    with requests.get(URL, stream=True) as r:
+        r.raise_for_status()  # raise an exception for bad status codes
+        with open(FILENAME, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:  # filter out keep-alive chunks
+                    f.write(chunk)
+    
+    with zipfile.ZipFile("dataset.zip", 'r') as zip_ref:
+        zip_ref.extractall(".")
+
+    os.remove(FILENAME) 
 
 if __name__ == "__main__":
     coeffs = generate_coefficients(1, {'gaussian': 1, 'gamma': 1, 'beta': 1, 'uniform': 1, 'cauchy': 1, 'white-noise': 1})

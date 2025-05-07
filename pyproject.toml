@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uot"
+version = "0.1.11"
+description = "Library for comparison of Optimal Transport algorithms"
+readme = "README.md"
+authors = [
+    { name = "Maksym-Vasyl Tarnavskyi", email = "tarnavskyi.pn@ucu.edu.ua" },
+    { name = "Maksym Zhuk", email = "zhuk.pn@ucu.edu.ua" },
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "numpy",
+    "tqdm",
+    "jax",
+    "jaxlib",
+    "scikit-learn",
+    "pot",
+    "open3d",
+    "ott-jax",
+    "memory_profiler"
+]
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = [
+    "uot",
+    "uot.core",
+    "uot.algorithms",
+    "uot.color_transfer",
+    "uot.experiments",
+    "uot.mnist_classification",
+    "uot.test"
+]

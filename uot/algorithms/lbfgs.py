@@ -32,7 +32,7 @@ def lbfgs_multimarginal(marginals: jnp.ndarray,
     solver = LBFGS(fun=objective, tol=tolerance)
     result = solver.run(init_params=potentials)
 
-    return result.params
+    return result.params, result.state.error < tolerance
 
 def lbfgs_ot(a: jnp.ndarray, 
              b: jnp.ndarray,
@@ -40,13 +40,13 @@ def lbfgs_ot(a: jnp.ndarray,
              tolerance: float = 1e-4, 
              epsilon: float = 1e-3):
     marginals = jnp.array([a, b])
-    potentials = lbfgs_multimarginal(marginals=marginals,
-                                     C = C,
-                                     tolerance=tolerance,
-                                     epsilon=epsilon)
+    potentials, converged = lbfgs_multimarginal(marginals=marginals,
+                                                C = C,
+                                                tolerance=tolerance,
+                                                epsilon=epsilon)
 
     P = jnp.exp(
         (potentials[0][None, :] + potentials[1][:, None] - C) / epsilon
     )
 
-    return P, jnp.sum(P * C)
+    return P, jnp.sum(P * C), converged

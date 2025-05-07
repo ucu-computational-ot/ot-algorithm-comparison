@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from IPython.display import display, HTML
+# from IPython.display import display, HTML
 
 def get_agg_table(df, metrics: list[str]):
         aggregation_rules = {f"{metric}_mean": (metric, 'mean') for metric in metrics} | \
