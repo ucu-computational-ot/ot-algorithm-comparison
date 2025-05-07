@@ -135,8 +135,8 @@ def gradient_ascent_opt_multimarginal(
         cond_fn, step, (0, potentials, opt_state, jnp.inf, False)
     )
 
-    steps, final_potentials, _, final_loss, _ = final_state
-    return final_potentials
+    steps, final_potentials, _, final_loss, has_converged = final_state
+    return final_potentials, has_converged
 
 def gradient_ascent_two_marginal(a, b, C, epsilon=1e-3):
     marginals = jnp.array([a, b])
@@ -147,8 +147,12 @@ def gradient_ascent_two_marginal(a, b, C, epsilon=1e-3):
 def gradient_ascent(a, b, C, epsilon = 1e-3):
     marginals = jnp.array([a, b])
     
-    final_potentials = gradient_ascent_opt_multimarginal(C, marginals, eps=epsilon, learning_rate=1e-3).block_until_ready()
+    final_potentials, converged = gradient_ascent_opt_multimarginal(C, marginals, eps=epsilon, learning_rate=1e-3)
+    final_potentials.block_until_ready()
+    converged.block_until_ready()
+
     P = jnp.exp(
         (final_potentials[0][None, :] + final_potentials[1][:, None] - C) / epsilon
     )
-    return P, jnp.sum(C * P)
+
+    return P, jnp.sum(C * P), converged

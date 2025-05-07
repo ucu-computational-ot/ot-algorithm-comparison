@@ -10,9 +10,9 @@ from uot.algorithms.sinkhorn import jax_sinkhorn
 from uot.algorithms.gradient_ascent import gradient_ascent
 from uot.algorithms.lbfgs import lbfgs_ot
 from uot.algorithms.lp import pot_lp
-from uot.core.experiment import run_experiment, generate_data_problems, get_problemset
+from uot.core.experiment import run_experiment
 from uot.core.analysis import get_agg_table
-from uot.core.suites import time_precision_experiment, time_experiment
+from uot.core.suites import time_precision_experiment
 
 epsilon_kwargs = [
     {'epsilon': 100},
@@ -28,7 +28,7 @@ solvers = {
     'pot-lp': (pot_lp, []),
     'lbfgs': (lbfgs_ot, epsilon_kwargs),
     'jax-sinkhorn': (jax_sinkhorn, epsilon_kwargs),
-    'optax-grad-ascent': (gradient_ascent, epsilon_kwargs),
+    'grad-ascent': (gradient_ascent, epsilon_kwargs),
 }
 
 # algorithms that use jax jit 
@@ -118,7 +118,7 @@ else:
     selected_solvers = {key: solvers[key] for key in args.algorithms if key in solvers}
 
 
-df = run_experiment(experiment=time_experiment, 
+df = run_experiment(experiment=time_precision_experiment, 
                     problemsets_names=problemset_names,
                     solvers=selected_solvers,
                     jit_algorithms=jit_algorithms,

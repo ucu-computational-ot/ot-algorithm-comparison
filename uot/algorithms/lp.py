@@ -8,4 +8,5 @@ def pot_lp(a, b, C):
     T, log = ot.emd(a, b, C, log=True, numItermax=10000000)
     if log['warning'] is not None:
         print(log['warning'])
-    return T, np.sum(T * C)
+    converged = log['warning'] is None 
+    return T, np.sum(T * C), converged

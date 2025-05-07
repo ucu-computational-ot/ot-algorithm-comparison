@@ -8,7 +8,7 @@ import itertools as it
 import jax.numpy as jnp
 import open3d as o3d
 from functools import partial
-from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
+from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, Measure
 from tqdm import tqdm
 
 
@@ -19,7 +19,7 @@ def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return ot.dist(x.reshape((n, -1)), y.reshape((m, -1)))
 
 def get_exact_solution(a: np.ndarray, b: np.ndarray, C: np.ndarray) -> tuple[np.ndarray, float]:
-    T = ot.emd(a, b, C)
+    T = ot.emd(a, b, C, numItermax=10000000, numThreads=os.cpu_count())
     return T, np.sum(T * C)
 
 def generate_two_fold_problems(grid, measures: list[Measure], name: str, one_cost=False):
@@ -338,6 +338,8 @@ def run_experiment(experiment: 'Experiment',
     problem_sets = [get_problemset(name) for name in problemsets_names]
     problems = [problem for problemset in problem_sets for problem in problemset]
 
+    problems *= folds
+
     for problem in problems:
         source_distribution = problem.source_measure.distribution
         target_distribution = problem.target_measure.distribution
@@ -368,6 +370,7 @@ def run_experiment(experiment: 'Experiment',
             solvers = [(partial(solver_function, **kwargs), kwargs) for kwargs in kwargs_sets]
 
             for solver, kwargs in solvers:
+                pbar.set_description(f"Solver: {solver_name}({kwargs})")
                 solver_result = experiment.run_experiment(ot_problems=problems, progress_callback=progress_callback, solver=solver)
 
                 solver_result['name'] = solver_name

@@ -87,13 +87,17 @@ def sinkhorn(a: jnp.ndarray,
     return u_final, v_final
 
 
-def jax_sinkhorn(a, b, C, epsilon=1e-3):
+def jax_sinkhorn(a, b, C, epsilon=1e-3, tolerance = 1e-4):
     a, b, C = regularize_input(a, b, C)
     u, v = sinkhorn(a, b, C, epsilon)
     u.block_until_ready()
     v.block_until_ready()
     P = coupling_tensor(u, v, C, epsilon)
-    return P, jnp.sum(P * C)
+
+    error = compute_error(u, v, a, b, C, epsilon)
+    converged = error < tolerance
+
+    return P, jnp.sum(P * C), converged
 
 
 def sink(a, b, cost, epsilon=1e-3):

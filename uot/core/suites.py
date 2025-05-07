@@ -7,14 +7,14 @@ from uot.core.experiment import OTProblem, Experiment
 def time_precision_experiment_func(ot_problem: OTProblem, solver: callable = sinkhorn):
     a, b, C = ot_problem.to_jax_arrays()
     start_time = time.perf_counter()
-    output_T, output_dist = solver(a, b, C)
+    output_T, output_dist, converged = solver(a, b, C)
     end_time = time.perf_counter()
 
     exact_T, exact_dist = ot_problem.exact_map, ot_problem.exact_cost
     precision = np.abs(output_dist - exact_dist) / exact_dist
     coupling_precision = np.sum(np.abs(output_T - exact_T)) / np.prod(output_T.shape)
 
-    return {'time': (end_time - start_time) * 1000, 'cost_rerr': precision, 'coupling_avg_err': coupling_precision}
+    return {'time': (end_time - start_time) * 1000, 'cost_rerr': precision, 'coupling_avg_err': coupling_precision, 'converged': converged}
 
 
 def time_experiment_func(ot_problem: OTProblem, solver: callable = sinkhorn):
