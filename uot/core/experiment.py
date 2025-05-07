@@ -5,7 +5,7 @@ import pandas as pd
 import itertools as it
 import jax.numpy as jnp
 import open3d as o3d
-from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
+from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, Measure
 from tqdm import tqdm
 import os.path
 import os
@@ -278,41 +278,6 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
     
     else:
         raise ValueError(f"Unknown problem type: {prob_type}. Expected 'distribution', '3d_mesh', or 'data'")
-
-def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
-    """
-    Lazily generates two-fold OT problems from a generator of measures.
-
-    Args:
-        grid (list[np.ndarray]): The grid used for the measures.
-        measures_generator (generator): A generator yielding Measure objects.
-        name (str): Name of the OT problems.
-        one_cost (bool): Whether to compute a single cost matrix for all problems.
-
-    Yields:
-        OTProblem: An OTProblem object for each pair of measures.
-    """
-
-    if one_cost:
-        first_measure = next(measures_generator)
-        second_measure = next(measures_generator)
-        source_points, _ = first_measure.to_histogram()
-        target_points, _ = second_measure.to_histogram()
-        C = get_q_const(source_points, target_points)
-        measures_generator = it.chain([first_measure, second_measure], measures_generator)  # Reinsert the first two measures
-    else:
-        C = get_q_const
-
-    for source_measure, target_measure in it.combinations(measures_generator, 2):
-        ot_problem = OTProblem(
-            name="Simple transport",
-            source_measure=source_measure,
-            target_measure=target_measure,
-            C=C
-        )
-        ot_problem.kwargs.update({'name': name})
-        yield ot_problem
-
 
 def run_experiment(experiment: 'Experiment',
                    solvers: dict[str, callable],

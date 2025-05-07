@@ -1,10 +1,7 @@
-import os
 import open3d as o3d
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-import inspect
-import pickle
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -100,7 +97,11 @@ class Measure:
 
 def generate_gaussian_pdf(x, mean=0, std=1):
     pdf = stats.norm.pdf(x, loc=mean, scale=std)
-    return pdf / pdf.sum()
+    pdf_sum = pdf.sum()
+    if pdf_sum > 1e-10:
+        return pdf / pdf_sum
+    else:
+        return np.ones_like(pdf) / len(pdf)
 
 
 def generate_2d_gaussian_pdf(x, y, mean=(0, 0), cov=((1, 0), (0, 1))):
@@ -161,74 +162,6 @@ def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0),
     return pdf / pdf.sum()
 
 
-def generate_1d_gaussians_ds(x: np.ndarray):
-    means = np.arange(-6, 6)
-    std = np.linspace(0.1, 2, 10)
-    return [Measure(name="1D Gaussian", support=[x], distribution=generate_gaussian_pdf(x, mean=mean, std=std),
-                    kwargs={'mean': mean, 'std': std})  for mean, std in zip(means, std)]
-
-
-def generate_2d_gaussians_ds(x, y):
-    means = [
-        [-4, -4],
-        [-3, -3],
-        [-2, -2],
-        [-1, -1],
-        [0, 0],
-        [1, 1],
-        [2, 2],
-        [3, 3],
-        [4, 4],
-        [5, 5]
-    ]
-
-    covariances = [
-        np.array([[1, 0], [0, 1]]),
-        np.array([[0.5, 0], [0, 0.5]]),
-        np.array([[2, 0], [0, 2]]),
-        np.array([[1, 0.5], [0.5, 1]]),
-        np.array([[1, -0.5], [-0.5, 1]]),
-        np.array([[1.5, 0.3], [0.3, 1.5]]),
-        np.array([[0.8, -0.2], [-0.2, 0.8]]),
-        np.array([[1.2, 0.6], [0.6, 1.2]]),
-        np.array([[0.6, -0.4], [-0.4, 0.6]]),
-        np.array([[1.8, 0.2], [0.2, 1.8]])
-    ]
-    return [Measure(name="2D Gaussian", support=[x, y], distribution=generate_2d_gaussian_pdf(x, y, mean=mean, cov=covariances),
-                    kwargs={'mean': mean, 'cov': covariances})  for mean, covariances in zip(means, covariances)]
-
-
-def generate_3d_gaussians_ds(x, y, z):
-    means = [
-        [-4, -4, -4],
-        [-3, -3, -3],
-        [-2, -2, -2],
-        [-1, -1, -1],
-        [0, 0, 0],
-        [1, 1, 1],
-        [2, 2, 2],
-        [3, 3, 3],
-        [4, 4, 4],
-        [5, 5, 5]
-    ]
-
-    covariances = [
-        np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-        np.array([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]),
-        np.array([[2, 0, 0], [0, 2, 0], [0, 0, 2]]),
-        np.array([[1, 0.5, 0], [0.5, 1, 0], [0, 0, 1]]),
-        np.array([[1, -0.5, 0], [-0.5, 1, 0], [0, 0, 1]]),
-        np.array([[1.5, 0.3, 0], [0.3, 1.5, 0], [0, 0, 1.5]]),
-        np.array([[0.8, -0.2, 0], [-0.2, 0.8, 0], [0, 0, 0.8]]),
-        np.array([[1.2, 0.6, 0], [0.6, 1.2, 0], [0, 0, 1.2]]),
-        np.array([[0.6, -0.4, 0], [-0.4, 0.6, 0], [0, 0, 0.6]]),
-        np.array([[1.8, 0.2, 0], [0.2, 1.8, 0], [0, 0, 1.8]])
-    ]
-
-    return [Measure(name="3D Gaussian", support=[x, y, z], distribution=generate_3d_gaussian_pdf(x, y, z, mean=mean, cov=covariances),
-                    kwargs={'mean': mean, 'cov': covariances})  for mean, covariances in zip(means, covariances)]
-
-
 def generate_gamma_pdf(x, shape=1, scale=1):
     pdf = stats.gamma.pdf(x, a=shape, scale=scale)
     return pdf / pdf.sum()
@@ -269,25 +202,6 @@ def get_ts_dataset() -> list[np.array]:
         ts /= ts.sum()
         time_series.append(ts.to_numpy())
     return time_series
-
-
-def load_2d_data(label: str, resolution: int):
-    """
-    Loads 2D data from the specified dataset based on the label and resolution.
-
-    Args:
-        label (str): The label identifying the dataset to load. 
-                     Must be one of the predefined keys in `labels_to_folders`.
-        resolution (int): The resolution of the data to filter files by.
-
-    Returns:
-        list: A list of 2D numpy arrays, each representing a dataset loaded from the files.
-    """
-    data_folder = os.path.join("datasets/DOTmark_1.0/Data", label)
-    filepaths = [os.path.join(data_folder, file) for file in os.listdir(data_folder) if str(resolution) in file]
-    datasets = [pd.read_csv(filepath, header=None, index_col=None).to_numpy() for filepath in filepaths] 
-    datasets = [dataset / dataset.sum() for dataset in datasets]
-    return datasets
  
 
 def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0), (0, 0, 1))):
@@ -358,67 +272,6 @@ def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
     noise = np.random.normal(loc=mean, scale=std, size=shape)
     return (noise - np.mean(noise)) / np.std(noise)
 
-
-def load_3d_data(label: str, color: int, n: int):
-    """
-    Loads 3D data from a specified file, samples points from a 3D mesh, and computes a color-based distribution.
-
-    Args:
-        label (str): A label for the data (not used in the function).
-        color (int): The index of the color channel to use (e.g., 0 for red, 1 for green, 2 for blue).
-        n (int): The number of points to sample from the 3D mesh.
-
-    Returns:
-        tuple: A tuple containing:
-            - points (numpy.ndarray): An array of sampled 3D points.
-            - distribution (numpy.ndarray): A normalized distribution based on the specified color channel.
-    """
-    file_path = f"datasets/color_meshes/{label}.ply"
-    mesh = o3d.io.read_triangle_mesh(file_path)
-    sampled_points = mesh.sample_points_uniformly(n)
-
-    points = np.asarray(sampled_points.points)
-    colors = np.asarray(sampled_points.colors)
-
-    distribution = colors[:, color] / np.sum(colors[:, color])
-
-    return points, distribution
-
-
-def generate_random_covariance(
-    dim: int,
-    diag_linspace: np.ndarray = np.linspace(0.5, 2.0, 10),
-    offdiag_linspace: np.ndarray = np.linspace(-0.3, 0.3, 7)):
-    """
-    Generates a random symmetric positive definite covariance matrix
-    with diagonal and off-diagonal elements sampled from linspace.
-
-    Args:
-        dim (int): Dimension (2 or 3).
-        diag_linspace (np.ndarray): Values to sample diagonals from.
-        offdiag_linspace (np.ndarray): Values to sample off-diagonals from.
-
-    Returns:
-        np.ndarray: A positive definite covariance matrix.
-    """
-    if dim not in [2, 3]:
-        raise ValueError("Only 2D or 3D covariance supported.")
-
-    diag = np.random.choice(diag_linspace, size=dim, replace=True)
-
-    cov = np.diag(diag)
-    indices = np.triu_indices(dim, k=1)
-    for i, j in zip(*indices):
-        val = np.random.choice(offdiag_linspace)
-        cov[i, j] = val
-        cov[j, i] = val
-
-    min_eig = np.min(np.linalg.eigvalsh(cov))
-    if min_eig <= 0:
-        cov += np.eye(dim) * (abs(min_eig) + 1e-6)
-
-    return np.round(cov, 2)
-
 def generate_coefficients(dim: int, distributions: dict[str, int]):
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
@@ -427,10 +280,10 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         'mean_range': (-5, 5),
         'std_range': (0.5, 4.0),
         'shape_range': (1, 5),
-        'scale_range': (0.5, 3.0),
-        'loc_range': (-8, 8),
-        'alpha_range': (0.5, 5.0),
-        'beta_range': (0.5, 5.0),
+        'scale_range': (0.2, 2.0),
+        'loc_range': (-5, 5),
+        'alpha_range': (0.5, 8),
+        'beta_range': (0.5, 8),
         'width_range': (2, 8),
         'lower_range': (-8, 5),
     }
@@ -543,7 +396,7 @@ def generate_grid(dim: int, grid_size: int, start: int = -10, end: int = 10):
         return np.meshgrid(x, y, z)
 
 
-def get_grids(dim: list[int], grid_sizes: list[int], start: int = -5, end: int = 5):
+def get_grids(dim: list[int], grid_sizes: list[int], start: int = -10, end: int = 10):
     '''
     Generates a list of mesh grids for the specified dimensions and sizes.
     '''
@@ -613,233 +466,11 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
         
     return output
 
-def save_to_file(data, filename):
-    """
-    Saves data (e.g., coefficients or grids) to a file.
-
-    Args:
-        data: The data to save (e.g., coefficients or grids).
-        filename (str): The name of the file to save the data to.
-    """
-    with open(filename, 'wb') as file:
-        pickle.dump(data, file)
-    print(f"Data saved to {filename}")
-
-
-def load_from_file(filename):
-    """
-    Loads data (e.g., coefficients or grids) from a file.
-
-    Args:
-        filename (str): The name of the file to load the data from.
-
-    Returns:
-        The loaded data.
-    """
-    with open(filename, 'rb') as file:
-        data = pickle.load(file)
-    print(f"Data loaded from {filename}")
-    return data
-
-
-def generate_random_ds(dim: int, distributions: list[str], grid: list[np.ndarray], number: int, **kwargs):
-    """
-    Generates a dataset for 1D, 2D, or 3D distributions with multiple distribution types.
-
-    Args:
-        dim (int): Dimensionality of the dataset (1, 2, or 3).
-        distributions (list[str]): List of distribution types (e.g., ['gaussian', 'gamma', 'beta']).
-        grid (list[np.ndarray]): List of mesh grid arrays for the dimensions.
-        number (int): Total number of measures to generate.
-        **kwargs: Additional parameters for the distributions.
-
-    Returns:
-        list[Measure]: A list of Measure objects with randomly generated characteristics.
-    """
-    if dim not in [1, 2, 3]:
-        raise ValueError("dim must be 1, 2, or 3.")
-
-    if len(grid) != dim:
-        raise ValueError(f"Expected {dim} grid arrays, but got {len(grid)}.")
-    
-    basic_ranges = {
-        'mean_range': (-5, 5),
-        'std_range': (0.5, 2),
-        'shape_range': (1, 5),
-        'scale_range': (0.1, 2),
-        'loc_range': (-5, 5),
-        'alpha_range': (0.1, 5),
-        'beta_range': (0.1, 5),
-    }
-
-    distribution_map = {
-        'gaussian': {
-            1: generate_gaussian_pdf,
-            2: generate_2d_gaussian_pdf,
-            3: generate_3d_gaussian_pdf
-        },
-        'gamma': {
-            1: generate_gamma_pdf,
-        },
-        'beta': {
-            1: generate_beta_pdf,
-        },
-        'uniform': {
-            1: generate_uniform_pdf,
-        },
-        'cauchy': {
-            1: generate_cauchy_pdf,
-        }
-    }
-
-    for distribution in distributions:
-        if distribution not in distribution_map:
-            raise ValueError(f"Unsupported distribution: {distribution}.")
-        if distribution_map[distribution].get(dim) is None:
-            raise ValueError(f"Unsupported distribution for {dim}D: {distribution}.")
-
-    measures = []
-    num_distributions = len(distributions)
-
-    for i in range(number):
-        distribution = distributions[i % num_distributions]
-
-        vars_data = inspect.signature(distribution_map[distribution][dim]).parameters
-        vars = list(vars_data.keys() - {'x', 'y', 'z'})
-
-        inputs = {}
-
-        if dim == 1:
-
-            for var in vars:
-                if f'{var}_range' in kwargs:
-                    inputs[var] = np.random.uniform(*kwargs[f'{var}_range'])
-
-                elif f'{var}_range' in basic_ranges:
-                    inputs[var] = np.random.uniform(*basic_ranges[f'{var}_range'])
-                
-                elif '=' not in str(vars_data[var]):
-                    raise ValueError(f"Missing range for {var}.")
-
-            pdf = distribution_map[distribution][dim](grid[0], **inputs)
-            measures.append(Measure(name=f"{dim}D {distribution}", support=[grid[0]], distribution=pdf, kwargs=inputs))
-        
-        else:
-            for var in vars:
-
-                if var == 'cov':
-                    if 'cov_range' in kwargs:
-                        inputs[var] = generate_random_covariance(dim, kwargs['cov_range'])
-                    else:
-                        inputs[var] = generate_random_covariance(dim)
-
-                    continue
-
-                if f'{var}_range' in kwargs:
-                    inputs[var] = tuple(np.random.uniform(*kwargs[f'{var}_range']) for _ in range(dim))
-
-                elif f'{var}_range' in basic_ranges:
-                    inputs[var] = tuple(np.random.uniform(*basic_ranges[f'{var}_range']) for _ in range(dim))
-                
-                elif '=' not in str(vars_data[var]):
-                    raise ValueError(f"Missing range for {var}.")
-
-            pdf = distribution_map[distribution][dim](*grid, **inputs)
-            measures.append(Measure(name=f"{dim}D {distribution}", support=grid, distribution=pdf, kwargs=inputs))
-    
-    return measures
-
-
-def generate_random_ds_lazy(dim: int, distributions: list[str], grid: list[np.ndarray], number: int, **kwargs):
-    """
-    Lazily generates a dataset for 1D, 2D, or 3D distributions with multiple distribution types.
-
-    Args:
-        dim (int): Dimensionality of the dataset (1, 2, or 3).
-        distributions (list[str]): List of distribution types (e.g., ['gaussian', 'gamma', 'beta']).
-        grid (list[np.ndarray]): List of mesh grid arrays for the dimensions.
-        number (int): Total number of measures to generate.
-        **kwargs: Additional parameters for the distributions.
-
-    Yields:
-        Measure: A Measure object with randomly generated characteristics.
-    """
-    if dim not in [1, 2, 3]:
-        raise ValueError("dim must be 1, 2, or 3.")
-
-    if len(grid) != dim:
-        raise ValueError(f"Expected {dim} grid arrays, but got {len(grid)}.")
-    
-    basic_ranges = {
-        'mean_range': (-5, 5),
-        'std_range': (0.5, 2),
-        'shape_range': (1, 5),
-        'scale_range': (0.1, 2),
-        'loc_range': (-5, 5),
-        'scale_range': (0.1, 2),
-        'alpha_range': (0.1, 5),
-        'beta_range': (0.1, 5),
-    }
-
-    distribution_map = {
-        'gaussian': {
-            1: generate_gaussian_pdf,
-            2: generate_2d_gaussian_pdf,
-            3: generate_3d_gaussian_pdf
-        },
-        'gamma': {
-            1: generate_gamma_pdf,
-        },
-        'beta': {
-            1: generate_beta_pdf,
-        },
-        'uniform': {
-            1: generate_uniform_pdf,
-        },
-        'cauchy': {
-            1: generate_cauchy_pdf,
-        }
-    }
-
-    for distribution in distributions:
-        if distribution not in distribution_map:
-            raise ValueError(f"Unsupported distribution: {distribution}.")
-        if distribution_map[distribution].get(dim) is None:
-            raise ValueError(f"Unsupported distribution for {dim}D: {distribution}.")
-
-    num_distributions = len(distributions)
-
-    for i in range(number):
-        distribution = distributions[i % num_distributions]
-
-        vars_data = inspect.signature(distribution_map[distribution][dim]).parameters
-        vars = list(vars_data.keys() - {'x', 'y', 'z'})
-
-        inputs = {}
-
-        if dim == 1:
-            for var in vars:
-                if f'{var}_range' in kwargs:
-                    inputs[var] = np.random.uniform(*kwargs[f'{var}_range'])
-                elif f'{var}_range' in basic_ranges:
-                    inputs[var] = np.random.uniform(*basic_ranges[f'{var}_range'])
-                elif '=' not in str(vars_data[var]):
-                    raise ValueError(f"Missing range for {var}.")
-            pdf = distribution_map[distribution][dim](grid[0], **inputs)
-            yield Measure(name=f"{dim}D {distribution}", support=[grid[0]], distribution=pdf, kwargs=inputs)
-        else:
-            for var in vars:
-                if var == 'cov':
-                    if 'cov_range' in kwargs:
-                        inputs[var] = generate_random_covariance(dim, kwargs['cov_range'])
-                    else:
-                        inputs[var] = generate_random_covariance(dim)
-                    continue
-                if f'{var}_range' in kwargs:
-                    inputs[var] = tuple(np.random.uniform(*kwargs[f'{var}_range']) for _ in range(dim))
-                elif f'{var}_range' in basic_ranges:
-                    inputs[var] = tuple(np.random.uniform(*basic_ranges[f'{var}_range']) for _ in range(dim))
-                elif '=' not in str(vars_data[var]):
-                    raise ValueError(f"Missing range for {var}.")
-            pdf = distribution_map[distribution][dim](*grid, **inputs)
-            yield Measure(name=f"{dim}D {distribution}", support=grid, distribution=pdf, kwargs=inputs)
+if __name__ == "__main__":
+    coeffs = generate_coefficients(1, {'gaussian': 1, 'gamma': 1, 'beta': 1, 'uniform': 1, 'cauchy': 1, 'white-noise': 1})
+    grids = get_grids(1, [64])
+    measures = generate_measures(1, coeffs, grids)
+    for key, value in measures.items():
+        for measure in value:
+            print(measure)
+            measure.plot()
