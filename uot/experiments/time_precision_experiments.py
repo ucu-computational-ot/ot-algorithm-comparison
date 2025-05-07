@@ -14,11 +14,21 @@ from uot.core.experiment import run_experiment, generate_data_problems, get_prob
 from uot.core.analysis import get_agg_table
 from uot.core.suites import time_precision_experiment, time_experiment
 
+epsilon_kwargs = [
+    {'epsilon': 100},
+    {'epsilon': 10},
+    {'epsilon': 1},
+    {'epsilon': 1e-1},
+    {'epsilon': 1e-3},
+    {'epsilon': 1e-6},
+    {'epsilon': 1e-9},
+]
+
 solvers = {
-    'pot-lp': pot_lp,
-    'lbfgs': lbfgs_ot,
-    'jax-sinkhorn': jax_sinkhorn,
-    'optax-grad-ascent': gradient_ascent,
+    'pot-lp': (pot_lp, []),
+    'lbfgs': (lbfgs_ot, epsilon_kwargs),
+    'jax-sinkhorn': (jax_sinkhorn, epsilon_kwargs),
+    'optax-grad-ascent': (gradient_ascent, epsilon_kwargs),
 }
 
 # algorithms that use jax jit 
@@ -27,11 +37,11 @@ jit_algorithms = [
 ]
 
 problemset_names_1D = [
-    # "32 1D gamma",
+    "32 1D gamma",
     # "64 1D gamma",
     # "256 1D gamma",
     # "512 1D gamma",
-    "1024 1D gamma",
+    # "1024 1D gamma",
     # "2048 1D gamma",
 
     # "32 1D gaussian",

@@ -1,14 +1,16 @@
 import ot
 import gc
+import os
+import os.path
 import numpy as np
 import pandas as pd
 import itertools as it
 import jax.numpy as jnp
 import open3d as o3d
+from functools import partial
 from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, load_from_file, save_to_file, Measure
 from tqdm import tqdm
-import os.path
-import os
+
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     n = x.shape[0]
@@ -343,12 +345,25 @@ def run_experiment(experiment: 'Experiment',
     
     dfs = []
 
-    with tqdm(total=len(solvers) * len(problems), desc="Running experiments") as pbar:
+    solvers_number = sum(len(kwargs) if kwargs else 1 for _, kwargs in solvers.values())
+
+    with tqdm(total=solvers_number * len(problems), desc="Running experiments") as pbar:
         progress_callback = lambda: pbar.update(1)
 
         for solver_name, solver in solvers.items():
-            solver_result = experiment.run_experiment(name=solver_name, ot_problems=problems,
-                                            progress_callback=progress_callback, solver=solver)
+            
+            solver_function, kwargs_sets = solver
+            kwargs_sets = kwargs_sets if kwargs_sets else [{}]
+            solvers = [(partial(solver_function, **kwargs), kwargs) for kwargs in kwargs_sets]
+
+            for solver, kwargs in solvers:
+                solver_result = experiment.run_experiment(ot_problems=problems, progress_callback=progress_callback, solver=solver)
+
+                solver_result['name'] = solver_name
+                
+                for kwarg_name, value in kwargs.items():
+                    solver_result[kwarg_name] = value
+            
             dfs.append(solver_result)
 
     df = pd.concat(dfs)
@@ -451,10 +466,13 @@ class Experiment:
         self.name = name
         self.run_function = run_function
 
-    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, name: str = None, **kwargs) -> dict:
+    def run_experiment(self, ot_problems: list[OTProblem], progress_callback: callable = None, solver = None) -> dict:
         results = {}
         for i, ot_problem in enumerate(ot_problems):
-            results[ot_problem] = self.run_function(ot_problem, **kwargs)
+
+            run_function = partial(self.run_function, solver=solver)
+
+            results[ot_problem] = run_function(ot_problem)
             if progress_callback is not None:
                 progress_callback()
             ot_problem.free_memory()
@@ -467,10 +485,7 @@ class Experiment:
             row_dict.update(results[ot_problem])
             df_rows.append(row_dict)
 
-        df = pd.DataFrame(df_rows)
-        df['name'] = name
-
-        return df
+        return pd.DataFrame(df_rows)
     
     def run_single(self, ot_problem: OTProblem) -> dict:
         return self.run_function(ot_problem)

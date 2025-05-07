@@ -86,6 +86,7 @@ def sinkhorn(a: jnp.ndarray,
 
     return u_final, v_final
 
+
 def jax_sinkhorn(a, b, C, epsilon=1e-3):
     a, b, C = regularize_input(a, b, C)
     u, v = sinkhorn(a, b, C, epsilon)
@@ -93,6 +94,7 @@ def jax_sinkhorn(a, b, C, epsilon=1e-3):
     v.block_until_ready()
     P = coupling_tensor(u, v, C, epsilon)
     return P, jnp.sum(P * C)
+
 
 def sink(a, b, cost, epsilon=1e-3):
     return linear.solve(

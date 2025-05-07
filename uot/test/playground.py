@@ -18,6 +18,7 @@ for i in range(N):
     _, cost = pot_lp(a, b, C)
     end = time.perf_counter()
     total += end - start
+
 print("LP:",  1000 * total / N)
 
 total = 0
