@@ -252,10 +252,10 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
     if not isinstance(problem_spec, tuple) or len(problem_spec) < 3:
         raise ValueError("Problem spec must be either a string or a tuple (type, name, num_points[, dims])")
     
-    prob_type, name, num_points = problem_spec[:3]
+    dimensionality, name, num_points = problem_spec[:3]
     dims = problem_spec[3] if len(problem_spec) > 3 else 1
     
-    if prob_type.lower() == "distribution":
+    if dimensionality == 1:
         if dims == 1:
             size_str = f"{num_points}"
         elif dims == 2:
@@ -267,19 +267,19 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
         
         problem_str = f"{size_str} {dims}D {name}"
         return get_distribution_problemset(problem_str, coeffs)
-    
-    elif prob_type.lower() == "3d_mesh":
-        color_mode = name
-        num_meshes = kwargs.get("num_meshes", 10)
-        return generate_3d_mesh_problems(num_points=num_points, color_mode=color_mode, num_meshes=num_meshes)
-    
-    elif prob_type.lower() == "data":
+
+    elif dimensionality == 2:
         data_type = name
         num_samples = kwargs.get("num_samples", 10)
         return generate_data_problems(data_type=data_type, num_points=num_points, num_samples=num_samples)
     
+    elif dimensionality == 3:
+        color_mode = name
+        num_meshes = kwargs.get("num_meshes", 10)
+        return generate_3d_mesh_problems(num_points=num_points, color_mode='r', num_meshes=num_meshes)
+   
     else:
-        raise ValueError(f"Unknown problem type: {prob_type}. Expected 'distribution', '3d_mesh', or 'data'")
+        raise ValueError(f"Unknown problem type: {dimensionality}. Expected 'distribution', '3d_mesh', or 'data'")
 
 def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cost=False):
     """
@@ -317,10 +317,26 @@ def generate_two_fold_problems_lazy(grid, measures_generator, name: str, one_cos
 
 
 def run_experiment(experiment: 'Experiment',
-                   solvers: dict[str, callable],
-                   problems: list["OTProblem"] = None,
-                   jit_algorithms = None) -> pd.DataFrame:
+                   jit_algorithms=None,
+                   solvers: dict[str, callable] = None,
+                   problemsets_names: list[tuple] = None,
+                   folds: int = 1) -> pd.DataFrame:
+    """
+    Executes a series of experiments using specified solvers on a set of problems.
+    Args:
+        experiment (Experiment): The experiment object that defines how to run the experiments.
+        solvers (dict[str, callable]): A dictionary where keys are solver names and values are tuples 
+            containing the solver function and optional sets of keyword arguments for the solver.
+        problemsets_names (list[tuple]): A list of problem set names to retrieve and use in the experiments.
+        jit_algorithms (list[str], optional): A list of algorithm names to exclude from the results. Defaults to None.
+        folds (int, optional): The number of folds for cross-validation. Defaults to 1.
+    Returns:
+        pd.DataFrame: A DataFrame containing the results of the experiments, including solver names 
+        and any additional parameters used.
+    """
 
+    problem_sets = [get_problemset(name) for name in problemsets_names]
+    problems = [problem for problemset in problem_sets for problem in problemset]
 
     for problem in problems:
         source_distribution = problem.source_measure.distribution
