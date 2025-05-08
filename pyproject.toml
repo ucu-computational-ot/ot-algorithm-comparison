@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uot"
-version = "0.1.11"
+version = "0.1.15"
 description = "Library for comparison of Optimal Transport algorithms"
 readme = "README.md"
 authors = [
@@ -19,7 +19,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "tqdm",
-    "jax",
+    "jax[cuda12]",
     "jaxlib",
     "scikit-learn",
     "pot",
