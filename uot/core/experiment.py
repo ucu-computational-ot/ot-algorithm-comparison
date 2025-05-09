@@ -10,6 +10,7 @@ import open3d as o3d
 from functools import partial
 from uot.core.dataset import Measure, generate_coefficients, generate_measures, get_grids, Measure
 from tqdm import tqdm
+import random
 
 
 def get_q_const(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -214,10 +215,13 @@ def generate_3d_mesh_problems(num_points: int = None, num_meshes: int = 10, colo
     
     return all_problems
 
-def get_distribution_problemset(name: str, coeffs=None):
+def get_distribution_problemset(name: str, number = 10):
+    random.seed(0)
     size, dim_str, distributions_str = name.split(' ')
     distributions = sorted(distributions_str.split('|'))
+    distributions_str = '|'.join(distributions)
     dim = int(dim_str[0])
+    name = f"{size} {dim_str} {distributions_str}"
 
     if dim not in [1, 2, 3]:
         raise ValueError(f"Invalid dimension: {dim}. Expected 1, 2, or 3.")
@@ -228,26 +232,37 @@ def get_distribution_problemset(name: str, coeffs=None):
     
     grid_size = int(size_parts[0])
     
-    distribution_counts = {distribution: 10 // len(distributions) for distribution in distributions}
-    
-    if coeffs is None:
-        coeffs = generate_coefficients(dim, distribution_counts)
-    
-    grids = get_grids(dim, [grid_size], start=-10, end=10)
-    measures = generate_measures(dim, coeffs, grids)
-    
-    measure_key = f"{'x'.join([str(grid_size)] * dim)} {dim}D {'|'.join(distributions)}"
-    
-    try:
-        problems = generate_two_fold_problems(None, measures[measure_key], name=measure_key)
-        return problems
-    except KeyError as e:
-        available_keys = list(measures.keys())
-        raise KeyError(f"Key '{measure_key}' not found in measures. Available keys: {available_keys}")
+    ot_problems = []
+    C = get_q_const
 
-def get_problemset(problem_spec, coeffs=None, **kwargs):
+
+    if len(distributions) == 1:
+        distributions.append(distributions[0])
+    
+    distributions = it.cycle(it.combinations(distributions, 2))
+
+    for _ in range(number):
+        source_measure, target_measure = next(distributions)
+        distr_counts = {source_measure: 1, target_measure: 1}
+        coeffs = generate_coefficients(dim, distr_counts)
+        grids = get_grids(dim, [grid_size])
+        try: 
+            measures = generate_measures(dim, coeffs, grids)[name]
+        except KeyError:
+            raise ValueError(f"Invalid measure name: {name}. Available measures: {list(generate_measures(dim, coeffs, grids).keys())}")
+        
+        ot_problem = OTProblem(name="Simple transport", 
+                                     source_measure=measures[0],
+                                     target_measure=measures[1],
+                                     C=C)
+        ot_problem.kwargs.update({'dataset': name})
+        ot_problems.append(ot_problem)
+    return ot_problems
+
+def get_problemset(problem_spec, **kwargs):
+    number = kwargs.get("number", 10)
     if isinstance(problem_spec, str):
-        return get_distribution_problemset(problem_spec, coeffs)
+        return get_distribution_problemset(problem_spec, number)
     
     if not isinstance(problem_spec, tuple) or len(problem_spec) < 3:
         raise ValueError("Problem spec must be either a string or a tuple (type, name, num_points[, dims])")
@@ -266,7 +281,7 @@ def get_problemset(problem_spec, coeffs=None, **kwargs):
             raise ValueError(f"Invalid dimension: {dims}. Expected 1, 2, or 3.")
         
         problem_str = f"{size_str} {dims}D {name}"
-        return get_distribution_problemset(problem_str, coeffs)
+        return get_distribution_problemset(problem_str, number=number)
 
     elif dimensionality == 2:
         data_type = name

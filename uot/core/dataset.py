@@ -275,20 +275,56 @@ def generate_normalized_white_noise_3d(x, y, z, mean=0, std=1):
     noise = np.random.normal(loc=mean, scale=std, size=shape)
     return (noise - np.mean(noise)) / np.std(noise)
 
+
+def generate_random_covariance(
+    dim: int,
+    diag_linspace: np.ndarray = np.linspace(0.5, 2.0, 10),
+    offdiag_linspace: np.ndarray = np.linspace(-0.3, 0.3, 7)):
+    """
+    Generates a random symmetric positive definite covariance matrix
+    with diagonal and off-diagonal elements sampled from linspace.
+
+    Args:
+        dim (int): Dimension (2 or 3).
+        diag_linspace (np.ndarray): Values to sample diagonals from.
+        offdiag_linspace (np.ndarray): Values to sample off-diagonals from.
+
+    Returns:
+        np.ndarray: A positive definite covariance matrix.
+    """
+    if dim not in [2, 3]:
+        raise ValueError("Only 2D or 3D covariance supported.")
+
+    diag = np.random.choice(diag_linspace, size=dim, replace=True)
+
+    cov = np.diag(diag)
+    indices = np.triu_indices(dim, k=1)
+    for i, j in zip(*indices):
+        val = np.random.choice(offdiag_linspace)
+        cov[i, j] = val
+        cov[j, i] = val
+
+    min_eig = np.min(np.linalg.eigvalsh(cov))
+    if min_eig <= 0:
+        cov += np.eye(dim) * (abs(min_eig) + 1e-6)
+
+    return np.round(cov, 2)
+
+
 def generate_coefficients(dim: int, distributions: dict[str, int]):
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
 
     basic_ranges = {
-        'mean_range': (-5, 5),
-        'std_range': (0.5, 4.0),
-        'shape_range': (1, 5),
-        'scale_range': (0.2, 2.0),
-        'loc_range': (-5, 5),
-        'alpha_range': (0.5, 8),
-        'beta_range': (0.5, 8),
-        'width_range': (2, 8),
-        'lower_range': (-8, 5),
+        'mean_range': (-4, 4),
+        'std_range': (0.3, 1.5),
+        'shape_range': (1.0, 3.0),
+        'scale_range': (0.2, 1.5),
+        'loc_range': (-3.5, 3.5),
+        'alpha_range': (0.5, 5.0),
+        'beta_range': (0.5, 5.0),
+        'width_range': (3.0, 6.0),
+        'lower_range': (-5.0, 0.0),
     }
 
     distribution_parameters = {
@@ -313,10 +349,10 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         for param in param_names:
             if f"{param}_range" not in basic_ranges:
                 raise ValueError(f"Missing range for {param}.")
-            
+
             num_points = max(10, num_to_generate * 2)
             values = np.linspace(*basic_ranges[f"{param}_range"], num_points)
-            
+
             if dim == 1:
                 param_ranges.append(values)
             else:
@@ -325,38 +361,38 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
         if distribution == 'gaussian' and dim > 1:
             mean_values = np.linspace(*basic_ranges['mean_range'], max(10, num_to_generate))
             mean_choices = list(product(mean_values, repeat=dim))
-            
+
             step = max(1, len(mean_choices) // num_to_generate)
             selected_means = mean_choices[::step][:num_to_generate]
-            
+
             result = []
-            
+
             diag_values = np.linspace(0.5, 3.0, 10)
             offdiag_values = np.linspace(-0.3, 0.3, 7)
-            
+
             for i, mean in enumerate(selected_means):
                 diag_indices = [(i + j) % len(diag_values) for j in range(dim)]
                 offdiag_idx = i % len(offdiag_values)
-                
+
                 diag = np.array([diag_values[idx] for idx in diag_indices])
                 cov = np.diag(diag)
-                
+
                 indices = np.triu_indices(dim, k=1)
                 for idx in range(len(indices[0])):
                     row, col = indices[0][idx], indices[1][idx]
                     val = offdiag_values[offdiag_idx]
                     cov[row, col] = cov[col, row] = val
-                
+
                 min_eig = np.min(np.linalg.eigvalsh(cov))
                 if min_eig <= 0:
                     cov += np.eye(dim) * (abs(min_eig) + 1e-6)
-                
+
                 result.append((tuple(np.round(mean, 2)), np.round(cov, 2)))
-            
+
             results[distribution] = result
         else:
             all_combinations = list(product(*param_ranges))
-            
+
             step = max(1, len(all_combinations) // num_to_generate)
             selected_combinations = all_combinations[::step][:num_to_generate]
 
@@ -368,7 +404,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]):
     return results
 
 
-def generate_grid(dim: int, grid_size: int, start: int = -10, end: int = 10):
+def generate_grid(dim: int, grid_size: int, start: int = -6, end: int = 6):
     """
     Generates a mesh grid for the specified dimensionality and size.
 
@@ -399,7 +435,7 @@ def generate_grid(dim: int, grid_size: int, start: int = -10, end: int = 10):
         return np.meshgrid(x, y, z)
 
 
-def get_grids(dim: list[int], grid_sizes: list[int], start: int = -10, end: int = 10):
+def get_grids(dim: list[int], grid_sizes: list[int], start: int = -6, end: int = 6):
     '''
     Generates a list of mesh grids for the specified dimensions and sizes.
     '''
@@ -486,10 +522,9 @@ def download_dataset():
     os.remove(FILENAME) 
 
 if __name__ == "__main__":
-    coeffs = generate_coefficients(1, {'gaussian': 1, 'gamma': 1, 'beta': 1, 'uniform': 1, 'cauchy': 1, 'white-noise': 1})
+    coeffs = generate_coefficients(1, {'gaussian': 3, 'gamma': 3, 'beta': 3, 'uniform': 3, 'cauchy': 3, 'white-noise': 3})
     grids = get_grids(1, [64])
     measures = generate_measures(1, coeffs, grids)
     for key, value in measures.items():
         for measure in value:
-            print(measure)
             measure.plot()
