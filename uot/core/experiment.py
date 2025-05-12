@@ -216,7 +216,13 @@ def generate_3d_mesh_problems(num_points: int = None, num_meshes: int = 10, colo
     return all_problems
 
 def get_distribution_problemset(name: str, number = 10):
-    random.seed(0)
+
+
+    seed_value = hash(name) % 2**32
+    
+    random.seed(seed_value)
+    np.random.seed(seed_value)
+
     size, dim_str, distributions_str = name.split(' ')
     distributions = sorted(distributions_str.split('|'))
     distributions_str = '|'.join(distributions)
@@ -243,7 +249,10 @@ def get_distribution_problemset(name: str, number = 10):
 
     for _ in range(number):
         source_measure, target_measure = next(distributions)
-        distr_counts = {source_measure: 1, target_measure: 1}
+        if source_measure != target_measure:
+            distr_counts = {source_measure: 1, target_measure: 1}
+        else:
+            distr_counts = {source_measure: 2}
         coeffs = generate_coefficients(dim, distr_counts)
         grids = get_grids(dim, [grid_size])
         try: 
@@ -270,7 +279,7 @@ def get_problemset(problem_spec, **kwargs):
     dimensionality, name, num_points = problem_spec[:3]
     dims = problem_spec[3] if len(problem_spec) > 3 else 1
     
-    if dimensionality == 1:
+    if dimensionality == 'distribution':
         if dims == 1:
             size_str = f"{num_points}"
         elif dims == 2:
@@ -283,12 +292,12 @@ def get_problemset(problem_spec, **kwargs):
         problem_str = f"{size_str} {dims}D {name}"
         return get_distribution_problemset(problem_str, number=number)
 
-    elif dimensionality == 2:
+    elif dimensionality == 'data':
         data_type = name
         num_samples = kwargs.get("num_samples", 10)
         return generate_data_problems(data_type=data_type, num_points=num_points, num_samples=num_samples)
     
-    elif dimensionality == 3:
+    elif dimensionality == '3d_mesh':
         color_mode = name
         num_meshes = kwargs.get("num_meshes", 10)
         return generate_3d_mesh_problems(num_points=num_points, color_mode='r', num_meshes=num_meshes)
