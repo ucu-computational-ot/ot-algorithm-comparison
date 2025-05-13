@@ -115,3 +115,5 @@ def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, threshold=1e-4):
     solution = sink_2vmap(mu, nu, C)
     solution.matrix.block_until_ready()
     return solution.matrix, jnp.sum(solution.matrix * C)
+
+print(123)

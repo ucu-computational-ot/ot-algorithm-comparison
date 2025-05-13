@@ -255,8 +255,9 @@ def get_distribution_problemset(name: str, number = 10):
             distr_counts = {source_measure: 2}
         coeffs = generate_coefficients(dim, distr_counts)
         grids = get_grids(dim, [grid_size])
+
         try: 
-            measures = generate_measures(dim, coeffs, grids)[name]
+            measures = list(generate_measures(dim, coeffs, grids).values())[0]
         except KeyError:
             raise ValueError(f"Invalid measure name: {name}. Available measures: {list(generate_measures(dim, coeffs, grids).keys())}")
         
@@ -324,7 +325,7 @@ def run_experiment(experiment: 'Experiment',
         and any additional parameters used.
     """
 
-    problem_sets = [get_problemset(name) for name in problemsets_names]
+    problem_sets = [get_problemset(name, number=45) for name in problemsets_names]
     problems = [problem for problemset in problem_sets for problem in problemset]
 
     problems *= folds
