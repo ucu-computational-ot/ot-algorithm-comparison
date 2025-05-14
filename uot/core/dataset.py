@@ -462,7 +462,7 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
 
     for name, grid in grids.items():
 
-        entry = f"{name} {'|'.join(sorted(param for param in coefficients))}"
+        entry = f"{name} {'|'.join(sorted(distribution_name for distribution_name in coefficients))}"
         output[entry] = []
 
         for distribution in coefficients:
