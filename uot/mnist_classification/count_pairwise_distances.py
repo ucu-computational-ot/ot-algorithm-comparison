@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from sklearn.datasets import load_digits
 
-from uot.algorithms.sinkhorn import jax_sinkhorn, ott_jax_sinkhorn
+from uot.algorithms.sinkhorn import jax_sinkhorn 
 from uot.algorithms.gradient_ascent import gradient_ascent
 from uot.algorithms.lbfgs import lbfgs_ot
 from uot.algorithms.lp import pot_lp
@@ -30,7 +30,6 @@ solvers = {
     'sinkhorn': jax_sinkhorn,
     'grad-ascent': gradient_ascent,
     'dual-lbfs': lbfgs_ot,
-    'ott-sinkhorn': ott_jax_sinkhorn,
     'lp': pot_lp
 }
 

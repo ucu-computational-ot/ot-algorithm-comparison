@@ -7,5 +7,5 @@ version = "0.1.0"
 [tasks]
 color-transfer = "python -m uot.color_transfer.color_transfer"
 tp-experiment = "python -m uot.experiments.time_precision_experiments"
-
+find-distances = "python -m uot.mnist_classification.count_pairwise_distances"
 playground = "python -m uot.test.playground"
