@@ -62,7 +62,8 @@ def compute_distance_pair(coordinates, X, C, solver_fn):
     return (i, j, dist)
 
 
-def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
+def compute_distances_for_all_solvers(X, C, solvers_to_run, num_processes, epsilons,
+                                      max_iter, export_folder):
     n = X.shape[0]
     num_pairs = n * (n - 1) // 2
     
@@ -72,7 +73,7 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
         sig = inspect.signature(solver_fn)
         uses_epsilon = 'epsilon' in sig.parameters
         if uses_epsilon:
-            total_jobs += len(args.epsilons)
+            total_jobs += len(epsilons)
         else:
             total_jobs += 1
     
@@ -80,7 +81,6 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
     
     progress_bar = tqdm(total=total_distances, desc="Computing all pairwise distances")
 
-    num_processes = args.num_processes
     for solver_name in solvers_to_run:
         solver_fn = solvers[solver_name]
         
@@ -88,10 +88,10 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
         uses_epsilon = 'epsilon' in sig.parameters
         
         if uses_epsilon:
-            for eps in args.epsilons:
+            for eps in epsilons:
                 solver_params = {
                     'epsilon': eps,
-                    'max_iter': args.max_iter
+                    'max_iter': max_iter
                 }
                 configured_solver = get_solver_with_params(solver_fn, **solver_params)
                 
@@ -106,10 +106,11 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
                         progress_bar.update(1)
 
                 epsilon_str = f"_eps_{eps}"
-                np.savetxt(f"classification/{solver_name}{epsilon_str}_pairwise_distances.csv", dist_matrix, delimiter=",")
+                np.savetxt(os.path.join(export_folder, f"{solver_name}{epsilon_str}_pairwise_distances.csv"), 
+                           dist_matrix, delimiter=",")
         else:
             solver_params = {
-                'max_iter': args.max_iter
+                'max_iter': max_iter
             }
             configured_solver = get_solver_with_params(solver_fn, **solver_params)
 
@@ -123,7 +124,8 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
                     dist_matrix[i, j] = dist_matrix[j, i] = dist
                     progress_bar.update(1)
             
-            np.savetxt(f"classification/{solver_name}_pairwise_distances.csv", dist_matrix, delimiter=",")
+            np.savetxt(os.path.join(export_folder, f"{solver_name}_pairwise_distances.csv"), 
+                       dist_matrix, delimiter=",")
     
     progress_bar.close()
 
@@ -152,4 +154,5 @@ if __name__ == "__main__":
 
     solver_names_to_run = list(solvers.keys()) if 'all' in args.solvers else args.solvers
 
-    compute_distances_for_all_solvers(X, C, solver_names_to_run, args)
+    compute_distances_for_all_solvers(X, C, solver_names_to_run, num_processes=args.num_processes,
+                                      epsilons=args.epsilons, max_iter=args.max_iter)
