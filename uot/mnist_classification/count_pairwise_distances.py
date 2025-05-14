@@ -35,7 +35,7 @@ solvers = {
 }
 
 basic_params = {
-    'epsilon': 1e-1,
+    'epsilon': [2, 1, 0.1],
     'max_iter': 10000
 }
 
@@ -70,29 +70,29 @@ def compute_distance_pair(coordinates, X, C, solver_fn):
 def compute_distances_parallel(X, C, solver_name, solver_fn, num_processes, epsilon=None):
     n = X.shape[0]
     args = [(i, j) for i in range(n) for j in range(i, n) if i < j]
+    eps_str = f"(epsilon={epsilon})" if epsilon is not None else ""
     
     with mp.Pool(num_processes) as pool:
         worker = partial(compute_distance_pair, X=X, C=C, solver_fn=solver_fn)
         results = list(tqdm(pool.imap_unordered(worker, args),
                             total=len(args),
-                            desc=f"Computing distances with {solver_name}"))
+                            desc=f"Computing distances with {solver_name} {eps_str}"))
 
     dist_matrix = np.zeros((n, n))
     for i, j, dist in results:
         dist_matrix[i, j] = dist_matrix[j, i] = dist
 
-    epsilon_str = f"_eps{epsilon}" if epsilon is not None else ""
-    np.savetxt(f"classification/{solver_name}_{epsilon_str}_pairwise_distances.csv", dist_matrix, delimiter=",")
+    epsilon_str = f"_eps_{epsilon}" if epsilon is not None else ""
+    np.savetxt(f"classification/{solver_name}{epsilon_str}_pairwise_distances.csv", dist_matrix, delimiter=",")
 
-if __name__ == "__main__":
-
+if __name__ == "__main__":    
     parser = argparse.ArgumentParser(description="Compute pairwise distances using specified solvers.")
-    parser.add_argument("--solvers", type=str, nargs='+', choices=solvers.keys(), required=True, 
-                        help="Solver name(s) to use. Multiple solvers can be specified.")
+    parser.add_argument("--solvers", type=str, nargs='+', choices=list(solvers.keys()), default=list(solvers.keys()), 
+                        help="Solver name(s) to use. Default: uses all solvers. Multiple solvers can be specified.")
     parser.add_argument("--num-processes", type=int, default=4, 
                         help="Number of processes to use in the pool.")
-    parser.add_argument("--epsilon", type=float, default=basic_params['epsilon'],
-                        help="Regularization parameter for regularized solvers.")
+    parser.add_argument("--epsilons", type=float, nargs='+', default=basic_params['epsilon'],
+                        help="List of regularization parameters for regularized solvers. Default: [2.0, 1.0, 0.1]")
     parser.add_argument("--max-iter", type=int, default=basic_params['max_iter'],
                         help="Maximum number of iterations for iterative solvers.")
     args = parser.parse_args()
@@ -107,15 +107,24 @@ if __name__ == "__main__":
     points = np.vstack([coordinate.ravel() for coordinate in [row, col]]).T
     C = ot.dist(points, points).astype('float64')
     C /= C.max()
-
-
-    solver_params = {
-        'epsilon': args.epsilon,
-        'max_iter': args.max_iter
-    }
-    
     num_processes = args.num_processes
-
     for solver_name in args.solvers:
-        solver_fn = get_solver_with_params(solvers[solver_name], **solver_params)
-        compute_distances_parallel(X, C, solver_name, solver_fn, num_processes, solver_params['epsilon'])
+        solver_fn = solvers[solver_name]
+        
+        sig = inspect.signature(solver_fn)
+        uses_epsilon = 'epsilon' in sig.parameters
+        
+        if uses_epsilon:
+            for eps in args.epsilons:
+                solver_params = {
+                    'epsilon': eps,
+                    'max_iter': args.max_iter
+                }
+                configured_solver = get_solver_with_params(solver_fn, **solver_params)
+                compute_distances_parallel(X, C, solver_name, configured_solver, num_processes, eps)
+        else:
+            solver_params = {
+                'max_iter': args.max_iter
+            }
+            configured_solver = get_solver_with_params(solver_fn, **solver_params)
+            compute_distances_parallel(X, C, solver_name, configured_solver, num_processes)
