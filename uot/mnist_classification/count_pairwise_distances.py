@@ -100,7 +100,6 @@ if __name__ == "__main__":
     digits = load_digits()
     X, _ = digits.data, digits.target
     X = X / X.sum(axis=1).reshape(X.shape[0],1) + 1e-12
-    X = X[:100]
 
     row, col = np.arange(8), np.arange(8)
     row, col = np.meshgrid(row, col)
