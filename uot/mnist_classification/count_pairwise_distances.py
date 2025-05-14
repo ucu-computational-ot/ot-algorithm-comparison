@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from sklearn.datasets import load_digits
 
-from uot.algorithms.sinkhorn import jax_sinkhorn 
+from uot.algorithms.sinkhorn import jax_sinkhorn
 from uot.algorithms.gradient_ascent import gradient_ascent
 from uot.algorithms.lbfgs import lbfgs_ot
 from uot.algorithms.lp import pot_lp
@@ -66,23 +66,71 @@ def compute_distance_pair(coordinates, X, C, solver_fn):
     dist = solver_fn(a, b, C)[1]
     return (i, j, dist)
 
-def compute_distances_parallel(X, C, solver_name, solver_fn, num_processes, epsilon=None):
+
+def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
     n = X.shape[0]
-    args = [(i, j) for i in range(n) for j in range(i, n) if i < j]
-    eps_str = f"(epsilon={epsilon})" if epsilon is not None else ""
+    num_pairs = n * (n - 1) // 2
     
-    with mp.Pool(num_processes) as pool:
-        worker = partial(compute_distance_pair, X=X, C=C, solver_fn=solver_fn)
-        results = list(tqdm(pool.imap_unordered(worker, args),
-                            total=len(args),
-                            desc=f"Computing distances with {solver_name} {eps_str}"))
+    total_jobs = 0
+    for solver_name in solvers_to_run:
+        solver_fn = solvers[solver_name]
+        sig = inspect.signature(solver_fn)
+        uses_epsilon = 'epsilon' in sig.parameters
+        if uses_epsilon:
+            total_jobs += len(args.epsilons)
+        else:
+            total_jobs += 1
+    
+    total_distances = num_pairs * total_jobs
+    
+    progress_bar = tqdm(total=total_distances, desc="Computing all pairwise distances")
 
-    dist_matrix = np.zeros((n, n))
-    for i, j, dist in results:
-        dist_matrix[i, j] = dist_matrix[j, i] = dist
+    num_processes = args.num_processes
+    for solver_name in solvers_to_run:
+        solver_fn = solvers[solver_name]
+        
+        sig = inspect.signature(solver_fn)
+        uses_epsilon = 'epsilon' in sig.parameters
+        
+        if uses_epsilon:
+            for eps in args.epsilons:
+                solver_params = {
+                    'epsilon': eps,
+                    'max_iter': args.max_iter
+                }
+                configured_solver = get_solver_with_params(solver_fn, **solver_params)
+                
+                n = X.shape[0]
+                args_list = [(i, j) for i in range(n) for j in range(i, n) if i < j]
+                
+                dist_matrix = np.zeros((n, n))
+                with mp.Pool(num_processes) as pool:
+                    worker = partial(compute_distance_pair, X=X, C=C, solver_fn=configured_solver)
+                    for i, j, dist in pool.imap_unordered(worker, args_list):
+                        dist_matrix[i, j] = dist_matrix[j, i] = dist
+                        progress_bar.update(1)
 
-    epsilon_str = f"_eps_{epsilon}" if epsilon is not None else ""
-    np.savetxt(f"classification/{solver_name}{epsilon_str}_pairwise_distances.csv", dist_matrix, delimiter=",")
+                epsilon_str = f"_eps_{eps}"
+                np.savetxt(f"classification/{solver_name}{epsilon_str}_pairwise_distances.csv", dist_matrix, delimiter=",")
+        else:
+            solver_params = {
+                'max_iter': args.max_iter
+            }
+            configured_solver = get_solver_with_params(solver_fn, **solver_params)
+
+            n = X.shape[0]
+            args_list = [(i, j) for i in range(n) for j in range(i, n) if i < j]
+            
+            dist_matrix = np.zeros((n, n))
+            with mp.Pool(num_processes) as pool:
+                worker = partial(compute_distance_pair, X=X, C=C, solver_fn=configured_solver)
+                for i, j, dist in pool.imap_unordered(worker, args_list):
+                    dist_matrix[i, j] = dist_matrix[j, i] = dist
+                    progress_bar.update(1)
+            
+            np.savetxt(f"classification/{solver_name}_pairwise_distances.csv", dist_matrix, delimiter=",")
+    
+    progress_bar.close()
 
 if __name__ == "__main__":    
     parser = argparse.ArgumentParser(description="Compute pairwise distances using specified solvers.")
@@ -105,24 +153,7 @@ if __name__ == "__main__":
     points = np.vstack([coordinate.ravel() for coordinate in [row, col]]).T
     C = ot.dist(points, points).astype('float64')
     C /= C.max()
-    num_processes = args.num_processes
-    for solver_name in args.solvers:
-        solver_fn = solvers[solver_name]
-        
-        sig = inspect.signature(solver_fn)
-        uses_epsilon = 'epsilon' in sig.parameters
-        
-        if uses_epsilon:
-            for eps in args.epsilons:
-                solver_params = {
-                    'epsilon': eps,
-                    'max_iter': args.max_iter
-                }
-                configured_solver = get_solver_with_params(solver_fn, **solver_params)
-                compute_distances_parallel(X, C, solver_name, configured_solver, num_processes, eps)
-        else:
-            solver_params = {
-                'max_iter': args.max_iter
-            }
-            configured_solver = get_solver_with_params(solver_fn, **solver_params)
-            compute_distances_parallel(X, C, solver_name, configured_solver, num_processes)
+
+    solver_names_to_run = list(solvers.keys()) if 'all' in args.solvers else args.solvers
+
+    compute_distances_for_all_solvers(X, C, solver_names_to_run, args)
