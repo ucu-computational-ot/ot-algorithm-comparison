@@ -99,21 +99,3 @@ def jax_sinkhorn(a, b, C, epsilon=1e-3, tolerance = 1e-4):
 
     return P, jnp.sum(P * C), converged
 
-
-def sink(a, b, cost, epsilon=1e-3):
-    return linear.solve(
-        geometry.Geometry(cost_matrix=cost, epsilon=epsilon),
-        a=a,
-        b=b,
-        lse_mode=True,
-        threshold=1e-4
-    )
-
-sink_2vmap = jax.jit(sink)
-
-def ott_jax_sinkhorn(mu, nu, C, epsilon=0.001, threshold=1e-4):
-    solution = sink_2vmap(mu, nu, C)
-    solution.matrix.block_until_ready()
-    return solution.matrix, jnp.sum(solution.matrix * C)
-
-print(123)

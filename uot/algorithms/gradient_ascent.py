@@ -140,7 +140,10 @@ def gradient_ascent_opt_multimarginal(
 
 def gradient_ascent_two_marginal(a, b, C, epsilon=1e-3):
     marginals = jnp.array([a, b])
-    final_potentials = gradient_ascent_opt_multimarginal(C, marginals, eps=epsilon, learning_rate=1e-3).block_until_ready()
+    final_potentials, converged = gradient_ascent_opt_multimarginal(C, marginals, eps=epsilon, learning_rate=1e-3)
+    final_potentials.block_until_ready() 
+    converged.block_until_ready()
+
     return final_potentials[0][None, :].reshape(-1), final_potentials[1][:, None].reshape(-1)
 
 

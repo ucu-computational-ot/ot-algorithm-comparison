@@ -7,12 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from ot.utils import dist
+from jax import device_get
 
 from uot.algorithms.sinkhorn import sinkhorn
 from uot.algorithms.gradient_ascent import gradient_ascent_two_marginal
-from uot.algorithms.lbfgs import dual_lbfs_potentials
+from uot.algorithms.lbfgs import lbfgs_potentials
 from uot.algorithms.lp import pot_lp
-from uot.algorithms.col_gen import col_gen
 
 
 rng = np.random.RandomState(42)
@@ -38,13 +38,11 @@ def get_samples(X1, X2, nb=500):
 
 def read_image(image_path: str):
     image = plt.imread(image_path).astype(np.float64) / 256
-    return image[
-            (image.shape[0] - 640) // 2 : (image.shape[0] + 640) // 2,
-            (image.shape[1] - 640) // 2 : (image.shape[1] + 640) // 2
-        ]
+    return image
+
 
 def show_images(result):
-    _, axes = plt.subplots(len(images_pairs), len(algorithms) + 2, figsize=(15, 6))
+    _, axes = plt.subplots(len(images_pairs), len(solvers) + 2, figsize=(15, 6))
 
     for image_ind in range(len(results)):
 
@@ -70,18 +68,29 @@ def show_images(result):
 
 def export_images(image_pairs, results: dict, save_path: str):
     for (source_name, source_image), (target_name, target_image) in image_pairs:
-        _, axes = plt.subplots(1, len(algorithms) + 2, figsize=(15, 5))
 
-        axes[0].imshow(source_image)
-        axes[0].axis("off")
+        height = (1024 * len(EPSILONS) + 100) // 100
+        width = (1024 * (len(solvers) + 2) + 100) // 100
 
-        for i, (name, img) in enumerate(results[(source_name, target_name)].items()):
-            axes[i + 1].imshow(img)
-            axes[i + 1].set_title(name)
-            axes[i + 1].axis("off")
+        _, axes = plt.subplots(len(EPSILONS), len(solvers) + 2, figsize=(width, height))
 
-        axes[-1].imshow(target_image)
-        axes[-1].axis("off")
+        for i, (epsilon, imgs) in enumerate(results[(source_name, target_name)].items()):
+
+            axes[i, 0].imshow(source_image)
+            axes[i, 0].set_ylabel(f"e = {epsilon}")
+            axes[i, 0].set_xticklabels([])
+            axes[i, 0].set_yticklabels([])
+
+            for j, (name, img) in enumerate(imgs.items()):
+                axes[i, j + 1].imshow(img.astype(np.float64))
+                axes[i, j + 1].axis("off")
+                
+                if i == 0:
+                    axes[i, j + 1].set_title(name)
+
+
+            axes[i, -1].imshow(target_image)
+            axes[i, -1].axis("off")
 
         plt.tight_layout()
         plt.savefig(os.path.join(save_path, f"{source_name}-{target_name}.png"))
@@ -132,30 +141,29 @@ def emd_transport(coupling: np.ndarray, source_image: np.ndarray, source_sample:
     return transp_Xs
 
 
-SAMPLE_SIZE = 128
-BATCH_SIZE = 20000
+SAMPLE_SIZE = 512
+BATCH_SIZE = 100000
 IMAGES_DIR = os.path.join("datasets", "color_images")
-EPSILON = 1e-1
+EPSILONS = [1, 1e-1, 1e-2, 1e-3]
 images = [(image_file, read_image(os.path.join(IMAGES_DIR, image_file)))
           for image_file in os.listdir(IMAGES_DIR)]
 
 ENTROPIC_TRANSPORT = 'entropic'
 EMD_TRANSPORT = 'emd'
 
-algorithms = {
+solvers = {
     'sinkhorn': (sinkhorn, ENTROPIC_TRANSPORT),
-    'grad-ascent': (gradient_ascent_two_marginal, ENTROPIC_TRANSPORT),
-    'dual-lbfs': (dual_lbfs_potentials, ENTROPIC_TRANSPORT),
+    'gradient-ascent': (gradient_ascent_two_marginal, ENTROPIC_TRANSPORT),
+    'lbgfs': (lbfgs_potentials, ENTROPIC_TRANSPORT),
     'lp': (pot_lp, EMD_TRANSPORT),
-    'col_gen': (col_gen, EMD_TRANSPORT)
 }
 
-images_pairs = list(itertools.permutations(images, 2))
+images_pairs = list(itertools.permutations(images, 2))[:10]
 
 results = {}
 
 
-with tqdm(total=len(images_pairs) * len(algorithms), desc="Running color transfer") as pbar:
+with tqdm(total=len(images_pairs) * len(solvers) * len(EPSILONS), desc="Running color transfer") as pbar:
     for source_image, target_image in images_pairs:
         source_name, source_image = source_image
         target_name, target_image = target_image
@@ -168,20 +176,23 @@ with tqdm(total=len(images_pairs) * len(algorithms), desc="Running color transfe
         source_measure, target_measure = np.ones(SAMPLE_SIZE) / SAMPLE_SIZE, np.ones(SAMPLE_SIZE) / SAMPLE_SIZE
         C = get_cost_matrix(source_sample, target_sample)
 
-        for solver_name, (solver, transport_name) in algorithms.items():
-            pbar.update(1)
+        for epsilon in EPSILONS:
+            results[(source_name, target_name)][epsilon] = {}
 
-            if transport_name == ENTROPIC_TRANSPORT:
-                _, v = solver(source_measure, target_measure, C, epsilon=EPSILON)
-                transported_image = entropic_transport(v, C, source_image, target_sample, batch_size=BATCH_SIZE, epsilon=EPSILON)
-            elif transport_name == EMD_TRANSPORT:
-                P, _ = solver(source_measure, target_measure, C)
-                transported_image = emd_transport(coupling=P, source_image=source_image,
-                                                  source_sample=source_sample, target_sample=target_sample,
-                                                  batch_size=BATCH_SIZE)
-            
-            transported_image = minmax(mat2im(transported_image, shape))
-            results[(source_name, target_name)][solver_name] = transported_image
+            for solver_name, (solver, transport_name) in solvers.items():
+                pbar.update(1)
+
+                if transport_name == ENTROPIC_TRANSPORT:
+                    _, v = solver(source_measure, target_measure, C, epsilon=epsilon)
+                    transported_image = entropic_transport(v, C, source_image, target_sample, batch_size=BATCH_SIZE, epsilon=epsilon)
+                elif transport_name == EMD_TRANSPORT:
+                    P, _, _ = solver(source_measure, target_measure, C)
+                    transported_image = emd_transport(coupling=P, source_image=source_image,
+                                                    source_sample=source_sample, target_sample=target_sample,
+                                                    batch_size=BATCH_SIZE)
+                
+                transported_image = minmax(mat2im(transported_image, shape))
+                results[(source_name, target_name)][epsilon][solver_name] = transported_image
 
 
 export_images(images_pairs, results, "color_transfer_results/")
