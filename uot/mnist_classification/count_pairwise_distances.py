@@ -1,9 +1,4 @@
 import os
-import sys
-
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-sys.path.insert(0, parent_dir)
-
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
 import jax
@@ -29,7 +24,7 @@ import inspect
 solvers = {
     'sinkhorn': jax_sinkhorn,
     'grad-ascent': gradient_ascent,
-    'dual-lbfs': lbfgs_ot,
+    'lbfs': lbfgs_ot,
     'lp': pot_lp
 }
 
@@ -133,6 +128,7 @@ def compute_distances_for_all_solvers(X, C, solvers_to_run, args):
     progress_bar.close()
 
 if __name__ == "__main__":    
+    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser(description="Compute pairwise distances using specified solvers.")
     parser.add_argument("--solvers", type=str, nargs='+', choices=list(solvers.keys()), default=list(solvers.keys()), 
                         help="Solver name(s) to use. Default: uses all solvers. Multiple solvers can be specified.")
