@@ -8,13 +8,14 @@ from jaxopt import LBFGS
 def lbfgs_multimarginal(marginals: jnp.ndarray,
              C: jnp.ndarray,
              epsilon: float = 1,
-             tolerance: float = 1e-4):
+             tolerance: float = 1e-4,
+             maxiter: int = 10000):
 
     N = marginals.shape[0]
     n = marginals.shape[1]
 
     shapes = [tuple(n if j == i else 1 for j in range(N)) for i in range(N)]
-    potentials = jnp.zeros_like(marginals)
+    potentials = marginals.copy()
 
     @jax.jit
     def objective(potentials: jax.Array):
@@ -29,10 +30,26 @@ def lbfgs_multimarginal(marginals: jnp.ndarray,
         dual = potentials * marginals
         return -jnp.sum(dual - epsilon * stable_sum)
 
-    solver = LBFGS(fun=objective, tol=tolerance)
+    solver = LBFGS(fun=objective, tol=tolerance, maxiter=maxiter)
     result = solver.run(init_params=potentials)
-
+    
     return result.params, result.state.error < tolerance
+
+
+def lbfgs_potentials(a: jnp.ndarray, 
+                     b: jnp.ndarray,
+                     C: jnp.ndarray,
+                     tolerance: float = 1e-4, 
+                     epsilon: float = 1e-3):
+    marginals = jnp.array([a, b])
+
+    potentials, _ = lbfgs_multimarginal(marginals=marginals,
+                                                C = C,
+                                                tolerance=tolerance,
+                                                epsilon=epsilon)
+
+    return potentials[0][None, :].reshape(-1), potentials[1][:, None].reshape(-1)
+
 
 def lbfgs_ot(a: jnp.ndarray, 
              b: jnp.ndarray,
