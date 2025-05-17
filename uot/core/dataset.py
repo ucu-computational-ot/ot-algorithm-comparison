@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from itertools import product
 
+
+
 def compare_measure_kwargs(source: dict, target: dict):
     if source.keys() != target.keys():
         return False  
@@ -22,6 +24,7 @@ def compare_measure_kwargs(source: dict, target: dict):
             return False
 
     return True  
+
 
 class Measure:
 
@@ -175,65 +178,22 @@ def generate_beta_pdf(x, alpha=1, beta=1):
     pdf = np.nan_to_num(pdf, nan=0.0, posinf=0, neginf=0)
     return pdf / pdf.sum()
 
+
 def generate_uniform_pdf(x, lower=0, width=1):
     pdf = stats.uniform.pdf(x, loc=lower, scale=width)
     return pdf / pdf.sum()
 
+
 def generate_cauchy_pdf(x, loc=0, scale=1):
     pdf = stats.cauchy.pdf(x, loc=loc, scale=scale)
     return pdf / pdf.sum()
+
 
 def generate_normalized_white_noise(x, mean=0, std=1):
     size = x.shape
     noise = np.random.normal(loc=mean, scale=std, size=size)
     return (noise - np.mean(noise)) / np.std(noise)
 
-def get_ts_dataset() -> list[np.array]:
-    """
-    Reads a time series dataset from a CSV file, processes it by region, and returns 
-    a list of normalized time series data.
-
-    Returns:
-        list: A list of numpy arrays, where each array represents the normalized 
-              time series data for a specific region.
-    """
-    df = pd.read_csv('datasets/ts_dataset.csv')
-    regions = df.region.unique()
-    time_series = []
-    for region in regions:
-        ts = df[df.region == region].sort_values(by="year")['tincidence']
-        ts /= ts.sum()
-        time_series.append(ts.to_numpy())
-    return time_series
- 
-
-def generate_3d_gaussian_pdf(x, y, z, mean=(0, 0, 0), cov=((1, 0, 0), (0, 1, 0), (0, 0, 1))):
-    """
-    Generates a 3D Gaussian PDF on a mesh grid.
-
-    Args:
-        x (np.array): X-coordinates of the mesh grid.
-        y (np.array): Y-coordinates of the mesh grid.
-        z (np.array): Z-coordinates of the mesh grid.
-        mean (tuple): Mean of the Gaussian distribution (default is (0, 0, 0)).
-        cov (tuple): Covariance matrix of the Gaussian distribution 
-                     (default is identity matrix).
-
-    Returns:
-        np.array: 3D Gaussian PDF values on the mesh grid.
-
-    Usage:
-        x = np.linspace(-2, 2, 2)
-        y = np.linspace(-2, 2, 2)
-        z = np.linspace(-2, 2, 2)
-
-        x, y, z = np.meshgrid(x, y, z)
-
-        gaussian = generate_3d_gaussian_pdf(x, y, z)
-    """
-    pos = np.stack((x, y, z), axis=-1)
-    rv = stats.multivariate_normal(mean=mean, cov=cov)
-    return rv.pdf(pos)
 
 def generate_normalized_white_noise_2d(x, y, mean=0, std=1):
     """
@@ -312,6 +272,16 @@ def generate_random_covariance(
 
 
 def generate_coefficients(dim: int, distributions: dict[str, int]):
+    """
+    Generates coefficients for the specified distributions.
+    Args:
+        dim (int): Dimensionality of the coefficients (1, 2, or 3).
+        distributions (dict): Dictionary of distributions and the number of coefficients to generate.
+            Example: {'gaussian': 3, 'gamma': 3, 'beta': 3, 'uniform': 3, 'cauchy': 3, 'white-noise': 3}
+    Returns:
+        dict: Dictionary of generated coefficients for each distribution.
+    """
+
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
 
@@ -392,20 +362,10 @@ def generate_grid(dim: int, grid_size: int, start: int = -6, end: int = 6):
     """
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
+    
+    axes = [np.linspace(start, end, grid_size) for _ in range(dim)]
 
-    if dim == 1:
-        return [np.linspace(start, end, grid_size)]
-
-    elif dim == 2:
-        x = np.linspace(start, end, grid_size)
-        y = np.linspace(start, end, grid_size)
-        return np.meshgrid(x, y)
-
-    elif dim == 3:
-        x = np.linspace(start, end, grid_size)
-        y = np.linspace(start, end, grid_size)
-        z = np.linspace(start, end, grid_size)
-        return np.meshgrid(x, y, z)
+    return np.meshgrid(*axes)
 
 
 def get_grids(dim: list[int], grid_sizes: list[int], start: int = -6, end: int = 6):
@@ -417,6 +377,7 @@ def get_grids(dim: list[int], grid_sizes: list[int], start: int = -6, end: int =
         grids[f"{'x'.join([str(grid_size)] * dim)} {dim}D"] = generate_grid(dim, grid_size, start, end)
     
     return grids
+
 
 def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: list[np.ndarray]):
     """
@@ -477,6 +438,7 @@ def generate_measures(dim: int, coefficients: dict[str, list[tuple]], grids: lis
                 output[entry].append(mes)
         
     return output
+
 
 def download_dataset():
     URL = "https://drive.usercontent.google.com/download?id=1h2LA05z19P1BWUH5v2ph0gvXKS_wxS8W&export=download&confirm=t&uuid=8ec0d845-fa17-4a8e-8211-ac9214564b85&at=APcmpoxvi8f0AvQwJflzKLsBtg7_:1746613211647"
