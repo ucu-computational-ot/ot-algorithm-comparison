@@ -1,10 +1,8 @@
 import jax
 jax.config.update("jax_enable_x64", True)
 
-import sys
+import os
 import argparse
-import numpy as np
-import pandas as pd
 from datetime import datetime
 from uot.algorithms.sinkhorn import jax_sinkhorn
 from uot.algorithms.gradient_ascent import gradient_ascent
@@ -17,9 +15,9 @@ from uot.core.suites import time_precision_experiment
 epsilon_kwargs = [
     # {'epsilon': 100},
     # {'epsilon': 10},
-    {'epsilon': 1},
+    # {'epsilon': 1},
     # {'epsilon': 1e-1},
-    # {'epsilon': 1e-3},
+    {'epsilon': 1e-3},
     # {'epsilon': 1e-6},
     # {'epsilon': 1e-9},
 ]
@@ -37,29 +35,29 @@ jit_algorithms = [
 ]
 
 problemset_names = [
-    (1, "gamma", 32),
-    # (1, "gamma", 64),
+    # (1, "gamma", 32),
+    ("distribution", "gamma", 64),
     # (1, "gamma", 256),
     # (1, "gamma", 512),
     # (1, "gamma", 1024),
     # (1, "gamma", 2048),
 
     # (1, "gaussian", 32),
-    # (1, "gaussian", 64),
+    ('distribution', "gaussian", 64),
     # (1, "gaussian", 256),
     # (1, "gaussian", 512),
     # (1, "gaussian", 1024),
     # (1, "gaussian", 2048),
 
     # (1, "beta", 32),
-    # (1, "beta", 64),
+    ('distribution', "beta", 64),
     # (1, "beta", 256),
     # (1, "beta", 512),
     # (1, "beta", 1024),
     # (1, "beta", 2048),
 
     # (1, "gaussian|gamma|beta|cauchy", 32),
-    # (1, "gaussian|gamma|beta|cauchy", 64),
+    ("distribution", "gaussian|gamma|beta|cauchy", 64),
     # (1, "gaussian|gamma|beta|cauchy", 128),
     # (1, "gaussian|gamma|beta|cauchy", 256),
     # (1, "gaussian|gamma|beta|cauchy", 512),
@@ -90,7 +88,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--save",
-    action="store_true",
     help="Flag to save the results to a CSV file."
 )
 parser.add_argument(
@@ -126,7 +123,11 @@ df = run_experiment(experiment=time_precision_experiment,
 
 
 if args.save:
-    df.to_csv(f"results/result_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv")
+    export_filename = f"results/result_{args.save}.csv"
+    if os.path.exists(export_filename):
+        export_filename = f"results/result_{args.save}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv" 
+
+    df.to_csv(export_filename)
 
 if args.show:
     print(df)
