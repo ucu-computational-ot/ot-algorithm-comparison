@@ -2,9 +2,6 @@ import os
 import argparse
 import subprocess
 import pandas as pd
-import matplotlib.pyplot as plt
-from pdf2image import convert_from_path
-from tempfile import TemporaryDirectory
 
 parser = argparse.ArgumentParser(description="Visualize experiment results.")
 parser.add_argument(
@@ -13,6 +10,13 @@ parser.add_argument(
     required=True,
     help="Path to the directory containing experiment results."
 )
+parser.add_argument(
+    "--export-dir",
+    type=str,
+    required=True,
+    help="Path to the directory where output tables will be saved."
+)
+
 args = parser.parse_args()
 results_dir = args.results_dir
 
@@ -63,11 +67,18 @@ def convert_to_latex_tables(pvalues: pd.DataFrame, ranks: pd.Series) -> None:
 result_files = [os.path.join(args.results_dir, file) for file in os.listdir(args.results_dir)]
 test_results = {file: parse_post_hoc_result(file) for file in result_files}
 
-for file in result_files:
-    pvalues, ranks = parse_post_hoc_result(file)
+for filepath in result_files:
+    pvalues, ranks = parse_post_hoc_result(filepath)
     pvalues_table, ranks_table = convert_to_latex_tables(pvalues, ranks)
-    print("File:", file)
-    print(pvalues_table)
-    print(ranks_table)
+
+    basename = os.path.splitext(os.path.basename(filepath))[0]
+    basename = f"{basename}_summary" 
+
+    with open(os.path.join(args.export_dir, basename), 'w', encoding='utf8') as output_file:
+        output_file.write("P-values Latex table:\n")
+        output_file.write(pvalues_table)
+        output_file.write("\n")
+        output_file.write("Rank Latex table:\n")
+        output_file.write(ranks_table)
 
 

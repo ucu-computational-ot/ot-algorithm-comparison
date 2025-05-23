@@ -35,51 +35,33 @@ jit_algorithms = [
 ]
 
 problemset_names = [
-    # ("distribution", "gamma", 32),
-    # ("distribution", "gamma", 64),
-    # ("distribution", "gamma", 128),
-    # ("distribution", "gamma", 256),
-    # ('distribution', "gamma", 512),
-    # ("distribution", "gamma", 1024),
-    # ("distribution", "gamma", 2048),
+    ("distribution", "gamma", 32),
+    ("distribution", "gamma", 64),
+    ("distribution", "gamma", 128),
+    ("distribution", "gamma", 256),
+    ('distribution', "gamma", 512),
 
-    # ("distribution", "gaussian", 32),
-    # ('distribution', "gaussian", 64),
-    # ("distribution", "gaussian", 128),
-    # ("distribution", "gaussian", 256),
+
+    ("distribution", "gaussian", 32),
+    ('distribution', "gaussian", 64),
+    ("distribution", "gaussian", 128),
+    ("distribution", "gaussian", 256),
     ('distribution', "gaussian", 512),
-    # ("distribution", "gaussian", 1024),
-    # (1, "gaussian", 2048),
 
-    # ("distribution", "beta", 32),
-    # ("distribution", "beta", 64),
-    # ("distribution", "beta", 128),
-    # ("distribution", "beta", 256),
-    # ('distribution', "beta", 512),
-    # ('distribution', "beta", 1024),
-    # (1, "beta", 2048),
 
-    # ('distribution', "gaussian|gamma|beta|cauchy", 32),
-    # ("distribution", "gaussian|gamma|beta|cauchy", 64),
-    # ('distribution', "gaussian|gamma|beta|cauchy", 128),
-    # ('distribution', "gaussian|gamma|beta|cauchy", 256),
-    # ('distribution', "gaussian|gamma|beta|cauchy", 512),
-    # ('distribution', "gaussian|gamma|beta|cauchy", 1024),
-    # (1, "gaussian|gamma|beta|cauchy", 2048),
+    ("distribution", "beta", 32),
+    ("distribution", "beta", 64),
+    ("distribution", "beta", 128),
+    ("distribution", "beta", 256),
+    ('distribution', "beta", 512),
 
-    # (2, "WhiteNoise", 32),
-    # (2, "CauchyDensity", 32),
-    # (2, "GRFmoderate", 32),
-    # (2, "GRFrough", 32),
-    # (2, "GRFsmooth", 32),
-    # (2, "LogGRF", 32),
-    # (2, "LogitGRF", 32),
-    # (2, "MicroscopyImages", 32),
-    # (2, "Shapes", 32),
-    # (2, "ClassicImages", 64),
 
-    # (3, "3dmesh", 1024),
-    # (3, "3dmesh", 2048),
+    ('distribution', "gaussian|gamma|beta|cauchy", 32),
+    ("distribution", "gaussian|gamma|beta|cauchy", 64),
+    ('distribution', "gaussian|gamma|beta|cauchy", 128),
+    ('distribution', "gaussian|gamma|beta|cauchy", 256),
+    ('distribution', "gaussian|gamma|beta|cauchy", 512),
+
 ]
 
 parser = argparse.ArgumentParser(description="Run time precision experiments.")
