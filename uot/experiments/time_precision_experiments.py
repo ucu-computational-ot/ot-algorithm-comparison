@@ -35,33 +35,36 @@ jit_algorithms = [
 ]
 
 problemset_names = [
-    # (1, "gamma", 32),
-    ("distribution", "gamma", 64),
-    # (1, "gamma", 256),
-    # (1, "gamma", 512),
-    # (1, "gamma", 1024),
-    # (1, "gamma", 2048),
+    # ("distribution", "gamma", 32),
+    # ("distribution", "gamma", 64),
+    # ("distribution", "gamma", 128),
+    # ("distribution", "gamma", 256),
+    # ('distribution', "gamma", 512),
+    # ("distribution", "gamma", 1024),
+    # ("distribution", "gamma", 2048),
 
-    # (1, "gaussian", 32),
-    ('distribution', "gaussian", 64),
-    # (1, "gaussian", 256),
-    # (1, "gaussian", 512),
-    # (1, "gaussian", 1024),
+    # ("distribution", "gaussian", 32),
+    # ('distribution', "gaussian", 64),
+    # ("distribution", "gaussian", 128),
+    # ("distribution", "gaussian", 256),
+    ('distribution', "gaussian", 512),
+    # ("distribution", "gaussian", 1024),
     # (1, "gaussian", 2048),
 
-    # (1, "beta", 32),
-    ('distribution', "beta", 64),
-    # (1, "beta", 256),
-    # (1, "beta", 512),
-    # (1, "beta", 1024),
+    # ("distribution", "beta", 32),
+    # ("distribution", "beta", 64),
+    # ("distribution", "beta", 128),
+    # ("distribution", "beta", 256),
+    # ('distribution', "beta", 512),
+    # ('distribution', "beta", 1024),
     # (1, "beta", 2048),
 
-    # (1, "gaussian|gamma|beta|cauchy", 32),
-    ("distribution", "gaussian|gamma|beta|cauchy", 64),
-    # (1, "gaussian|gamma|beta|cauchy", 128),
-    # (1, "gaussian|gamma|beta|cauchy", 256),
-    # (1, "gaussian|gamma|beta|cauchy", 512),
-    # (1, "gaussian|gamma|beta|cauchy", 1024),
+    # ('distribution', "gaussian|gamma|beta|cauchy", 32),
+    # ("distribution", "gaussian|gamma|beta|cauchy", 64),
+    # ('distribution', "gaussian|gamma|beta|cauchy", 128),
+    # ('distribution', "gaussian|gamma|beta|cauchy", 256),
+    # ('distribution', "gaussian|gamma|beta|cauchy", 512),
+    # ('distribution', "gaussian|gamma|beta|cauchy", 1024),
     # (1, "gaussian|gamma|beta|cauchy", 2048),
 
     # (2, "WhiteNoise", 32),
@@ -123,9 +126,9 @@ df = run_experiment(experiment=time_precision_experiment,
 
 
 if args.save:
-    export_filename = f"results/result_{args.save}.csv"
+    export_filename = f"results/experiments_raw/result_{args.save}.csv"
     if os.path.exists(export_filename):
-        export_filename = f"results/result_{args.save}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv" 
+        export_filename = f"results/experiments_raw/result_{args.save}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv" 
 
     df.to_csv(export_filename)
 
