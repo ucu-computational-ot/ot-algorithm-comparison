@@ -32,7 +32,6 @@ def parse_post_hoc_result(filename: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     algorithms = pvalues_part[0].split()
     
     pvalues = [row.split()[1:] for row in pvalues_part[1:]]
-    
     pvalues = pd.DataFrame(columns=algorithms, index=algorithms, data=pvalues)
     pvalues = pvalues.apply(pd.to_numeric, errors='coerce')
 
@@ -58,10 +57,8 @@ def convert_to_latex_tables(pvalues: pd.DataFrame, ranks: pd.Series) -> None:
         table_code += ' & '.join(map(str, row_items)) + r'\\' + '\n'
 
     table_code += r'\hline\end{tabular}'
-
     ranks = ranks.sort_values().to_frame("Rank")
-
-    return table_code, ranks.to_latex()
+    return pvalues.to_latex(float_format="%.2e"), ranks.to_latex()
 
 
 result_files = [os.path.join(args.results_dir, file) for file in os.listdir(args.results_dir)]
