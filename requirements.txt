@@ -1,0 +1,10 @@
+memory-profiler==0.61.0
+numpy==2.0.2
+open3d==0.19.0
+ott-jax==0.5.0
+POT==0.9.5
+jaxlib==0.5.3
+jax==0.5.3
+scikit-learn==1.6.0
+tqdm==4.67.1
+jax[cuda]
