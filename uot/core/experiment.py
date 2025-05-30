@@ -8,7 +8,6 @@ from uot.core.problem_gen import get_problemset, OTProblem
 
 
 def run_experiment(experiment: 'Experiment',
-                   jit_algorithms=None,
                    solvers: dict[str, callable] = None,
                    problemsets_names: list[tuple] = None,
                    folds: int = 1) -> pd.DataFrame:
@@ -19,7 +18,6 @@ def run_experiment(experiment: 'Experiment',
         solvers (dict[str, callable]): A dictionary where keys are solver names and values are tuples 
             containing the solver function and optional sets of keyword arguments for the solver.
         problemsets_names (list[tuple]): A list of problem set names to retrieve and use in the experiments.
-        jit_algorithms (list[str], optional): A list of algorithm names to exclude from the results. Defaults to None.
         folds (int, optional): The number of folds for cross-validation. Defaults to 1.
     Returns:
         pd.DataFrame: A DataFrame containing the results of the experiments, including solver names 
@@ -49,18 +47,18 @@ def run_experiment(experiment: 'Experiment',
     
     dfs = []
 
-    solvers_number = sum(len(kwargs) if kwargs else 1 for _, kwargs in solvers.values())
+    solvers_number = sum(len(solver.params) if solver.params else 1 for solver in solvers.values())
 
     with tqdm(total=solvers_number * len(problems), desc="Running experiments") as pbar:
         progress_callback = lambda: pbar.update(1)
 
         for solver_name, solver in solvers.items():
             
-            solver_function, kwargs_sets = solver
+            solver_function, kwargs_sets = solver.function, solver.params
             kwargs_sets = kwargs_sets if kwargs_sets else [{}]
-            solvers = [(partial(solver_function, **kwargs), kwargs) for kwargs in kwargs_sets]
+            parametrized_solvers = [(partial(solver_function, **kwargs), kwargs) for kwargs in kwargs_sets]
 
-            for solver, kwargs in solvers:
+            for solver, kwargs in parametrized_solvers:
                 pbar.set_description(f"Solver: {solver_name}({kwargs})")
                 solver_result = experiment.run_experiment(ot_problems=problems, progress_callback=progress_callback, solver=solver)
 
@@ -74,8 +72,11 @@ def run_experiment(experiment: 'Experiment',
     df = pd.concat(dfs)
 
     for dataset in df.dataset.unique():
-        for algorithm_name in jit_algorithms:
-            algorithm_results = df[(df.dataset == dataset) & (df.name == algorithm_name)]
+        for solver_name, solver in solvers.items():
+            if not solver.is_jit:
+                continue
+
+            algorithm_results = df[(df.dataset == dataset) & (df.name == solver_name)]
             if len(algorithm_results):
                 df.drop(algorithm_results.index[0], inplace=True)
 

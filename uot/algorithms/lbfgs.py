@@ -15,7 +15,7 @@ def lbfgs_multimarginal(marginals: jnp.ndarray,
     n = marginals.shape[1]
 
     shapes = [tuple(n if j == i else 1 for j in range(N)) for i in range(N)]
-    potentials = marginals.copy()
+    potentials = jnp.zeros_like(marginals)
 
     @jax.jit
     def objective(potentials: jax.Array):
@@ -30,7 +30,7 @@ def lbfgs_multimarginal(marginals: jnp.ndarray,
         dual = potentials * marginals
         return -jnp.sum(dual - epsilon * stable_sum)
 
-    solver = LBFGS(fun=objective, tol=tolerance, maxiter=maxiter)
+    solver = LBFGS(fun=objective, tol=tolerance, maxiter=maxiter, maxls=100)
     result = solver.run(init_params=potentials)
     
     return result.params, result.state.error < tolerance
