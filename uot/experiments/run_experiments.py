@@ -11,7 +11,6 @@ from collections import namedtuple
 from uot.core.experiment import run_experiment
 from uot.core.suites import time_precision_experiment
 
-
 Solver = namedtuple('Solver', ['function', 'params', 'is_jit'])
 
 def load_solvers(config: dict) -> tuple[list, list]:

@@ -1,7 +1,6 @@
 params:
   epsilons:
     - epsilon: 1
-    - epsilon: 0.1
     - epsilon: 0.001
 
 solvers:
@@ -24,3 +23,5 @@ solvers:
 
 problemsets:
   - distribution-gaussian-32
+  - distribution-gaussian-64
+  - distribution-gaussian-128

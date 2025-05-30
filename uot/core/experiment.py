@@ -67,7 +67,7 @@ def run_experiment(experiment: 'Experiment',
                 for kwarg_name, value in kwargs.items():
                     solver_result[kwarg_name] = value
             
-            dfs.append(solver_result)
+                dfs.append(solver_result)
 
     df = pd.concat(dfs)
 
@@ -75,7 +75,6 @@ def run_experiment(experiment: 'Experiment',
         for solver_name, solver in solvers.items():
             if not solver.is_jit:
                 continue
-
             algorithm_results = df[(df.dataset == dataset) & (df.name == solver_name)]
             if len(algorithm_results):
                 df.drop(algorithm_results.index[0], inplace=True)

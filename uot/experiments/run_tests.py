@@ -35,10 +35,10 @@ def parse_post_hoc_result(filename: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     pvalues = pd.DataFrame(columns=algorithms, index=algorithms, data=pvalues)
     pvalues = pvalues.apply(pd.to_numeric, errors='coerce')
 
-    ranks_part = ranks_part.split('\n') 
+    ranks_part = ranks_part.split('\n')[1:-1]
     
-    ranks_algorithms = ranks_part[0].split()
-    ranks = ranks_part[1].split()
+    ranks_algorithms = [row.split()[0] for row in ranks_part]
+    ranks = [row.split()[1] for row in ranks_part]
     ranks = pd.Series(index=ranks_algorithms, data=ranks)
 
     return pvalues, ranks
@@ -62,7 +62,6 @@ def convert_to_latex_tables(pvalues: pd.DataFrame, ranks: pd.Series) -> None:
 
 
 result_files = [os.path.join(args.results_dir, file) for file in os.listdir(args.results_dir)]
-test_results = {file: parse_post_hoc_result(file) for file in result_files}
 
 for filepath in result_files:
     pvalues, ranks = parse_post_hoc_result(filepath)
