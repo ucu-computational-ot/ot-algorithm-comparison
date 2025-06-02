@@ -2,23 +2,10 @@ import os
 import argparse
 import subprocess
 import pandas as pd
+from collections import namedtuple
 
-parser = argparse.ArgumentParser(description="Visualize experiment results.")
-parser.add_argument(
-    "--results-dir",
-    type=str,
-    required=True,
-    help="Path to the directory containing experiment results."
-)
-parser.add_argument(
-    "--export-dir",
-    type=str,
-    required=True,
-    help="Path to the directory where output tables will be saved."
-)
+TestResult = namedtuple("TestResult", ['ranks', 'pvalues'])
 
-args = parser.parse_args()
-results_dir = args.results_dir
 
 
 def parse_post_hoc_result(filename: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -61,20 +48,47 @@ def convert_to_latex_tables(pvalues: pd.DataFrame, ranks: pd.Series) -> None:
     return pvalues.to_latex(float_format="%.2e"), ranks.to_latex()
 
 
-result_files = [os.path.join(args.results_dir, file) for file in os.listdir(args.results_dir)]
+def export_into_latex_tables(test_results: dict[str, TestResult], export_dir: str) -> None:
 
-for filepath in result_files:
-    pvalues, ranks = parse_post_hoc_result(filepath)
-    pvalues_table, ranks_table = convert_to_latex_tables(pvalues, ranks)
+    for filename, test_result in test_results.items():
+        pvalues_table, ranks_table = convert_to_latex_tables(test_result.pvalues, test_result.ranks)
 
-    basename = os.path.splitext(os.path.basename(filepath))[0]
-    basename = f"{basename}_summary" 
+        basename = os.path.splitext(os.path.basename(filename))[0]
+        basename = f"{basename}_summary" 
 
-    with open(os.path.join(args.export_dir, basename), 'w', encoding='utf8') as output_file:
-        output_file.write("P-values Latex table:\n")
-        output_file.write(pvalues_table)
-        output_file.write("\n")
-        output_file.write("Rank Latex table:\n")
-        output_file.write(ranks_table)
+        with open(os.path.join(export_dir, basename), 'w', encoding='utf8') as output_file:
+            output_file.write("P-values Latex table:\n")
+            output_file.write(pvalues_table)
+            output_file.write("\n")
+            output_file.write("Rank Latex table:\n")
+            output_file.write(ranks_table)
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Visualize experiment results.")
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        required=True,
+        help="Path to the directory containing experiment results."
+    )
+    parser.add_argument(
+        "--export",
+        type=str,
+        required=True,
+        help="Path to the directory where output tables will be saved."
+    )
+
+    args = parser.parse_args()
+    results_dir = args.results_dir
+
+
+    result_files = [os.path.join(args.results_dir, file) for file in os.listdir(args.results_dir)]
+    test_results = {file: TestResult(parse_post_hoc_result(file)) for file in result_files}
+
+    if args.export is not None:
+        export_into_latex_tables(test_results=test_results,
+                                 export_dir=args.export)
 
 

@@ -98,9 +98,10 @@ df = run_experiment(experiment=time_precision_experiment,
 
 
 if args.save:
-    export_filename = f"results/experiments_raw/result_{args.save}.csv"
+    os.makedirs("results/experiments_raw/", exist_ok=True)
+    export_filename = f"results/experiments_raw/{args.save}.csv"
     if os.path.exists(export_filename):
-        export_filename = f"results/experiments_raw/result_{args.save}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv" 
+        export_filename = f"results/experiments_raw/{args.save}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv" 
 
     df.to_csv(export_filename)
 
