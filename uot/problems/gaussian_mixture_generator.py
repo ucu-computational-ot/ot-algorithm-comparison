@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import List, Callable
 
 import numpy as np
+from numpy.random import default_rng
 from uot.data.measure import DiscreteMeasure
 from uot.problems.base_problem import MarginalProblem
 from uot.problems.two_marginal import TwoMarginalProblem
@@ -70,14 +71,14 @@ class ProblemGenerator(ABC):
 
             with open(filepath, 'rb') as f:
                 generator, problems = pickle.load(f)
-            
+
             if generator == self:
                 return problems
 
         return None
 
     def _dump_problems(self, problems: list[MarginalProblem]):
-        dump_filepath = os.path.join(ProblemGenerator.DUMP_PATH, 
+        dump_filepath = os.path.join(ProblemGenerator.DUMP_PATH,
                                      f"{str(uuid.uuid4())}.pkl")
 
         with open(dump_filepath, 'wb') as f:
@@ -108,6 +109,18 @@ class GaussianMixtureGenerator(ProblemGenerator):
             use_jax=use_jax,
             seed=seed,
         )
+        # TODO: arbitrary dim?
+        if dim not in [1, 2, 3]:
+            raise ValueError("dim must be 1, 2 or 3")
+        self._name = name
+        self._dim = dim
+        self._num_components = num_components
+        self._n_points = n_points
+        self._num_datasets = num_datasets
+        self._borders = borders
+        self._cost_fn = cost_fn
+        self._use_jax = use_jax
+        self._rng = default_rng(seed)
 
         self._num_components = num_components
 
@@ -119,8 +132,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
             get_gmm_pdf(
                 self._dim,
                 num_components=self._num_components,
+                rng=self._rng,
                 use_jax=self._use_jax,
-                seed=self._seed,
             )
             for _ in range(pdfs_num)
         ]

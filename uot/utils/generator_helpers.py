@@ -1,22 +1,16 @@
 import numpy as np
 from itertools import product
 from uot.utils.types import ArrayLike
-from typing import Callable, List, Tuple
+from typing import List, Tuple
 
 
-try:
-    import jax.numpy as jnp
-    from jax import jit
-
-    JAX_AVAILABLE = True
-except ImportError:
-    jnp = None
-    jit = None
-    JAX_AVAILABLE = False
+import jax.numpy as jnp
+from jax import jit
 
 
 def generate_random_covariance(
     dim: int,
+    rng: np.random.Generator,
     diag_linspace: np.ndarray = np.linspace(0.5, 2.0, 10),
     offdiag_linspace: np.ndarray = np.linspace(-0.3, 0.3, 7),
 ) -> np.ndarray:
@@ -28,14 +22,14 @@ def generate_random_covariance(
     """
     if dim == 1:
         # For 1D: just pick a variance in diag_linspace
-        var = float(np.random.choice(diag_linspace, size=1))
+        var = float(rng.choice(diag_linspace, size=1))
         return np.array([[np.round(var, 2)]], dtype=float)
 
-    diag = np.random.choice(diag_linspace, size=dim, replace=True)
+    diag = rng.choice(diag_linspace, size=dim, replace=True)
     cov = np.diag(diag)
     indices = np.triu_indices(dim, k=1)
     for i, j in zip(*indices):
-        val = np.random.choice(offdiag_linspace)
+        val = rng.choice(offdiag_linspace)
         cov[i, j] = val
         cov[j, i] = val
 
@@ -126,7 +120,7 @@ def generate_coefficients(dim: int, distributions: dict[str, int]) -> dict[str, 
 
 
 def generate_gmm_coefficients(
-    dim: int, num_components: int
+    dim: int, num_components: int, rng: np.random.Generator
 ) -> List[Tuple[Tuple[float, ...], np.ndarray]]:
     """
     Returns a list of length `num_components`, each entry a tuple
@@ -144,32 +138,36 @@ def generate_gmm_coefficients(
     else:
         all_means = list(product(mean_range, repeat=dim))
 
-    np.random.shuffle(all_means)
+    rng.shuffle(all_means)
     selected_means = all_means[:num_components]
 
     result: List[Tuple[Tuple[float, ...], np.ndarray]] = []
     for mean in selected_means:
-        cov = generate_random_covariance(dim)
+        # TODO: configure the parameters for cov matrix
+        cov = generate_random_covariance(dim, rng)
         result.append((tuple(np.round(mean, 2)), cov))
     return result
 
 
-def get_gmm_pdf(dim: int, num_components: int, use_jax: bool = False, seed: int = 0):
+def get_gmm_pdf(
+        dim: int,
+        num_components: int,
+        rng: np.random.Generator,
+        use_jax: bool = False,
+):
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
 
     # Step 1: draw random (mean, cov) pairs
-    rng = np.random.default_rng(seed)
     # We reuse the same helper, but seed must be set before shuffling inside generate_coefficients
-    np.random.seed(seed)
-    params = generate_gmm_coefficients(dim, num_components)
+    params = generate_gmm_coefficients(dim, num_components, rng)
     means: List[Tuple[float, ...]] = [m for (m, _) in params]
     covs: List[np.ndarray] = [C for (_, C) in params]
 
     K = num_components
     d = dim
 
-    if use_jax and JAX_AVAILABLE:
+    if use_jax:
         # Convert to JAX arrays
         means_j = jnp.stack([jnp.array(m) for m in means], axis=0)  # (K, d)
         covs_j = jnp.stack([jnp.array(C) for C in covs], axis=0)  # (K, d, d)
@@ -217,7 +215,6 @@ def get_gmm_pdf(dim: int, num_components: int, use_jax: bool = False, seed: int 
             if X.ndim != 2 or X.shape[1] != d:
                 raise ValueError(f"Input to pdf_fn must be shape (N, {d}).")
 
-            N = X.shape[0]
             # Broadcast diffs: (N, K, d)
             diffs = X[:, None, :] - means_np[None, :, :]  # (N, K, d)
             # Quadratic forms: (N, K)

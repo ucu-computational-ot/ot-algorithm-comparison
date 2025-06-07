@@ -4,7 +4,7 @@ from typing import List
 from uot.experiments.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
 from uot.problems.base_problem import MarginalProblem
-from uot.problems.generators import ProblemGenerator
+from uot.problems.problem_generator import ProblemGenerator
 from uot.utils.logging import logger
 
 

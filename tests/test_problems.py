@@ -5,10 +5,8 @@ from uot.data.measure import DiscreteMeasure, GridMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.multi_marginal import MultiMarginalProblem
 from uot.problems.base_problem import MarginalProblem
-from uot.problems.generators import (
-    ProblemGenerator,
-    GaussianMixtureGenerator,
-)
+from uot.problems.problem_generator import ProblemGenerator
+from uot.problems.gaussian_mixture_generator import GaussianMixtureGenerator
 
 
 def test_two_marginal_problem_basic():
@@ -22,7 +20,8 @@ def test_two_marginal_problem_basic():
     nu = DiscreteMeasure(Y, b, name="nu")
 
     # Define a simple squared‐distance cost function
-    cost_fn = lambda A, B: np.linalg.norm(A[:, None, :] - B[None, :, :], axis=2) ** 2
+    def cost_fn(A, B): return np.linalg.norm(
+        A[:, None, :] - B[None, :, :], axis=2) ** 2
 
     prob = TwoMarginalProblem("test2", mu, nu, cost_fn)
 
@@ -39,7 +38,8 @@ def test_two_marginal_problem_basic():
     assert isinstance(costs, list) and len(costs) == 1
     C = costs[0]
     assert C.shape == (2, 2)
-    expected_C = np.array([[0.0, 4.0], [1.0, 1.0]])  # (0–0)^2, (0–2)^2, (1–0)^2, (1–2)^2
+    # (0–0)^2, (0–2)^2, (1–0)^2, (1–2)^2
+    expected_C = np.array([[0.0, 4.0], [1.0, 1.0]])
     assert np.allclose(C, expected_C)
 
     # Calling get_costs again should return the cached matrix, not recompute
