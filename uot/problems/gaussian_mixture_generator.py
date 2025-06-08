@@ -127,11 +127,13 @@ class GaussianMixtureGenerator(ProblemGenerator):
     def _generate(self) -> List[TwoMarginalProblem]:
         pdfs_num = 2 * self._num_datasets
         axes_support = self._get_axes(self._n_points)
+        mean_bounds = (self._borders[0] * 0.9, self._borders[1] * 0.9)
         points = generate_nd_grid(axes_support)
         mixtures_pdfs = [
             get_gmm_pdf(
                 self._dim,
                 num_components=self._num_components,
+                mean_bounds=mean_bounds,
                 rng=self._rng,
                 use_jax=self._use_jax,
             )
@@ -140,14 +142,12 @@ class GaussianMixtureGenerator(ProblemGenerator):
 
         problems: List[TwoMarginalProblem] = []
         for i in range(self._num_datasets):
-            mu = DiscreteMeasure(
-                points=points,
-                weights=mixtures_pdfs[2 * i](points),
-            )
-            nu = DiscreteMeasure(
-                points=points,
-                weights=mixtures_pdfs[2 * i + 1](points),
-            )
+            mu_weights = mixtures_pdfs[2 * i](points)
+            mu_weights /= mu_weights.sum()
+            nu_weights = mixtures_pdfs[2 * i + 1](points)
+            nu_weights /= nu_weights.sum()
+            mu = DiscreteMeasure(points=points, weights=mu_weights)
+            nu = DiscreteMeasure(points=points, weights=nu_weights)
             problem = TwoMarginalProblem(
                 name=self._name,
                 mu=mu,

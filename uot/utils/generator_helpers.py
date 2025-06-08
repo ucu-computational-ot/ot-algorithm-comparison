@@ -120,7 +120,10 @@ def generate_coefficients(dim: int, distributions: dict[str, int]) -> dict[str, 
 
 
 def generate_gmm_coefficients(
-    dim: int, num_components: int, rng: np.random.Generator
+    dim: int,
+    num_components: int,
+    mean_bounds: tuple[float, float],
+    rng: np.random.Generator
 ) -> List[Tuple[Tuple[float, ...], np.ndarray]]:
     """
     Returns a list of length `num_components`, each entry a tuple
@@ -132,7 +135,7 @@ def generate_gmm_coefficients(
         raise ValueError("dim must be 1, 2, or 3.")
 
     # Build a grid of possible means in each coordinate
-    mean_range = np.linspace(-4.0, 4.0, 10)
+    mean_range = np.linspace(*mean_bounds, 10)
     if dim == 1:
         all_means = [(float(m),) for m in mean_range]
     else:
@@ -150,17 +153,18 @@ def generate_gmm_coefficients(
 
 
 def get_gmm_pdf(
-        dim: int,
-        num_components: int,
-        rng: np.random.Generator,
-        use_jax: bool = False,
+    dim: int,
+    num_components: int,
+    mean_bounds: tuple[float, float],
+    rng: np.random.Generator,
+    use_jax: bool = False,
 ):
     if dim not in [1, 2, 3]:
         raise ValueError("dim must be 1, 2, or 3.")
 
     # Step 1: draw random (mean, cov) pairs
     # We reuse the same helper, but seed must be set before shuffling inside generate_coefficients
-    params = generate_gmm_coefficients(dim, num_components, rng)
+    params = generate_gmm_coefficients(dim, num_components, mean_bounds, rng)
     means: List[Tuple[float, ...]] = [m for (m, _) in params]
     covs: List[np.ndarray] = [C for (_, C) in params]
 
