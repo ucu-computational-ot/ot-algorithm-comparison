@@ -8,6 +8,8 @@ from uot.data.measure import DiscreteMeasure
 from uot.solvers.base_solver import BaseSolver
 from uot.utils.types import ArrayLike
 
+from uot.utils.solver_helpers import tensor_marginals, coupling_tensor
+
 
 class SinkhornTwoMarginalSolver(BaseSolver):
     def __init__(self):
@@ -35,7 +37,7 @@ class SinkhornTwoMarginalSolver(BaseSolver):
             max_iters=maxiter,
         )
         return {
-            "transport_plan": _coupling_tensor(u, v, costs[0], reg),
+            "transport_plan": coupling_tensor(u, v, costs[0], reg),
             "u_final": u,
             "v_final": v,
             "iterations": i_final,
@@ -106,8 +108,8 @@ def _compute_error(
     cost: jnp.ndarray,
     epsilon: float,
 ) -> float:
-    P = _coupling_tensor(u, v, cost, epsilon)
-    row_marginal, col_marginal = _tensor_marginals(P)
+    P = coupling_tensor(u, v, cost, epsilon)
+    row_marginal, col_marginal = tensor_marginals(P)
     return jnp.max(
         jnp.array(
             [jnp.linalg.norm(a - row_marginal),
@@ -115,16 +117,3 @@ def _compute_error(
         )
     )
 
-
-@jax.jit
-def _coupling_tensor(
-    u: jnp.ndarray, v: jnp.ndarray, cost: jnp.ndarray, epsilon: float
-) -> jnp.ndarray:
-    return jnp.exp((u[:, None] + v[None, :] - cost) / epsilon)
-
-
-@jax.jit
-def _tensor_marginals(matrix: jnp.ndarray):
-    row_marginal = jnp.sum(matrix, axis=1)  # sum over columns
-    column_marginal = jnp.sum(matrix, axis=0)  # sum over rows
-    return (row_marginal, column_marginal)
