@@ -16,7 +16,7 @@ class ProblemIterator(Iterator[MarginalProblem]):
         self._idx = 0
         self._store = store
 
-    def __iter__(self) -> ProblemIterator:
+    def __iter__(self) -> "ProblemIterator":
         return self
 
     def __next__(self) -> MarginalProblem:
