@@ -1,35 +1,48 @@
 import pandas as pd
 from tqdm import tqdm
+from copy import deepcopy
 from typing import List
+from itertools import chain 
 from uot.experiments.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
 from uot.problems.base_problem import MarginalProblem
-from uot.problems.problem_generator import ProblemGenerator
+from uot.problems.iterator import ProblemIterator
 from uot.utils.logging import logger
 
 
 def run_pipeline(
     experiment: Experiment,
     solvers: List[SolverConfig],
-    generators: List[ProblemGenerator],
+    iterators: List[ProblemIterator],
     folds: int = 1,
     progress: bool = True,
 ) -> pd.DataFrame:
     # 1) generate all problems
     logger.info(f"starting pipeline...")
     logger.info(f"generating problems...")
-    all_problems: List[MarginalProblem] = []
-    for generator in generators:
-        all_problems.extend(generator.generate())
+
     # 2) apply folds
-    all_problems = all_problems * folds
+    all_iterators = []
+    for _ in range(folds):
+        all_iterators += deepcopy(iterators)
+    
     # 3) run each solver on params and problems
     results_list = []
     # TODO: tqdm status bar
-    total_runs = sum(len(cfg.param_grid)
-                     for cfg in solvers) * len(all_problems)
+
+    # count how many same problems may be used (re-runned) 
+    # for different solver's parameters
+    problems_multiplicity = sum(len(cfg.param_grid) if cfg.param_grid else 1 for cfg in solvers)
+    total_runs = problems_multiplicity * sum(len(it) for it in all_iterators)
+
     pbar = tqdm(total=total_runs,
                 desc="Running experiments") if progress else None
+
+    all_iterators = chain(*all_iterators)
+
+    # copy is needed, because same problems instances 
+    # are needed to run with different solver configuration 
+    current_iterators = deepcopy(all_iterators) 
 
     def progress_callback(n=1):
         if pbar:
@@ -44,13 +57,14 @@ def run_pipeline(
                 pbar.set_description(description)
 
             df_res = experiment.run_on_problems(
-                problems=all_problems,
+                problems=current_iterators,
                 solver=cfg.solver,
                 progress_callback=progress_callback if pbar else None,
                 **param_kwargs,
             )
 
             df_res["name"] = cfg.name
+            
             for k, v in param_kwargs.items():
                 df_res[k] = v
 
@@ -66,6 +80,8 @@ def run_pipeline(
                     if not subset.empty:
                         drop_idxs.append(subset.index[0])
                 df_res = df_res.drop(drop_idxs, axis=0)
+
+                current_iterators = deepcopy(all_iterators)
 
             results_list.append(df_res)
 

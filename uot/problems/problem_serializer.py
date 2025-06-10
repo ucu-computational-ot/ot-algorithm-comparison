@@ -1,21 +1,9 @@
 import os
 import yaml
 import argparse
-import importlib
 
+from uot.utils.import_helpers import import_object
 from uot.problems.store import ProblemStore
-
-
-def import_object(path):
-    path = path.split('.')
-    module, obj = path[:-1], path[-1]
-    module = '.'.join(module)
-
-    module = importlib.import_module(module)
-    obj = getattr(module, obj)
-
-    return obj
-
 
 def parse_config(name, generator_config) -> dict:
     """

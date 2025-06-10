@@ -57,7 +57,7 @@ if __name__ == "__main__":
     df = run_pipeline(
         experiment=experiment,
         solvers=[sinkhorn_config],
-        generators=[gauss_gen1, gauss_gen2],
+        iterators=[gauss_gen1, gauss_gen2],
         folds=10,
     )
 

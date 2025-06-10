@@ -1,27 +1,14 @@
-params:
+param-grids:
   epsilons:
-    - epsilon: 1
-    - epsilon: 0.001
+    - reg: 1
+    - reg: 0.001
 
 solvers:
-  lp:
-    function: uot.algorithms.lp.pot_lp
-    jit: false
-    params: 
   sinkhorn:
-    function: uot.algorithms.sinkhorn.jax_sinkhorn
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
-    params: epsilons
-  gradient-ascent:
-    function: uot.algorithms.gradient_ascent.gradient_ascent
-    jit: true
-    params: epsilons
-  lbfgs:
-    function: uot.algorithms.lbfgs.lbfgs_ot
-    jit: true
-    params: epsilons
+    param-grid: epsilons
 
+problemsets-dir: datasets/synthetic
 problemsets:
-  - distribution-gaussian-32
-  - distribution-gaussian-64
-  - distribution-gaussian-128
+  - 1D-gaussians-64

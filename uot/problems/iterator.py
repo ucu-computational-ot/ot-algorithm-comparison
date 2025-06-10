@@ -19,6 +19,9 @@ class ProblemIterator(Iterator[MarginalProblem]):
     def __iter__(self) -> "ProblemIterator":
         return self
 
+    def __len__(self) -> int:
+        return len(self._files)
+
     def __next__(self) -> MarginalProblem:
         if self._idx >= len(self._files):
             raise StopIteration

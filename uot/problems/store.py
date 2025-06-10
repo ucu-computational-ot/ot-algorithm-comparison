@@ -34,4 +34,4 @@ class ProblemStore:
             pickle.dump(problem, f, protocol=4)
 
     def all_files(self) -> List[Path]:
-        return sorted(self.path.glob(".pkl"))
+        return sorted(self.path.glob("*.pkl"))
