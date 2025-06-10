@@ -36,3 +36,35 @@ $ pixi run serialize --config configs/generators/gaussians.yaml --export-dir dat
 ```
 
 In `export-dir` folders with serialized problems for each generators will be created. In the same folder `meta.yaml` will be created with copy of generator config. 
+
+## Running experiments
+
+To run experiments, first create config file like:
+
+```yaml
+param-grids:
+  regulations:
+    - reg: 1
+    - reg: 0.001
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: true
+    param-grid: regulations
+
+problems:
+  dir: datasets/synthetic
+  names:
+    - 1D-gaussians-64
+    - 1D-gaussians-128
+```
+
+Here you can define solvers and their param-grids (solver will be run for each set of params). Also in `problems` section with `dir` the `export-dir` of serialization is specified (see previous section) and with names specific folders with problems in that directory
+
+```
+$ pixi run benchmark --config configs/runners/gaussians.yaml --folds 1 --export results/raw/gaussians.csv
+```
+
+With `export` one can secify where to put csv-report of experiment
+
