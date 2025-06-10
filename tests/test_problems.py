@@ -6,7 +6,7 @@ from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.multi_marginal import MultiMarginalProblem
 from uot.problems.base_problem import MarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
-from uot.problems.gaussian_mixture_generator import GaussianMixtureGenerator
+from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGenerator
 
 
 def test_two_marginal_problem_basic():

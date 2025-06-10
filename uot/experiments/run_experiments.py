@@ -28,7 +28,6 @@ def load_solvers(config: dict) -> tuple[list, list]:
         module = '.'.join(module)
 
         mod = importlib.import_module(module)
-
         function = getattr(mod, function)
         solver_params = params[solver_params] if solver_params else []
 

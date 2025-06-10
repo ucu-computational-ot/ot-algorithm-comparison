@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from uot.problems.gaussian_mixture_generator import GaussianMixtureGenerator
+from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGenerator
 from uot.utils.costs import cost_euclid_squared
 
 

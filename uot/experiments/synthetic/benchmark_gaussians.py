@@ -1,7 +1,7 @@
 from uot.experiments.experiment import Experiment
 from uot.experiments.runner import run_pipeline
 from uot.experiments.solver_config import SolverConfig
-from uot.problems.gaussian_mixture_generator import GaussianMixtureGenerator
+from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGenerator
 from uot.solvers.sinkhorn import SinkhornTwoMarginalSolver
 
 from uot.utils.costs import cost_euclid_squared
