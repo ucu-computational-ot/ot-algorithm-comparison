@@ -117,7 +117,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     X, y, _ = load_mnist_data()
-    X, y = X[:250], y[:250]
 
     with open(args.config, 'r') as file:
         config = yaml.safe_load(file) 
