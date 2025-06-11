@@ -9,6 +9,7 @@ solvers:
     jit: true
     param-grid: epsilons
 
-problemsets-dir: datasets/synthetic
-problemsets:
-  - 1D-gaussians-64
+problems:
+  dir: datasets/synthetic
+  names:
+    - 1D-gaussians-64

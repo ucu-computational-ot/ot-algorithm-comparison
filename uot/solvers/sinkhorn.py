@@ -38,8 +38,8 @@ class SinkhornTwoMarginalSolver(BaseSolver):
         )
         return {
             "transport_plan": coupling_tensor(u, v, costs[0], reg),
-            "u_final": u.block_until_ready(),
-            "v_final": v.block_until_ready(),
+            "u_final": u,
+            "v_final": v,
             "iterations": i_final,
             "error": final_err,
         }

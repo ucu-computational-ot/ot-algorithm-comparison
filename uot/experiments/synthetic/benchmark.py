@@ -14,7 +14,8 @@ from uot.experiments.solver_config import SolverConfig
 def solve_fn(prob, solver, marginals, costs, **kwargs):
     start_time = time.perf_counter()
     metrics = solver().solve(marginals=marginals, costs=costs, **kwargs)
-    metrics["time"] = time.perf_counter() - start_time
+    metrics['transport_plan'].block_until_ready()
+    metrics["time"] = (time.perf_counter() - start_time) * 1000
     return metrics
 
 
@@ -47,8 +48,8 @@ def load_solvers(config: dict) -> list[SolverConfig]:
 def load_problems(config: dict) -> list[ProblemIterator]:
 
     iterators = []
-    problemsets_names = config['problemsets'] 
-    problemsets_dir = config['problemsets-dir']
+    problemsets_names = config['problems']['names']
+    problemsets_dir = config['problems']['dir']
 
     for problemset_name in problemsets_names:
         store_path = os.path.join(problemsets_dir, problemset_name)
@@ -80,6 +81,13 @@ if __name__ == "__main__":
         help="Path to a configuration file with experiment parameters."
     )
 
+    parser.add_argument(
+        "--export",
+        type=str,
+        default="gaussian_toy_results.csv",
+        help="Path to export the results CSV file."
+    )
+
     args = parser.parse_args()
 
     with open(args.config, 'r') as file:
@@ -97,6 +105,5 @@ if __name__ == "__main__":
         progress=True
     )
 
-    filename = "gaussian_toy_results.csv"
-    print(f"Exporting results to {filename}")
-    df.to_csv(filename, index=False)
+    print(f"Exporting results to {args.export}")
+    df.to_csv(args.export, index=False)
