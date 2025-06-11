@@ -1,15 +1,20 @@
 import os
 import sys
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
 sys.path.insert(0, parent_dir)
 
+from uot.utils.mnist_helpers import load_mnist_data
+from uot.utils.yaml_helpers import load_solvers
+from uot.utils.logging import logger
+from uot.utils.types import ArrayLike
+from uot.experiments.solver_config import SolverConfig
+from typing import List
 import numpy as np
 import pandas as pd
-from glob import glob
+from datetime import datetime
+import yaml
 
-from sklearn.datasets import load_digits
-from sklearn.preprocessing import normalize
 from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
@@ -17,71 +22,64 @@ import argparse
 
 np.random.seed(42)
 
-SAMPLE_SIZES = [100, 250, 500]
 
-SOLVERS = {
-    'sinkhorn': True,
-    'grad-ascent': True,
-    'lbfs': True,
-    'lp': False
-}
-EPSILONS = [2.0, 1.0, 0.1]
+def get_solver_files(solvers: List[SolverConfig])-> List[str]:
+    """
+    Extract solver file names from the list of SolverConfig objects.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    distance_files = []
+
+    for solver in solvers:
+        for params in solver.param_grid:
+
+            name = solver.name
+            param_str = "_".join([f"{k}_{v}" for k, v in params.items()])
+            filename = f"{name}_{param_str}.csv"
+            file_path = os.path.join(script_dir, "costs", filename)
+
+            if not os.path.exists(file_path):
+                logger.warning(f"Distance file {file_path} does not exist. Skipping.")
+                continue
+    
+            distance_files.append((solver, params, file_path))
+
+    return distance_files
 
 
-def load_pairwise_distances(solvers, epsilons = None):
+
+def load_pairwise_distances(solvers: List[SolverConfig])-> dict:
     """
     Load pre-computed pairwise distance matrices from CSV files.
-    
-    Args:
-        solvers: Dictionary of solvers to consider
-        epsilons: List of epsilon values to filter by, or None to include all
-        normalize_distances: Whether to normalize the distance matrices
-        
-    Returns:
-        A dictionary where keys are solver names and values are dictionaries
-        with epsilon as keys and the corresponding distance matrix as values.
     """
     pairwise_distances = {}
 
-    distance_files = glob(os.path.join('classification', '*_pairwise_distances.csv'))
-    for file_path in distance_files:
-        file_name = os.path.basename(file_path)
-        parts = file_name.replace('_pairwise_distances.csv', '').split('_eps_')
+    solver_paths = get_solver_files(solvers)
+    for solver, params, file_path in solver_paths:
         
-        solver_name = parts[0]
-        epsilon = float(parts[1]) if len(parts) > 1 else None
-
-        if solver_name not in solvers:
-            continue
-        
-        if epsilons and epsilon and epsilon not in epsilons:
-            continue
-        
-        if solver_name not in pairwise_distances:
-            pairwise_distances[solver_name] = {}
+        if solver.name not in pairwise_distances:
+            pairwise_distances[solver.name] = {}
         
         dist_matrix = np.loadtxt(file_path, delimiter=',')
-        pairwise_distances[solver_name][epsilon] = dist_matrix
+        pairwise_distances[solver.name][frozenset(params.items())] = dist_matrix
 
     return pairwise_distances
 
 
-def create_kernel_matrix(distance_matrix):
-    """Convert distance matrix to a proper kernel matrix using RBF transformation with adaptive width"""
+def create_kernel_matrix(distance_matrix: np.ndarray)-> np.ndarray:
+    """Convert distance matrix to a proper kernel matrix"""
 
     kernel_matrix = np.exp(-distance_matrix)
     return kernel_matrix
 
 
-def calculate_results(X, y, distances, sample_size, solver_name, epsilon=None):
+def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, sample_size: int, solver: SolverConfig)-> float:
     """Calculate classification results using proper cross-validation with precomputed kernel"""
     X_indices = np.random.choice(len(X), size=min(int(sample_size), len(X)), replace=False)
     X_sub = X[X_indices]
     y_sub = y[X_indices]
 
-    full_distance_matrix = distances[solver_name][epsilon]
-    sub_distance_matrix = full_distance_matrix[np.ix_(X_indices, X_indices)]
-
+    sub_distance_matrix = distance[np.ix_(X_indices, X_indices)]
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     scores = []
@@ -108,53 +106,60 @@ def calculate_results(X, y, distances, sample_size, solver_name, epsilon=None):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run MNIST classification using precomputed OT distance matrices")
-    parser.add_argument('--solvers', nargs='+', choices=list(SOLVERS.keys()) + ['all'], default=['all'],
-                        help="Solvers to use. Can specify multiple solvers or 'all' (default)")
-    parser.add_argument('--sample-sizes', type=int, nargs='+', default=SAMPLE_SIZES,
-                        help=f"Sample sizes to test. Default: {SAMPLE_SIZES}")
-    parser.add_argument('--epsilons', type=float, nargs='+', default=EPSILONS,
-                        help=f"Epsilon values to test for regularized solvers. Default: {EPSILONS}")
-    parser.add_argument('--output-file', type=str, default='mnist_classification_results.csv',
-                        help="Output CSV file name (will be saved in the classification folder)")
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to a configuration file with experiment parameters."
+    )
+
     args = parser.parse_args()
-    
-    selected_solvers = SOLVERS
-    if 'all' not in args.solvers:
-        selected_solvers = {solver: SOLVERS.get(solver, False) for solver in args.solvers if solver in SOLVERS}
 
-    export_folder = os.path.join('classification')
-    if not os.path.exists(export_folder):
-        os.makedirs(export_folder, exist_ok=True)
-        print(f"Created output directory: {export_folder}")
-        
-    digits = load_digits()
-    X, y = digits.data, digits.target
-    X = normalize(X, axis=1)
+    X, y, _ = load_mnist_data()
+    X, y = X[:250], y[:250]
 
-    pairwise_distances = load_pairwise_distances(selected_solvers, args.epsilons)
+    with open(args.config, 'r') as file:
+        config = yaml.safe_load(file) 
+
+    solver_configs = load_solvers(config=config)
+
+    pairwise_distances = load_pairwise_distances(solver_configs)
     
     results = []
-    
-    for sample_size in args.sample_sizes:
-        for solver_name in selected_solvers:
-            if solver_name not in pairwise_distances:
-                print(f"  No distance matrix found for {solver_name}. Skipping.")
+    for sample_size in config['sample-sizes']:
+        for solver in solver_configs:
+            if solver.name not in pairwise_distances:
                 continue
-                
-            for epsilon in args.epsilons if selected_solvers[solver_name] else [None]:
-                if epsilon and epsilon not in pairwise_distances[solver_name]:
-                    print(f"  No distance matrix found for {solver_name} with epsilon={epsilon}. Skipping.")
-                    continue
-                    
-                accuracy = calculate_results(X, y, pairwise_distances, sample_size, solver_name, epsilon)
-                results.append({
-                    'solver': solver_name, 
-                    'epsilon': epsilon, 
-                    'sample_size': sample_size, 
-                    'accuracy': accuracy
-                })
 
+            for param_set, distance_matrix in pairwise_distances[solver.name].items():
+                param_kwargs = dict(param_set)
+
+                logger.info(f"Running {solver.name} with parameters {param_kwargs} on sample size {sample_size}")
+
+                accuracy = calculate_results(X, y, distance_matrix, sample_size, solver)
+
+                result = {
+                    'solver': solver.name,
+                    'sample_size': sample_size,
+                    'accuracy': accuracy,
+                }
+
+                result.update(param_kwargs)
+                results.append(result)
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    export_folder = os.path.join(script_dir, "results")
+
+    if not os.path.exists(export_folder):
+        os.makedirs(export_folder, exist_ok=True)
+        logger.info(f"Created output directory: {export_folder}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"mnist_results_{timestamp}.csv"
     
     results = pd.DataFrame(results)
-    output_path = os.path.join(export_folder, args.output_file)
+    output_path = os.path.join(export_folder, output_file)
     results.to_csv(output_path, index=False)
+
+    logger.info(f"Results saved to {output_path}")

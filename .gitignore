@@ -55,6 +55,7 @@ Thumbs.db
 
 datasets/
 
+costs/
 results/
 color_transfer_results/
 # pixi environments

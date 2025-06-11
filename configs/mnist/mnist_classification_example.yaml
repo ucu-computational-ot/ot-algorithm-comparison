@@ -1,0 +1,14 @@
+param-grids:
+  epsilons:
+    - reg: 1
+    - reg: 0.01
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    param-grid: epsilons
+    jit: true
+
+sample-sizes:
+  - 100
+  - 250

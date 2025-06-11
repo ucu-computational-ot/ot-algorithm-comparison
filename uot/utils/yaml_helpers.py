@@ -1,0 +1,48 @@
+import os
+
+from uot.problems.iterator import ProblemIterator
+from uot.problems.store import ProblemStore
+from uot.utils.import_helpers import import_object
+from uot.experiments.solver_config import SolverConfig
+
+
+
+def load_solvers(config: dict) -> list[SolverConfig]:
+
+    solvers_configs = config['solvers']
+    params = config['param-grids']
+
+    loaded_solvers_configs = []
+
+    for solver_name, solver_config in solvers_configs.items():
+        solver_class = solver_config['solver']
+        params_grid_name = solver_config['param-grid']
+        is_jit = solver_config['jit']
+
+        solver = import_object(solver_class)
+
+        solver_config = SolverConfig(
+            name=solver_name,
+            solver=solver,
+            param_grid=params[params_grid_name],
+            is_jit=is_jit
+        ) 
+
+        loaded_solvers_configs.append(solver_config)
+
+    return loaded_solvers_configs
+
+
+def load_problems(config: dict) -> list[ProblemIterator]:
+
+    iterators = []
+    problemsets_names = config['problems']['names']
+    problemsets_dir = config['problems']['dir']
+
+    for problemset_name in problemsets_names:
+        store_path = os.path.join(problemsets_dir, problemset_name)
+        problems_store = ProblemStore(store_path)
+        problems_iterator = ProblemIterator(problems_store)
+        iterators.append(problems_iterator)
+    
+    return iterators
