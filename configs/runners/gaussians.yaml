@@ -1,0 +1,14 @@
+param-grids:
+  epsilons:
+    - reg: 1
+    - reg: 0.001
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: true
+    param-grid: epsilons
+
+problemsets-dir: datasets/synthetic
+problemsets:
+  - 1D-gaussians-64
