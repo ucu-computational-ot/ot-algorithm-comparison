@@ -1,0 +1,10 @@
+generators:
+  1D-cauchy-64:
+    generator: uot.problems.generators.CauchyGenerator
+    dim: 1
+    n_points: 64
+    num_datasets: 30
+    borders: (-6, 6)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42

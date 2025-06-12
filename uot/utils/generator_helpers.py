@@ -2,6 +2,7 @@ import numpy as np
 from itertools import product
 from uot.utils.types import ArrayLike
 from typing import List, Tuple
+from scipy.special import gamma
 
 
 import jax.numpy as jnp
@@ -39,84 +40,6 @@ def generate_random_covariance(
         cov += np.eye(dim) * (abs(min_eig) + 1e-6)
 
     return np.round(cov, 2)
-
-
-def generate_coefficients(dim: int, distributions: dict[str, int]) -> dict[str, list]:
-    """
-    Generates random parameters for several 1D/2D/3D distributions.
-    For 'gaussian', returns a list of (mean_tuple, covariance_matrix) pairs.
-    For others (gamma, beta, uniform, cauchy, white-noise), returns
-    a list of parameter tuples (rounded to 2 decimals).
-    """
-    if dim not in [1, 2, 3]:
-        raise ValueError("dim must be 1, 2, or 3.")
-
-    # TODO: these parameters should not be defined here (hardcoded ones are bad)
-    basic_ranges = {
-        "mean_range": (-4, 4),
-        "std_range": (0.3, 1.5),
-        "shape_range": (1.0, 3.0),
-        "scale_range": (0.2, 1.5),
-        "loc_range": (-3.5, 3.5),
-        "alpha_range": (0.5, 5.0),
-        "beta_range": (0.5, 5.0),
-        "width_range": (3.0, 6.0),
-        "lower_range": (-5.0, 0.0),
-    }
-
-    distribution_parameters = {
-        "gaussian": ("mean", "std"),
-        "gamma": ("shape", "scale"),
-        "beta": ("alpha", "beta"),
-        "uniform": ("lower", "width"),
-        "cauchy": ("loc", "scale"),
-        "white-noise": ("mean", "std"),
-    }
-
-    results: dict[str, list] = {}
-
-    for distribution, num_to_generate in distributions.items():
-        if distribution not in distribution_parameters:
-            raise ValueError(f"Unsupported distribution: {distribution}")
-
-        param_names = distribution_parameters[distribution]
-        param_ranges: list[list] = []
-
-        for param in param_names:
-            if f"{param}_range" not in basic_ranges:
-                raise ValueError(f"Missing range for {param}.")
-            values = np.linspace(*basic_ranges[f"{param}_range"], 10)
-            if dim == 1:
-                param_ranges.append(values.tolist())
-            else:
-                # All combinations of param in R^dim
-                product_vals = list(product(values, repeat=dim))
-                param_ranges.append(product_vals)
-
-        if distribution == "gaussian" and dim > 1:
-            # Build mean choices in R^dim
-            mean_choices = list(
-                product(np.linspace(
-                    *basic_ranges["mean_range"], 10), repeat=dim)
-            )
-            np.random.shuffle(mean_choices)
-            selected_means = mean_choices[:num_to_generate]
-            result: list[tuple[tuple[float, ...], np.ndarray]] = []
-            for mean in selected_means:
-                cov = generate_random_covariance(dim)
-                result.append((tuple(np.round(mean, 2)), cov))
-            results[distribution] = result
-
-        else:
-            all_combinations = list(product(*param_ranges))
-            np.random.shuffle(all_combinations)
-            selected_combinations = all_combinations[:num_to_generate]
-            rounded_combinations = [
-                tuple(np.round(combination, 2)) for combination in selected_combinations
-            ]
-            results[distribution] = rounded_combinations
-
-    return results
 
 
 def generate_gmm_coefficients(
@@ -230,3 +153,80 @@ def get_gmm_pdf(
             return np.sum(weighted, axis=1) / K
 
         return pdf_fn
+
+
+def generate_cauchy_parameters(
+    dim: int,
+    mean_bounds: tuple[float, float],
+    rng: np.random.Generator
+):
+    if dim not in [1, 2, 3]:
+        raise ValueError("dim must be 1, 2, or 3.")
+
+    mean_start, mean_end = mean_bounds
+
+    mean_start = np.full(dim, mean_start)
+    mean_end = np.full(dim, mean_end)
+
+    mean = mean_start + rng.uniform() * (mean_end - mean_start)
+
+    return mean, generate_random_covariance(dim=dim, rng=rng)
+    
+
+def get_cauchy_pdf(
+    dim: int,
+    mean_bounds: tuple[float, float],
+    rng: np.random.Generator,
+    use_jax: bool = False,
+):
+
+    mean, cov = generate_cauchy_parameters(dim=dim, mean_bounds=mean_bounds, rng=rng)
+
+    d = dim
+
+    if use_jax:
+        cov_inv = jnp.linalg.inv(cov)
+
+        def pdf_fn(X: ArrayLike):
+            X = jnp.asarray(X)
+
+            if X.ndim != 2 or X.shape[1] != d:
+                raise ValueError(f"Input to pdf_fn must be shape (N, {d}).")
+
+            diff = X - mean
+
+            qf = jnp.einsum("nd,de,ne->n", diff, cov_inv, diff)
+
+            numerator = gamma((d + 1) / 2)
+            denominator = (
+                gamma(0.5) * (np.pi ** (d / 2)) *
+                (jnp.linalg.det(cov) ** 0.5) *
+                (1 + qf) ** ((d + 1) / 2)
+            )
+
+            return numerator / denominator
+
+    else:
+        cov_inv = np.linalg.inv(cov)
+
+        def pdf_fn(X: ArrayLike):
+            X = np.asarray(X)
+
+            if X.ndim != 2 or X.shape[1] != d:
+                raise ValueError(f"Input to pdf_fn must be shape (N, {d}).")
+
+            diff = X - mean
+
+            qf = np.einsum("nd,de,ne->n", diff, cov_inv, diff)
+
+            numerator = gamma((d + 1) / 2)
+            denominator = (
+                gamma(0.5) * (np.pi ** (d / 2)) *
+                (np.linalg.det(cov) ** 0.5) *
+                (1 + qf) ** ((d + 1) / 2)
+            )
+
+            return numerator / denominator
+
+    return pdf_fn
+    
