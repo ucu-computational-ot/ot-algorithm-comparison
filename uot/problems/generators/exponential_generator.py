@@ -9,7 +9,7 @@ from uot.problems.problem_generator import ProblemGenerator
 
 from uot.utils.types import ArrayLike
 from uot.utils.generate_nd_grid import generate_nd_grid
-from uot.utils.generator_helpers import get_exponential_pdf
+from uot.utils.generator_helpers import get_exponential_pdf, get_axes
 
 
 class ExponentialGenerator(ProblemGenerator):
@@ -25,8 +25,6 @@ class ExponentialGenerator(ProblemGenerator):
         use_jax: bool = False,
         seed: int = 42,
     ):
-        super().__init__()
-        # TODO: arbitrary dim?
         if dim != 1:
             raise ValueError("For exponential distribution dim must be 1")
 
@@ -41,7 +39,8 @@ class ExponentialGenerator(ProblemGenerator):
 
     def generate(self, *args, **kwargs) -> Iterator[TwoMarginalProblem]:
         pdfs_num = 2 * self._num_datasets
-        axes_support = self._get_axes(self._n_points)
+        axes_support = get_axes(dim=self._dim, borders=self._borders, n_points=self._n_points,
+                                use_jax=self._use_jax)
         scale_bounds = (0.1, self._borders[1] * 0.5)
         points = generate_nd_grid(axes_support)
         exponential_pdfs = [
@@ -66,10 +65,3 @@ class ExponentialGenerator(ProblemGenerator):
                 nu=nu,
                 cost_fn=self._cost_fn,
             )
-
-    def _get_axes(self, n_points: int) -> List[ArrayLike]:
-        lib = jnp if self._use_jax else np
-        ax = lib.linspace(self._borders[0], self._borders[1], n_points)
-        axs = [ax for _ in range(self._dim)]
-        return axs
-

@@ -4,9 +4,18 @@ from uot.utils.types import ArrayLike
 from typing import List, Tuple
 from scipy.special import gamma
 
-
 import jax.numpy as jnp
 from jax import jit
+
+
+def get_axes(dim: int,
+             borders: tuple[float, float],
+             n_points: int,
+             use_jax = True):
+    lib = jnp if use_jax else np
+    ax = lib.linspace(borders[0], borders[1], n_points)
+    axs = [ax for _ in range(dim)]
+    return axs
 
 
 def generate_random_covariance(

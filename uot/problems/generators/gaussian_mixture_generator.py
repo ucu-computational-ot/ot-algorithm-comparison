@@ -3,7 +3,7 @@ import numpy as np
 from numpy.random import default_rng
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
-from uot.utils.generator_helpers import get_gmm_pdf
+from uot.utils.generator_helpers import get_gmm_pdf, get_axes
 from uot.utils.generate_nd_grid import generate_nd_grid
 from uot.problems.problem_generator import ProblemGenerator
 import jax.numpy as jnp
@@ -41,7 +41,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         pdfs_num = 2 * self._num_datasets
-        axes_support = self._get_axes(self._n_points)
+        axes_support = get_axes(dim=self._dim, borders=self._borders, n_points=self._n_points,
+                                use_jax=self._use_jax)
         mean_bounds = (self._borders[0] * 0.9, self._borders[1] * 0.9)
         points = generate_nd_grid(axes_support)
         mixtures_pdfs = [
@@ -68,9 +69,3 @@ class GaussianMixtureGenerator(ProblemGenerator):
                 nu=nu,
                 cost_fn=self._cost_fn,
             )
-
-    def _get_axes(self, n_points: int) -> List[ArrayLike]:
-        lib = jnp if self._use_jax else np
-        ax = lib.linspace(self._borders[0], self._borders[1], n_points)
-        axs = [ax for _ in range(self._dim)]
-        return axs
