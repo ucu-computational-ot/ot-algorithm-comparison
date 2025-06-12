@@ -1,5 +1,5 @@
 param-grids:
-  epsilons:
+  regularizations:
     - reg: 1
     - reg: 0.001
 
@@ -7,7 +7,7 @@ solvers:
   sinkhorn:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
-    param-grid: epsilons
+    param-grid: regularizations
 
 problems:
   dir: datasets/synthetic

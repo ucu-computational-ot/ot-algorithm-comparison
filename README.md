@@ -43,7 +43,7 @@ To run experiments, first create config file like:
 
 ```yaml
 param-grids:
-  regulations:
+  regularizations:
     - reg: 1
     - reg: 0.001
 
@@ -51,13 +51,16 @@ solvers:
   sinkhorn:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
-    param-grid: regulations
+    param-grid: regularizations
 
 problems:
   dir: datasets/synthetic
   names:
     - 1D-gaussians-64
-    - 1D-gaussians-128
+  
+experiment: 
+  name: Measure on Gaussians
+  function: uot.experiments.measurement.measure_time
 ```
 
 Here you can define solvers and their param-grids (solver will be run for each set of params). Also in `problems` section with `dir` the `export-dir` of serialization is specified (see previous section) and with names specific folders with problems in that directory
