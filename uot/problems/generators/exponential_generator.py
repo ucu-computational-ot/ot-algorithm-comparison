@@ -2,8 +2,14 @@ from typing import List, Callable, Iterator
 import numpy as np
 import jax.numpy as jnp
 from numpy.random import default_rng
+
+from uot.data.measure import DiscreteMeasure
+from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
+
 from uot.utils.types import ArrayLike
+from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generator_helpers import get_exponential_pdf
 
 
 class ExponentialGenerator(ProblemGenerator):
@@ -12,7 +18,6 @@ class ExponentialGenerator(ProblemGenerator):
         self,
         name: str,
         dim: int,
-        num_components: int,
         n_points: int,
         num_datasets: int,
         borders: tuple[float, float],
@@ -22,11 +27,11 @@ class ExponentialGenerator(ProblemGenerator):
     ):
         super().__init__()
         # TODO: arbitrary dim?
-        if dim not in [1, 2, 3]:
-            raise ValueError("dim must be 1, 2 or 3")
+        if dim != 1:
+            raise ValueError("For exponential distribution dim must be 1")
+
         self._name = name
         self._dim = dim
-        self._num_components = num_components
         self._n_points = n_points
         self._num_datasets = num_datasets
         self._borders = borders
@@ -34,4 +39,37 @@ class ExponentialGenerator(ProblemGenerator):
         self._use_jax = use_jax
         self._rng = default_rng(seed)
 
-        self._num_components = num_components
+    def generate(self, *args, **kwargs) -> Iterator[TwoMarginalProblem]:
+        pdfs_num = 2 * self._num_datasets
+        axes_support = self._get_axes(self._n_points)
+        scale_bounds = (0.1, self._borders[1] * 0.5)
+        points = generate_nd_grid(axes_support)
+        exponential_pdfs = [
+            get_exponential_pdf(
+                scale_bounds=scale_bounds,
+                rng=self._rng,
+                use_jax=self._use_jax,
+            )
+            for _ in range(pdfs_num)
+        ]
+
+        for i in range(self._num_datasets):
+            mu_weights = exponential_pdfs[2 * i](points)
+            mu_weights /= mu_weights.sum()
+            nu_weights = exponential_pdfs[2 * i + 1](points)
+            nu_weights /= nu_weights.sum()
+            mu = DiscreteMeasure(points=points, weights=mu_weights)
+            nu = DiscreteMeasure(points=points, weights=nu_weights)
+            yield TwoMarginalProblem(
+                name=self._name,
+                mu=mu,
+                nu=nu,
+                cost_fn=self._cost_fn,
+            )
+
+    def _get_axes(self, n_points: int) -> List[ArrayLike]:
+        lib = jnp if self._use_jax else np
+        ax = lib.linspace(self._borders[0], self._borders[1], n_points)
+        axs = [ax for _ in range(self._dim)]
+        return axs
+
