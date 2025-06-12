@@ -3,7 +3,7 @@ from tqdm import tqdm
 from copy import deepcopy
 from typing import List
 from itertools import chain 
-from uot.experiments.solver_config import SolverConfig
+from uot.solvers.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
 from uot.problems.base_problem import MarginalProblem
 from uot.problems.iterator import ProblemIterator
