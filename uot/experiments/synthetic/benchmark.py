@@ -4,15 +4,7 @@ import argparse
 
 from uot.experiments.experiment import Experiment
 from uot.experiments.runner import run_pipeline
-from uot.utils.yaml_helpers import load_solvers, load_problems
-
-
-def solve_fn(prob, solver, marginals, costs, **kwargs):
-    start_time = time.perf_counter()
-    metrics = solver().solve(marginals=marginals, costs=costs, **kwargs)
-    metrics['transport_plan'].block_until_ready()
-    metrics["time"] = (time.perf_counter() - start_time) * 1000
-    return metrics
+from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
 
 
 if __name__ == "__main__":
@@ -48,7 +40,7 @@ if __name__ == "__main__":
     with open(args.config, 'r') as file:
         config = yaml.safe_load(file) 
 
-    experiment = Experiment("Measure time", solve_fn)
+    experiment = load_experiment(config=config)
     solver_configs = load_solvers(config=config)
     problems_iterators = load_problems(config=config)
 

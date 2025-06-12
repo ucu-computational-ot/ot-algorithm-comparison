@@ -3,8 +3,8 @@ import os
 from uot.problems.iterator import ProblemIterator
 from uot.problems.store import ProblemStore
 from uot.utils.import_helpers import import_object
-from uot.experiments.solver_config import SolverConfig
-
+from uot.solvers.solver_config import SolverConfig
+from uot.experiments.experiment import Experiment
 
 
 def load_solvers(config: dict) -> list[SolverConfig]:
@@ -46,3 +46,11 @@ def load_problems(config: dict) -> list[ProblemIterator]:
         iterators.append(problems_iterator)
     
     return iterators
+
+
+def load_experiment(config: dict) -> Experiment:
+    experiment_name = config['experiment']['name']
+    experiment_function = import_object(config['experiment']['function'])
+
+    return Experiment(name=experiment_name,
+                      solve_fn=experiment_function)

@@ -11,7 +11,7 @@ from uot.utils.mnist_helpers import load_mnist_data
 from uot.utils.yaml_helpers import load_solvers
 from uot.utils.logging import logger
 from uot.utils.types import ArrayLike
-from uot.experiments.solver_config import SolverConfig
+from uot.solvers.solver_config import SolverConfig
 
 from tqdm import tqdm
 from typing import List, Callable

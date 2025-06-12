@@ -13,3 +13,7 @@ problems:
   dir: datasets/synthetic
   names:
     - 1D-gaussians-64
+  
+experiment: 
+  name: Measure on Gaussians
+  function: uot.experiments.measurement.measure_time
