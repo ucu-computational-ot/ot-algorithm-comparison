@@ -18,6 +18,7 @@ mkdir -p "${RESULT_DIR}"
 #### 2. Activate your virtualenv ####
 # Assumes you created it in your home directory at ~/venv
 # source /home/izhytkevych/ot-algorithm-comparison/venv/bin/activate
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate ot_comparison
 
 #### 3. Change to working directory on scratch ####
