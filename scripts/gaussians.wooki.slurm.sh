@@ -7,26 +7,23 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
-#SBATCH --partition=gpu                 # Partition name (adjust as needed)
 
-#### 1. Load modules (adjust Python version & modules as on Titan) ####
-module load python/3.8
 
-#### 2. Prepare directories ####
+#### 1. Prepare directories ####
 SCRATCH_DIR=/share_scratch/izhytkevych
 RESULT_DIR=/home/izhytkevych/results/raw
 mkdir -p "${SCRATCH_DIR}"
 mkdir -p "${RESULT_DIR}"
 
-#### 3. Activate your virtualenv ####
+#### 2. Activate your virtualenv ####
 # Assumes you created it in your home directory at ~/venv
 # source /home/izhytkevych/ot-algorithm-comparison/venv/bin/activate
 conda activate ot_comparison
 
-#### 4. Change to working directory on scratch ####
+#### 3. Change to working directory on scratch ####
 cd "${SCRATCH_DIR}"
 
-#### 5. Run benchmarks ####
+#### 4. Run benchmarks ####
 python -m uot.problems.problem_serializer \
     --config configs/generators/gaussians.extensive.yaml \
     --export-dir "${SCRATCH_DIR}/synthetic"
@@ -37,5 +34,5 @@ python -m uot.experiments.synthetic.benchmark \
     --folds 1 \
     --export "${RESULT_DIR}/gaussians.csv"
 
-#### 6. Deactivate virtualenv (optional) ####
+#### 5. Deactivate virtualenv (optional) ####
 conda deactivate
