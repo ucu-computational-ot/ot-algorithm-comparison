@@ -16,6 +16,10 @@ solvers:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: True
     param-grid: regularizations
+  lbfgs:
+    solver: uot.solvers.lbfgs.LBFGSTwoMarginalSolver
+    jit: True
+    param-grid: regularizations
 
 problems:
   dir: datasets/synthetic

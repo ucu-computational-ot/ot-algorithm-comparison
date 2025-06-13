@@ -37,7 +37,7 @@ class SinkhornTwoMarginalSolver(BaseSolver):
             max_iters=maxiter,
         )
         return {
-            "transport_plan": coupling_tensor(u, v, costs[0], reg).block_until_ready(),
+            "transport_plan": coupling_tensor(u, v, costs[0], reg),
             "u_final": u,
             "v_final": v,
             "iterations": i_final,
