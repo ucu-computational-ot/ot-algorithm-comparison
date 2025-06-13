@@ -27,16 +27,16 @@ class GradientAscentTwoMarginalSolver(BaseSolver):
             raise ValueError("Cost tensors not defined.")
         if len(marginals) != 2:
             raise ValueError("This gradient ascent solver accepts only two marginals.")
-        mu, nu = marginals[0], marginals[1]
-        
+        mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
+
         marginals = jnp.array([mu, nu])
 
         final_potentials, i_final, final_err = gradient_ascent_opt_multimarginal(
             marginals=marginals,
             cost=costs[0],
-            epsilon=reg,
-            precision=tol,
-            max_iters=maxiter,
+            eps=reg,
+            tol=tol,
+            max_iterations=maxiter,
         )
 
         u, v = final_potentials[0][None, :].reshape(-1), final_potentials[1][:, None].reshape(-1)

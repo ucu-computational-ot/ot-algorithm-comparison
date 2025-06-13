@@ -6,7 +6,6 @@ from uot.problems.two_marginal import TwoMarginalProblem
 from uot.utils.generator_helpers import get_gmm_pdf, get_axes
 from uot.utils.generate_nd_grid import generate_nd_grid
 from uot.problems.problem_generator import ProblemGenerator
-import jax.numpy as jnp
 from uot.utils.types import ArrayLike
 
 

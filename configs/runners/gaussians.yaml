@@ -4,8 +4,8 @@ param-grids:
     - reg: 0.001
 
 solvers:
-  sinkhorn:
-    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+  gradient-ascent:
+    solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
     jit: true
     param-grid: regularizations
 

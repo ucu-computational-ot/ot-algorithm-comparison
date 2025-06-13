@@ -1,6 +1,4 @@
-from typing import List, Callable, Iterator
-import numpy as np
-import jax.numpy as jnp
+from typing import Callable, Iterator
 from numpy.random import default_rng
 from uot.problems.problem_generator import ProblemGenerator
 from uot.problems.two_marginal import TwoMarginalProblem
