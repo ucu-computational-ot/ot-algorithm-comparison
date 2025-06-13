@@ -10,7 +10,7 @@
 
 
 #### 1. Prepare directories ####
-SCRATCH_DIR=/share_scratch/izhytkevych
+SCRATCH_DIR=/scratch/gerolinlab/izhytkevych
 RESULT_DIR=/home/izhytkevych/results/raw
 mkdir -p "${SCRATCH_DIR}"
 mkdir -p "${RESULT_DIR}"
@@ -24,6 +24,7 @@ conda activate ot_comparison
 cd "${SCRATCH_DIR}"
 
 #### 4. Run benchmarks ####
+# TODO: generate synthetic data only if needed (temp files do not exist)
 python -m uot.problems.problem_serializer \
     --config configs/generators/gaussians.extensive.yaml \
     --export-dir "${SCRATCH_DIR}/synthetic"
