@@ -1,3 +1,4 @@
+import os
 import time
 import yaml
 import argparse
@@ -8,7 +9,8 @@ from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run time precision experiments.")
+    parser = argparse.ArgumentParser(
+        description="Run time precision experiments.")
 
     parser.add_argument(
         "--save",
@@ -38,7 +40,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     with open(args.config, 'r') as file:
-        config = yaml.safe_load(file) 
+        config = yaml.safe_load(file)
 
     experiment = load_experiment(config=config)
     solver_configs = load_solvers(config=config)
@@ -53,4 +55,5 @@ if __name__ == "__main__":
     )
 
     print(f"Exporting results to {args.export}")
+    os.makedirs(os.path.dirname(args.export), exist_ok=True)
     df.to_csv(args.export, index=False)
