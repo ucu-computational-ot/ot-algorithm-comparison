@@ -52,7 +52,7 @@ def run_pipeline(
     for cfg in solvers:
         params = cfg.param_grid
         for param_kwargs in params:
-            description = f"{cfg.name}"
+            description = f"{cfg.name}({param_kwargs})"
             if pbar:
                 pbar.set_description(description)
             
