@@ -20,7 +20,8 @@ mkdir -p "${RESULT_DIR}"
 
 #### 3. Activate your virtualenv ####
 # Assumes you created it in your home directory at ~/venv
-source /home/izhytkevych/ot-algorithm-comparison/venv/bin/activate
+# source /home/izhytkevych/ot-algorithm-comparison/venv/bin/activate
+conda activate ot_comparison
 
 #### 4. Change to working directory on scratch ####
 cd "${SCRATCH_DIR}"
@@ -37,4 +38,4 @@ python -m uot.experiments.synthetic.benchmark \
     --export "${RESULT_DIR}/gaussians.csv"
 
 #### 6. Deactivate virtualenv (optional) ####
-deactivate
+conda deactivate
