@@ -4,9 +4,17 @@ param-grids:
     - reg: 0.001
 
 solvers:
+  linear-programming:
+    solver: uot.solvers.linear_programming.LinearProgrammingTwoMarginalSolver
+    jit: False
+    param-grid: 
   gradient-ascent:
     solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
-    jit: true
+    jit: True
+    param-grid: regularizations
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: True
     param-grid: regularizations
 
 problems:

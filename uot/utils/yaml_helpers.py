@@ -24,7 +24,7 @@ def load_solvers(config: dict) -> list[SolverConfig]:
         solver_config = SolverConfig(
             name=solver_name,
             solver=solver,
-            param_grid=params[params_grid_name],
+            param_grid=params[params_grid_name] if params_grid_name else [{}],
             is_jit=is_jit
         ) 
 

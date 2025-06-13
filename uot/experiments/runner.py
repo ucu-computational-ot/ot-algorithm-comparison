@@ -55,7 +55,7 @@ def run_pipeline(
             description = f"{cfg.name}"
             if pbar:
                 pbar.set_description(description)
-
+            
             df_res = experiment.run_on_problems(
                 problems=current_iterators,
                 solver=cfg.solver,
@@ -81,7 +81,7 @@ def run_pipeline(
                         drop_idxs.append(subset.index[0])
                 df_res = df_res.drop(drop_idxs, axis=0)
 
-                current_iterators = deepcopy(all_iterators)
+            current_iterators = deepcopy(all_iterators)
 
             results_list.append(df_res)
 
