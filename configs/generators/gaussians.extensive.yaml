@@ -1,0 +1,154 @@
+generators:
+  1D-gaussians-64:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 64
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-128:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 128
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-256:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 256
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-512:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 512
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-1024:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 1024
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-2048:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 2048
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-4096:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 4096
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-8192:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 8192
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  1D-gaussians-16384:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_components: 1
+    n_points: 16384
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  2D-gaussians-64:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_components: 1
+    n_points: 64
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  2D-gaussians-128:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_components: 1
+    n_points: 128
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  2D-gaussians-256:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_components: 1
+    n_points: 256
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  2D-gaussians-512:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_components: 1
+    n_points: 512
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+
+  2D-gaussians-1024:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_components: 1
+    n_points: 1024
+    num_datasets: 30
+    borders: (-1, 1)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42

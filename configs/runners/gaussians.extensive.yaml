@@ -1,0 +1,46 @@
+param-grids:
+  regularizations:
+    - reg: 1
+    - reg: 0.001
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: true
+    param-grid: regularizations
+
+problems:
+  dir: /share_scratch/izhytkevych/synthetic
+  names:
+    - 1D-gaussians-64
+    - 1D-gaussians-128
+    - 1D-gaussians-256
+    - 1D-gaussians-512
+    - 1D-gaussians-1024
+    - 1D-gaussians-2048
+    - 1D-gaussians-4096
+    - 1D-gaussians-8192
+    - 1D-gaussians-16384
+    - 2D-gaussians-64
+    - 2D-gaussians-128
+    - 2D-gaussians-256
+    - 2D-gaussians-512
+    - 2D-gaussians-1024
+    - 1D-mixgaussians-64
+    - 1D-mixgaussians-128
+    - 1D-mixgaussians-256
+    - 1D-mixgaussians-512
+    - 1D-mixgaussians-1024
+    - 1D-mixgaussians-2048
+    - 1D-mixgaussians-4096
+    - 1D-mixgaussians-8192
+    - 1D-mixgaussians-16384
+    - 2D-mixgaussians-64
+    - 2D-mixgaussians-128
+    - 2D-mixgaussians-256
+    - 2D-mixgaussians-512
+    - 2D-mixgaussians-1024
+  
+experiment: 
+  name: Measure on Gaussians
+  function: uot.experiments.measurement.measure_time
