@@ -21,7 +21,7 @@ mkdir -p "${RESULT_DIR}"
 conda activate ot_comparison
 
 #### 3. Change to working directory on scratch ####
-cd "${SCRATCH_DIR}"
+# cd "${SCRATCH_DIR}"
 
 #### 4. Run benchmarks ####
 # TODO: generate synthetic data only if needed (temp files do not exist)
