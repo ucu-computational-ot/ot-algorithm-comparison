@@ -51,10 +51,28 @@ def test_grid_measure_flatten():
     assert set(map(tuple, points_out.tolist())) == set(
         map(tuple, expected_points.tolist())
     )
-    assert weights.shape == (4,)
-    assert np.allclose(weights, weights_out)
+    assert weights_out.shape == (4,)
+    assert np.allclose(expected_weights, weights_out)
 
-    # TODO: normalization test (if we need)
+    uneven_weights = np.array(
+        [
+            [1, 2],
+            [4, 3],
+        ]
+    )
+
+    gm_uneven = GridMeasure([x, y], uneven_weights, normalize=True)
+    points_out, weights_out = gm_uneven.to_discrete()
+    expected_weights = np.array(
+        [
+            0.1,
+            0.2,
+            0.4,
+            0.3,
+        ]
+    )
+
+    assert np.allclose(expected_weights, weights_out)
 
 
 def test_invalid_measure_types():

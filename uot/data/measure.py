@@ -30,7 +30,31 @@ class GridMeasure(BaseMeasure):
                  normalize: bool = True,
                  ):
         super().__init__()
-        # TODO: implement this GridMeasure class
+
+        if len(axes) != weights_nd.ndim:
+            raise ValueError(
+                f"Number of axes ({len(axes)}) must match the number of dimensions in weights_nd ({weights_nd.ndim})"
+            )
+
+        for i, axis in enumerate(axes):
+            if axis.shape[0] != weights_nd.shape[i]:
+                raise ValueError(
+                f"Axis {i} length ({axis.shape[0]}) does not match weights dimension ({weights_nd.shape[i]})"
+            )
+
+        self._axes = axes
+        self._weights_nd = weights_nd
+        self.name = name
+
+        if normalize:
+            total_mass = np.sum(weights_nd)
+            if total_mass > 0:
+                self._weights_nd = weights_nd / total_mass
 
     def to_discrete(self):
-        return super().to_discrete()
+        mesh = np.meshgrid(*self._axes, indexing='ij')
+
+        points = np.stack([m.ravel() for m in mesh], axis=-1)
+        weights = self._weights_nd.ravel()
+
+        return points, weights
