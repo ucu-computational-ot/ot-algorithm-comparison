@@ -6,16 +6,27 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from ot.utils import dist
-from jax import device_get
+import argparse
+import yaml
+import jax.numpy as jnp
 
-from uot.algorithms.sinkhorn import sinkhorn
-from uot.algorithms.gradient_ascent import gradient_ascent_two_marginal
-from uot.algorithms.lbfgs import lbfgs_potentials
-from uot.algorithms.lp import pot_lp
+from uot.utils.yaml_helpers import load_solvers
+from uot.utils.costs import cost_euclid
+from uot.utils.types import ArrayLike
+from uot.solvers.solver_config import SolverConfig
+from uot.data.dataset_loader import load_image_as_color_grid
+
+#TODO: Fix jax/non-jax
 
 
-rng = np.random.RandomState(42)
+def load_config_info(config: dict)-> tuple[int, int, str, int]:
+    """Get miscellaneous info from the config"""
+    return (
+        config['bin-number'], 
+        config['batch-size'],
+        config['images-dir'],
+        config['pair-number']
+    )
 
 def im2mat(img):
     """Converts and image to matrix (one pixel per line)"""
@@ -25,174 +36,222 @@ def mat2im(X, shape):
     """Converts back a matrix to an image"""
     return X.reshape(shape)
 
-def minmax(img):
-    return np.clip(img, 0, 1)
-
-def get_samples(X1, X2, nb=500):
-    idx1 = rng.randint(X1.shape[0], size=(nb,))
-    idx2 = rng.randint(X2.shape[0], size=(nb,))
-
-    Xs = X1[idx1, :]
-    Xt = X2[idx2, :]
-    return Xs, Xt
-
 def read_image(image_path: str):
-    image = plt.imread(image_path).astype(np.float64) / 256
+    image = plt.imread(image_path)
+    if image.dtype == np.uint8:
+        image = image.astype(np.float64) / 255.0
+    elif image.dtype in [np.float32, np.float64]:
+        image = np.clip(image, 0, 1)
     return image
 
+def export_images(image_pairs: list, actual_images: dict, results: dict, save_path: str, solvers: list):
+    """
+    Export transformed images based on results keyed by (source,target) -> solver -> param_key.
 
-def show_images(result):
-    _, axes = plt.subplots(len(images_pairs), len(solvers) + 2, figsize=(15, 6))
+    Args:
+        image_pairs: list of ((source_name, source_image), (target_name, target_image))
+        actual_images: dict of actual_images[image_name]: image_matrix
+        results: dict of results[(source_name, target_name)][solver_name][param_key] = transformed_image
+        save_path: directory to save images
+        solvers: list of solver configs (to get solver.name for ordering)
+    """
+    os.makedirs(save_path, exist_ok=True)
 
-    for image_ind in range(len(results)):
+    #TODO: Improve representation
 
-        axes[image_ind, 0].imshow(images_pairs[image_ind][0])
-        axes[image_ind, 0].axis("off")
-        if image_ind == 0:
-            axes[image_ind, 0].set_title("Source")
+    for (source_name, _), (target_name, _) in image_pairs:
+        key = (source_name, target_name)
+        if key not in results:
+            continue
 
-        for i, (name, img) in enumerate(results[image_ind].items()):
-            axes[image_ind, i + 1].imshow(img)
-            axes[image_ind, i + 1].axis("off")
-            if image_ind == 0:
-                axes[image_ind, i + 1].set_title(name)
+        solver_names = [solver.name for solver in solvers if solver.name in results[key]]
 
-        axes[image_ind, -1].imshow(images_pairs[image_ind][1])
-        axes[image_ind, -1].axis("off")
+        param_keys_per_solver = {
+            solver_name: sorted(results[key][solver_name].keys(), key=lambda pk: sorted(pk))
+            for solver_name in solver_names
+        }
 
-        if image_ind == 0:
-            axes[image_ind, -1].set_title("Target")
+        max_param_count = max(len(params) for params in param_keys_per_solver.values()) if param_keys_per_solver else 0
 
-    plt.tight_layout()
-    plt.show()
+        n_rows = len(solver_names) + 2
+        n_cols = max_param_count + 1
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
 
-def export_images(image_pairs, results: dict, save_path: str):
-    for (source_name, source_image), (target_name, target_image) in image_pairs:
+        if n_rows == 1 and n_cols == 1:
+            axes = np.array([[axes]])
+        elif n_rows == 1:
+            axes = np.expand_dims(axes, 0)
+        elif n_cols == 1:
+            axes = np.expand_dims(axes, 1)
 
-        height = (1024 * len(EPSILONS) + 100) // 100
-        width = (1024 * (len(solvers) + 2) + 100) // 100
+        axes[0, 0].text(0.5, 0.5, source_name, ha='center', va='center', fontsize=12)
+        axes[0, 0].axis("off")
 
-        _, axes = plt.subplots(len(EPSILONS), len(solvers) + 2, figsize=(width, height))
+        for col in range(1, n_cols):
+            ax = axes[0, col]
+            ax.imshow(actual_images[source_name])
+            ax.axis("off")
+            if col == 0:
+                ax.set_title("Source Image")
 
-        for i, (epsilon, imgs) in enumerate(results[(source_name, target_name)].items()):
+        axes[-1, 0].text(0.5, 0.5, target_name, ha='center', va='center', fontsize=12)
+        axes[-1, 0].axis("off")
 
-            axes[i, 0].imshow(source_image)
-            axes[i, 0].set_ylabel(f"e = {epsilon}")
-            axes[i, 0].set_xticklabels([])
-            axes[i, 0].set_yticklabels([])
+        for col in range(1, n_cols):
+            ax = axes[-1, col]
+            ax.imshow(actual_images[target_name])
+            ax.axis("off")
+            if col == 0:
+                ax.set_title("Target Image")
 
-            for j, (name, img) in enumerate(imgs.items()):
-                axes[i, j + 1].imshow(img.astype(np.float64))
-                axes[i, j + 1].axis("off")
-                
-                if i == 0:
-                    axes[i, j + 1].set_title(name)
+        for row_idx, solver_name in enumerate(solver_names, start=1):
+            params = param_keys_per_solver[solver_name]
 
+            axes[row_idx, 0].text(0.5, 0.5, solver_name, ha='center', va='center', fontsize=12)
+            axes[row_idx, 0].axis("off")
 
-            axes[i, -1].imshow(target_image)
-            axes[i, -1].axis("off")
+            for col_idx in range(1, n_cols):
+                ax = axes[row_idx, col_idx]
+                if col_idx - 1 < len(params):
+                    param_key = params[col_idx - 1]
+                    img = results[key][solver_name][param_key]
+                    shape = actual_images[source_name].shape
+                    ax.imshow(img.reshape(shape))
+
+                    if row_idx == 1:
+                        param_str = ', '.join(f"{k}={v}" for k, v in sorted(param_key))
+                        ax.set_title(param_str, fontsize=8)
+                else:
+                    ax.imshow(np.zeros_like(actual_images[source_name]))
+                ax.axis("off")
 
         plt.tight_layout()
         plt.savefig(os.path.join(save_path, f"{source_name}-{target_name}.png"))
+        plt.close(fig)
 
 
-def get_cost_matrix(X: np.ndarray, Y: np.ndarray):
-    return np.linalg.norm((X[:,None] - Y), axis=-1)
+def transport_image(
+    P: ArrayLike,
+    source_image: ArrayLike,
+    source_palette: ArrayLike,
+    target_palette: ArrayLike,
+    batch_size: int = 1024
+) -> ArrayLike:
+
+    P_normalized = P / np.sum(P, axis=1, keepdims=True)
+    P_normalized = np.nan_to_num(P_normalized, nan=0.0, posinf=0.0, neginf=0.0)
+
+    projected_palette = P_normalized @ target_palette
+
+    n_pixels = source_image.shape[0]
+    transformed_chunks = []
+
+    for start in range(0, n_pixels, batch_size):
+        end = min(start + batch_size, n_pixels)
+        batch = source_image[start:end]
+
+        diffs = batch[:, None, :] - source_palette[None, :, :]
+        dists = np.linalg.norm(diffs, axis=2)
+        closest_bins = np.argmin(dists, axis=1)
+
+        transformed_batch = projected_palette[closest_bins]
+        transformed_chunks.append(transformed_batch)
+
+    return np.concatenate(transformed_chunks, axis=0)
 
 
-def entropic_transport(v: np.ndarray, C: np.ndarray, source_image: np.ndarray,
-                       target_sample: np.ndarray, batch_size=128, epsilon=1e-2) -> np.ndarray:
-    indices = np.arange(source_image.shape[0])
-    batch_indices = [indices[i: i + batch_size] for i in range(0, len(indices), batch_size)]
+def perform_experiments(batch_size: int, actual_images: dict[str, np.ndarray], image_pairs: list[tuple], solver_configs: list[SolverConfig], jax_pairs: list[tuple]|None, jax_actual_images: list[tuple]|None)-> dict:
+    """Carry out the experiments specified in the config"""
 
-    transported = []
+    results = {}
 
-    for i, batch_index in enumerate(batch_indices):
-        C = get_cost_matrix(source_image[batch_index], target_sample)
-        K = np.exp(-C/epsilon + v)
-        transported_X = np.dot(K, target_sample) / np.sum(K, axis=1)[:, None]
-        transported.append(transported_X)
-    return np.concatenate(transported, axis=0)
+    total_num = len(image_pairs) * sum(len(solver.param_grid) for solver in solver_configs)
 
+    with tqdm(total=total_num, desc="Running color transfer") as pbar:
 
-def emd_transport(coupling: np.ndarray, source_image: np.ndarray, source_sample: np.ndarray,
-                  target_sample: np.ndarray, batch_size=128):
-    indices = np.arange(source_image.shape[0])
-    batch_indices = [
-        indices[i : i + batch_size]
-        for i in range(0, len(indices), batch_size)
-    ]
+        for solver in solver_configs:
 
-    transp_Xs = []
-    for batch_index in batch_indices:
-        D0 = dist(source_image[batch_index], source_sample)
-        idx = np.argmin(D0, axis=1)
+            data = image_pairs if not solver.is_jit else jax_pairs
+            params = solver.param_grid
 
-        transp = coupling / np.sum(coupling, axis=1)[:, None]
-        transp = np.nan_to_num(transp, nan=0, posinf=0, neginf=0)
-        transp_Xs_ = np.dot(transp, target_sample)
+            for param_kwargs in params:
 
-        transp_Xs_ = transp_Xs_[idx, :] + source_image[batch_index] - source_sample[idx, :]
+                pbar.set_description(f'Running color transfer: Solver "{solver.name}" with parameters "{param_kwargs}"')
 
-        transp_Xs.append(transp_Xs_)
+                for source, target in data:
+                    source_name, source = source
+                    target_name, target = target
 
-    transp_Xs = np.concatenate(transp_Xs, axis=0)
+                    source_points, target_points = source.to_discrete()[0], target.to_discrete()[0]
 
-    return transp_Xs
+                    cost = cost_euclid(source_points, target_points, use_jax=solver.is_jit)
 
+                    key = (source_name, target_name)
 
-SAMPLE_SIZE = 512
-BATCH_SIZE = 100000
-IMAGES_DIR = os.path.join("datasets", "color_images")
-EPSILONS = [1, 1e-1, 1e-2, 1e-3]
-images = [(image_file, read_image(os.path.join(IMAGES_DIR, image_file)))
-          for image_file in os.listdir(IMAGES_DIR)]
+                    if key not in results:
+                        results[key] = {}
 
-ENTROPIC_TRANSPORT = 'entropic'
-EMD_TRANSPORT = 'emd'
+                    if solver.name not in results[key]:
+                        results[key][solver.name] = {}
 
-solvers = {
-    'sinkhorn': (sinkhorn, ENTROPIC_TRANSPORT),
-    'gradient-ascent': (gradient_ascent_two_marginal, ENTROPIC_TRANSPORT),
-    'lbgfs': (lbfgs_potentials, ENTROPIC_TRANSPORT),
-    'lp': (pot_lp, EMD_TRANSPORT),
-}
+                    res = solver.solver().solve([source, target], [cost], **param_kwargs)
 
-images_pairs = list(itertools.permutations(images, 2))[:10]
+                    P = res['transport_plan']
 
-results = {}
+                    img = im2mat(jax_actual_images[source_name]) if solver.is_jit else im2mat(actual_images[source_name])
+
+                    param_key = frozenset(param_kwargs.items())
+                    results[key][solver.name][param_key] = transport_image(P, img, source.to_discrete()[0], target.to_discrete()[0], batch_size)
+
+                    pbar.update(1)
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    export_folder = os.path.join(script_dir, "results")
+
+    export_images(image_pairs, actual_images, results, export_folder, solver_configs)
 
 
-with tqdm(total=len(images_pairs) * len(solvers) * len(EPSILONS), desc="Running color transfer") as pbar:
-    for source_image, target_image in images_pairs:
-        source_name, source_image = source_image
-        target_name, target_image = target_image
+if __name__ == "__main__":
 
-        results[(source_name, target_name)] = {}
+    parser = argparse.ArgumentParser(description="Run color transfer via optimal transport")
 
-        shape = source_image.shape
-        source_image, target_image = im2mat(source_image), im2mat(target_image)
-        source_sample, target_sample = get_samples(source_image, target_image, SAMPLE_SIZE)
-        source_measure, target_measure = np.ones(SAMPLE_SIZE) / SAMPLE_SIZE, np.ones(SAMPLE_SIZE) / SAMPLE_SIZE
-        C = get_cost_matrix(source_sample, target_sample)
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to a configuration file with experiment parameters."
+    )
 
-        for epsilon in EPSILONS:
-            results[(source_name, target_name)][epsilon] = {}
+    args = parser.parse_args()
 
-            for solver_name, (solver, transport_name) in solvers.items():
-                pbar.update(1)
+    with open(args.config, 'r') as file:
+        config = yaml.safe_load(file)
 
-                if transport_name == ENTROPIC_TRANSPORT:
-                    _, v = solver(source_measure, target_measure, C, epsilon=epsilon)
-                    transported_image = entropic_transport(v, C, source_image, target_sample, batch_size=BATCH_SIZE, epsilon=epsilon)
-                elif transport_name == EMD_TRANSPORT:
-                    P, _, _ = solver(source_measure, target_measure, C)
-                    transported_image = emd_transport(coupling=P, source_image=source_image,
-                                                    source_sample=source_sample, target_sample=target_sample,
-                                                    batch_size=BATCH_SIZE)
-                
-                transported_image = minmax(mat2im(transported_image, shape))
-                results[(source_name, target_name)][epsilon][solver_name] = transported_image
+    bin_num, batch_size, images_dir, pair_num = load_config_info(config)
 
+    solver_configs = load_solvers(config=config)
+    jax_needed = any(solver.is_jit for solver in solver_configs)
 
-export_images(images_pairs, results, "color_transfer_results/")
+    images = [(image_file, load_image_as_color_grid(os.path.join(images_dir, image_file), bins_per_channel=bin_num))
+           for image_file in os.listdir(images_dir)]
+
+    actual_images = {image_file: read_image(os.path.join(images_dir, image_file)) for image_file, _ in images}
+
+    image_pairs = list(itertools.permutations(images, 2))[:pair_num]
+
+    jax_pairs, jax_actual_images = None, None
+
+    if jax_needed:
+        jax_images = {
+            fname: load_image_as_color_grid(os.path.join(images_dir, fname), bins_per_channel=bin_num, use_jax=True)
+            for fname in os.listdir(images_dir)
+        }
+
+        jax_pairs = [((source, jax_images[source]), (target, jax_images[target]))
+                    for (source, _), (target, _) in image_pairs]
+    
+        jax_actual_images = {
+            fname: jnp.array(im) for fname, im in actual_images.items()
+        }
+
+    perform_experiments(batch_size, actual_images, image_pairs, solver_configs, jax_pairs, jax_actual_images)

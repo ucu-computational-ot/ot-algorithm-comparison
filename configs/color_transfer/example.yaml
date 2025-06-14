@@ -1,0 +1,15 @@
+param-grids:
+  epsilons:
+    - reg: 1
+    - reg: 0.01
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    param-grid: epsilons
+    jit: true
+
+bin-number: 16
+batch-size: 100000
+images-dir: ./datasets/images
+pair-number: 10

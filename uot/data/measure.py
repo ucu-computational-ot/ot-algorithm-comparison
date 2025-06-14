@@ -57,4 +57,5 @@ class GridMeasure(BaseMeasure):
         points = np.stack([m.ravel() for m in mesh], axis=-1)
         weights = self._weights_nd.ravel()
 
-        return points, weights
+        non_zero = weights > 0
+        return points[non_zero], weights[non_zero]

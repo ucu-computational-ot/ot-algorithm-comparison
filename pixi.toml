@@ -1,12 +1,15 @@
 [workspace]
 channels = ["conda-forge"]
 name = "ot-algorithm-comparison"
-platforms = ["linux-64"]
+platforms = ["linux-64", "win-64"]
 version = "0.1.0"
+
+[tool.pixi.source]
+root = "uot"
 
 [tasks]
 playground = "python -m uot.test.playground"
-color-transfer = "python -m uot.color_transfer.color_transfer"
+color-transfer = "python -m uot.experiments.real_data.color_transfer.color_transfer"
 mnist_distances = "python -m uot.experiments.real_data.mnist_classification.count_pairwise_distances"
 mnist_classification = "python -m uot.experiments.real_data.mnist_classification.mnist_classification"
 experiments = "python -m uot.experiments.run_experiments"
