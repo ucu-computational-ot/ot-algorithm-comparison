@@ -1,0 +1,26 @@
+param-grids:
+  regularizations:
+    - reg: 1
+    - reg: 0.001
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: True
+    param-grid: regularizations
+  gradient-ascent:
+    solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
+    jit: True
+    param-grid: regularizations
+
+problems:
+  dir: datasets/synthetic
+  names:
+    - 1D-gaussians-64
+    - 1D-gaussians-128
+    - 1D-gaussians-512
+    - 1D-gaussians-1024
+  
+experiment: 
+  name: Measure on Gaussians
+  function: uot.experiments.measurement.measure_time

@@ -27,12 +27,12 @@ conda activate ot_comparison
 #### 4. Run benchmarks ####
 # TODO: generate synthetic data only if needed (temp files do not exist)
 python -m uot.problems.problem_serializer \
-    --config configs/generators/gaussians.extensive.yaml \
+    --config configs/generators/gaussians_wooki_cpu.yaml \
     --export-dir "${SCRATCH_DIR}/synthetic"
 
 
 python -m uot.experiments.synthetic.benchmark \
-    --config configs/runners/gaussians.yaml \
+    --config configs/runners/gaussians_wooki_cpu.yaml \
     --folds 1 \
     --export "${RESULT_DIR}/gaussians.csv"
 
