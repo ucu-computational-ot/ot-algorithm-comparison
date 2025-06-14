@@ -1,8 +1,4 @@
 import os
-import sys
-
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-sys.path.insert(0, parent_dir)
 
 from uot.utils.mnist_helpers import load_mnist_data
 from uot.utils.yaml_helpers import load_solvers

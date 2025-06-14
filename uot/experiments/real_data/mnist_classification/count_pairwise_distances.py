@@ -1,10 +1,6 @@
 import os
-import sys
 import jax
 jax.config.update("jax_enable_x64", True)
-
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-sys.path.insert(0, parent_dir)
 
 from uot.data.measure import DiscreteMeasure
 from uot.utils.mnist_helpers import load_mnist_data
