@@ -14,7 +14,8 @@ solvers:
     param-grid: regularizations
 
 problems:
-  dir: datasets/synthetic
+  # TODO: manage this cause path may change
+  dir: /scratch/gerolinlab/izhytkevych/synthetic
   names:
     - 1D-gaussians-64
     - 1D-gaussians-128
