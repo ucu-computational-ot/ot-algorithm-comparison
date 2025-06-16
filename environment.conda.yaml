@@ -3,118 +3,134 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - _openmp_mutex=5.1=1_gnu
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
   - absl-py=2.3.0=pyhd8ed1ab_0
-  - blas=2.131=openblas
-  - blas-devel=3.9.0=31_h1ea3ea9_openblas
-  - brotli=1.0.9=h166bdaf_7
-  - brotli-bin=1.0.9=h166bdaf_7
-  - bzip2=1.0.8=h5eee18b_6
-  - ca-certificates=2025.4.26=hbd8a1cb_0
-  - certifi=2025.4.26=pyhd8ed1ab_0
+  - brotli=1.1.0=hb9d3cd8_3
+  - brotli-bin=1.1.0=hb9d3cd8_3
+  - bzip2=1.0.8=h4bc722e_7
+  - c-ares=1.34.5=hb9d3cd8_0
+  - ca-certificates=2025.6.15=hbd8a1cb_0
   - chex=0.1.88=pyhd8ed1ab_1
-  - colorama=0.4.6=pyhd8ed1ab_1
+  - contourpy=1.3.2=py313h33d0bda_0
+  - cuda-cccl_linux-64=12.9.27=ha770c72_0
+  - cuda-crt-dev_linux-64=12.9.86=ha770c72_1
+  - cuda-crt-tools=12.9.86=ha770c72_1
+  - cuda-cudart=12.9.79=h5888daf_0
+  - cuda-cudart-dev_linux-64=12.9.79=h3f2d84a_0
+  - cuda-cudart-static_linux-64=12.9.79=h3f2d84a_0
+  - cuda-cudart_linux-64=12.9.79=h3f2d84a_0
+  - cuda-cupti=12.9.79=h9ab20c4_0
+  - cuda-cupti-dev=12.9.79=h9ab20c4_0
+  - cuda-nvcc-tools=12.9.86=he02047a_1
+  - cuda-nvrtc=12.9.86=h5888daf_0
+  - cuda-nvtx=12.9.79=h5888daf_0
+  - cuda-nvvm-tools=12.9.86=he02047a_1
+  - cuda-version=12.9=h4f385c5_3
+  - cudnn=9.10.1.4=h7646684_0
   - cycler=0.12.1=pyhd8ed1ab_1
   - equinox=0.12.2=pyhd8ed1ab_0
   - etils=1.12.2=pyhd8ed1ab_0
-  - expat=2.7.1=h6a678d5_0
-  - fonttools=4.33.3=py310h5764c6d_0
-  - freetype=2.10.4=h0708190_1
+  - fonttools=4.58.4=py313h8060acc_0
+  - freetype=2.13.3=ha770c72_1
+  - importlib-metadata=8.7.0=pyhe01879c_1
+  - jax=0.6.0=pyhd8ed1ab_0
+  - jaxlib=0.6.0=cuda126py313hb1b46e1_200
   - jaxopt=0.8.4=pyhd8ed1ab_0
   - jaxtyping=0.3.2=pyhd8ed1ab_0
-  - joblib=1.5.1=pyhd8ed1ab_0
-  - jpeg=9e=h166bdaf_1
-  - kiwisolver=1.4.2=py310hbf28c38_1
-  - lcms2=2.16=h92b89f2_1
-  - ld_impl_linux-64=2.40=h12ee557_0
-  - lerc=4.0.0=h6a678d5_0
+  - kiwisolver=1.4.7=py313h33d0bda_0
+  - lcms2=2.17=h717163a_0
+  - ld_impl_linux-64=2.43=h1423503_5
+  - lerc=4.0.0=h0aef613_1
+  - libabseil=20250127.1=cxx17_hbbce691_0
   - libblas=3.9.0=31_h59b9bed_openblas
-  - libbrotlicommon=1.0.9=h166bdaf_7
-  - libbrotlidec=1.0.9=h166bdaf_7
-  - libbrotlienc=1.0.9=h166bdaf_7
+  - libbrotlicommon=1.1.0=hb9d3cd8_3
+  - libbrotlidec=1.1.0=hb9d3cd8_3
+  - libbrotlienc=1.1.0=hb9d3cd8_3
   - libcblas=3.9.0=31_he106b2a_openblas
-  - libdeflate=1.22=h5eee18b_0
-  - libffi=3.4.4=h6a678d5_1
-  - libgcc-ng=11.2.0=h1234567_1
-  - libgfortran-ng=13.2.0=h69a702a_0
-  - libgfortran5=13.2.0=ha4646dd_0
-  - libgomp=11.2.0=h1234567_1
+  - libcublas=12.9.1.4=h9ab20c4_0
+  - libcublas-dev=12.9.1.4=h9ab20c4_0
+  - libcudnn=9.10.1.4=h4840ae0_0
+  - libcudnn-dev=9.10.1.4=hcd2ec93_0
+  - libcufft=11.4.1.4=h5888daf_0
+  - libcufft-dev=11.4.1.4=h5888daf_0
+  - libcurand=10.3.10.19=h9ab20c4_0
+  - libcurand-dev=10.3.10.19=h9ab20c4_0
+  - libcusolver=11.7.5.82=h9ab20c4_0
+  - libcusolver-dev=11.7.5.82=h9ab20c4_0
+  - libcusparse=12.5.10.65=h5888daf_0
+  - libcusparse-dev=12.5.10.65=h5888daf_0
+  - libdeflate=1.24=h86f0d12_0
+  - libexpat=2.7.0=h5888daf_0
+  - libffi=3.4.6=h2dba641_1
+  - libfreetype=2.13.3=ha770c72_1
+  - libfreetype6=2.13.3=h48d6fc4_1
+  - libgcc=15.1.0=h767d61c_2
+  - libgcc-ng=15.1.0=h69a702a_2
+  - libgfortran=15.1.0=h69a702a_2
+  - libgfortran5=15.1.0=hcea5267_2
+  - libgomp=15.1.0=h767d61c_2
+  - libgrpc=1.71.0=h8e591d7_1
+  - libjpeg-turbo=3.1.0=hb9d3cd8_0
   - liblapack=3.9.0=31_h7ac8fdf_openblas
-  - liblapacke=3.9.0=31_he2f377e_openblas
-  - libopenblas=0.3.29=ha39b09d_0
-  - libpng=1.6.39=h5eee18b_0
-  - libstdcxx-ng=11.2.0=h1234567_1
-  - libtiff=4.7.0=hde9077f_0
-  - libuuid=1.41.5=h5eee18b_0
-  - libwebp-base=1.3.2=h5eee18b_1
-  - libxcb=1.17.0=h9b100fa_0
+  - liblzma=5.8.1=hb9d3cd8_2
+  - libmpdec=4.0.0=hb9d3cd8_0
+  - libnvjitlink=12.9.86=h5888daf_0
+  - libopenblas=0.3.29=pthreads_h94d23a6_0
+  - libpng=1.6.47=h943b412_0
+  - libprotobuf=5.29.3=h501fc15_1
+  - libre2-11=2024.07.02=hba17884_3
+  - libsqlite=3.50.1=hee588c1_0
+  - libstdcxx=15.1.0=h8f9b012_2
+  - libstdcxx-ng=15.1.0=h4852527_2
+  - libtiff=4.7.0=hf01ce69_5
+  - libuuid=2.38.1=h0b41bf4_0
+  - libwebp-base=1.5.0=h851e524_0
+  - libxcb=1.17.0=h8a09558_0
+  - libzlib=1.3.1=hb9d3cd8_2
   - lineax=0.0.7=pyhd8ed1ab_1
-  - lz4-c=1.9.4=h6a678d5_1
-  - matplotlib-base=3.5.2=py310h5701ce4_0
+  - matplotlib-base=3.10.3=py313h129903b_0
+  - ml_dtypes=0.5.1=py313ha87cce1_0
   - munkres=1.1.4=pyhd8ed1ab_1
-  - ncurses=6.4=h6a678d5_0
-  - nomkl=3.0=0
-  - numpy=1.26.4=py310heeff2f4_0
-  - numpy-base=1.26.4=py310h8a23956_0
-  - openblas=0.3.29=h06a4308_0
-  - openblas-devel=0.3.29=ha39b09d_0
-  - openjpeg=2.5.2=h0d4d230_1
-  - openssl=3.0.16=h5eee18b_0
+  - nccl=2.27.3.1=h9b8ff78_0
+  - ncurses=6.5=h2d0b736_3
+  - numpy=2.3.0=py313h17eae1a_0
+  - openjpeg=2.5.3=h5fbd93e_0
+  - openssl=3.5.0=h7b32b05_1
+  - opt_einsum=3.4.0=pyhd8ed1ab_1
   - optax=0.2.4=pyhd8ed1ab_1
   - ott-jax=0.5.0=pyhd8ed1ab_0
   - packaging=25.0=pyh29332c3_1
-  - pandas=1.4.2=py310h769672d_1
-  - pillow=11.1.0=py310hac6e08b_1
-  - pip=25.1=pyhc872135_2
-  - pot=0.8.2=py310h769672d_0
-  - pthread-stubs=0.3=h0ce48e5_1
+  - pandas=2.3.0=py313ha87cce1_0
+  - pillow=11.2.1=py313h8db990d_0
+  - pip=25.1.1=pyh145f28c_0
+  - pot=0.9.5=py313ha87cce1_0
+  - pthread-stubs=0.4=hb9d3cd8_1002
   - pyparsing=3.2.3=pyhd8ed1ab_1
-  - python=3.10.18=h1a3bd86_0
+  - python=3.13.5=hf636f53_101_cp313
   - python-dateutil=2.9.0.post0=pyhff2d567_1
-  - python_abi=3.10=2_cp310
+  - python-tzdata=2025.2=pyhd8ed1ab_0
+  - python_abi=3.13=7_cp313
   - pytz=2025.2=pyhd8ed1ab_0
-  - pyyaml=6.0=py310h5764c6d_4
-  - readline=8.2=h5eee18b_0
-  - scikit-learn=1.1.1=py310hffb9edd_0
-  - setuptools=78.1.1=py310h06a4308_0
+  - pyyaml=6.0.2=py313h8060acc_2
+  - qhull=2020.2=h434a139_5
+  - re2=2024.07.02=h9925aae_3
+  - readline=8.2=h8c095d6_2
+  - scipy=1.15.2=py313h86fcf2b_0
   - six=1.17.0=pyhd8ed1ab_0
-  - sqlite=3.45.3=h5eee18b_0
-  - threadpoolctl=3.6.0=pyhecae5ae_0
-  - tk=8.6.14=h993c535_1
+  - tk=8.6.13=noxft_hd72426e_102
   - toolz=1.0.0=pyhd8ed1ab_1
-  - tqdm=4.67.1=pyhd8ed1ab_1
+  - tqdm=4.67.1=py313h7040dfc_0
   - typing-extensions=4.14.0=h32cad80_0
   - typing_extensions=4.14.0=pyhe01879c_0
-  - tzdata=2025b=h04d1e81_0
-  - unicodedata2=14.0.0=py310h5764c6d_1
+  - tzdata=2025b=h78e105d_0
   - wadler-lindig=0.1.5=pyh29332c3_0
-  - wheel=0.45.1=py310h06a4308_0
-  - xorg-libx11=1.8.12=h9b100fa_1
-  - xorg-libxau=1.0.12=h9b100fa_0
-  - xorg-libxdmcp=1.1.5=h9b100fa_0
-  - xorg-xorgproto=2024.1=h5eee18b_1
-  - xz=5.6.4=h5eee18b_1
+  - xorg-libxau=1.0.12=hb9d3cd8_0
+  - xorg-libxdmcp=1.1.5=hb9d3cd8_0
   - yaml=0.2.5=h7f98852_2
-  - zlib=1.2.13=h5eee18b_1
-  - zstd=1.5.6=hc292b87_0
+  - zipp=3.23.0=pyhd8ed1ab_0
+  - zstd=1.5.7=hb8e6e7a_2
   - pip:
-      - jax==0.6.1
-      - jax-cuda12-pjrt==0.6.1
-      - jax-cuda12-plugin==0.6.1
-      - jaxlib==0.6.1
-      - ml-dtypes==0.5.1
-      - nvidia-cublas-cu12==12.8.4.1
-      - nvidia-cuda-cupti-cu12==12.9.79
-      - nvidia-cuda-nvcc-cu12==12.9.86
-      - nvidia-cuda-runtime-cu12==12.9.79
-      - nvidia-cudnn-cu12==9.10.2.21
-      - nvidia-cufft-cu12==11.4.1.4
-      - nvidia-cusolver-cu12==11.7.5.82
-      - nvidia-cusparse-cu12==12.5.10.65
-      - nvidia-nccl-cu12==2.27.3
-      - nvidia-nvjitlink-cu12==12.9.86
-      - nvidia-nvshmem-cu12==3.2.5
-      - opt-einsum==3.4.0
-      - scipy==1.15.3
+      - jax-cuda12-pjrt==0.6.0
+      - jax-cuda12-plugin==0.6.0
 prefix: /home/izhytkevych/miniconda3/envs/ot
