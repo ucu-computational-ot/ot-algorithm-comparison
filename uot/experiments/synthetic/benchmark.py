@@ -37,6 +37,13 @@ if __name__ == "__main__":
         help="Path to export the results CSV file."
     )
 
+    parser.add_argument(
+        "--progress",
+        type=bool,
+        default=False,
+        help="Show progress bar."
+    )
+
     args = parser.parse_args()
 
     with open(args.config, 'r') as file:
@@ -51,7 +58,7 @@ if __name__ == "__main__":
         solvers=solver_configs,
         iterators=problems_iterators,
         folds=args.folds,
-        progress=True
+        progress=args.progress,
     )
 
     print(f"Exporting results to {args.export}")
