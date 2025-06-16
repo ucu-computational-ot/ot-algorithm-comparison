@@ -19,7 +19,7 @@ mkdir -p "${RESULT_DIR}"
 # Assumes you created it in your home directory at ~/venv
 # source /home/izhytkevych/ot-algorithm-comparison/venv/bin/activate
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate ot_comparison
+conda activate ot
 
 #### 3. Change to working directory on scratch ####
 # cd "${SCRATCH_DIR}"
