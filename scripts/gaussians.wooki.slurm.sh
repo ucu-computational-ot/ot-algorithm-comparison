@@ -10,7 +10,7 @@
 
 
 #### 1. Prepare directories ####
-SCRATCH_DIR=/scratch/gerolinlab/izhytkevych
+SCRATCH_DIR=/home/izhytkevych/datasets
 RESULT_DIR=/home/izhytkevych/results/raw
 mkdir -p "${SCRATCH_DIR}"
 mkdir -p "${RESULT_DIR}"
