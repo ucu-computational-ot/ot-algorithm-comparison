@@ -5,7 +5,7 @@ generators:
     num_components: 1
     n_points: 64
     num_datasets: 30
-    borders: (-1, 1)
+    borders: (-10, 10)
     cost_fn: uot.utils.costs.cost_euclid_squared
     use_jax: true
     seed: 42
@@ -16,7 +16,7 @@ generators:
     num_components: 1
     n_points: 128
     num_datasets: 30
-    borders: (-1, 1)
+    borders: (-10, 10)
     cost_fn: uot.utils.costs.cost_euclid_squared
     use_jax: true
     seed: 42
@@ -27,7 +27,7 @@ generators:
     num_components: 1
     n_points: 512
     num_datasets: 30
-    borders: (-1, 1)
+    borders: (-10, 10)
     cost_fn: uot.utils.costs.cost_euclid_squared
     use_jax: true
     seed: 42
@@ -38,7 +38,7 @@ generators:
     num_components: 1
     n_points: 1024
     num_datasets: 30
-    borders: (-1, 1)
+    borders: (-10, 10)
     cost_fn: uot.utils.costs.cost_euclid_squared
     use_jax: true
     seed: 42
