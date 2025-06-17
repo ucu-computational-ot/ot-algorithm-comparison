@@ -1,0 +1,50 @@
+generators:
+  _cauchy_defaults: &cauchy_defaults
+    generator: uot.problems.generators.CauchyGenerator
+    dim: 1
+    n_points: 64
+    num_datasets: 30
+    borders: (-6, 6)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+  
+  1D-cauchy-64p:
+    <<: *cauchy_defaults
+    n_points: 64
+
+  1D-cauchy-128:
+    <<: *cauchy_defaults
+    n_points: 128
+
+  1D-cauchy-256:
+    <<: *cauchy_defaults
+    n_points: 256
+
+  1D-cauchy-512:
+    <<: *cauchy_defaults
+    n_points: 512
+
+  1D-cauchy-1024:
+    <<: *cauchy_defaults
+    n_points: 1024
+
+  1D-cauchy-2048:
+    <<: *cauchy_defaults
+    n_points: 2048
+
+  1D-cauchy-4096:
+    <<: *cauchy_defaults
+    n_points: 4096
+
+  1D-cauchy-8192:
+    <<: *cauchy_defaults
+    n_points: 8192
+
+  1D-cauchy-16384:
+    <<: *cauchy_defaults
+    n_points: 16384
+
+  1D-cauchy-32768:
+    <<: *cauchy_defaults
+    n_points: 32768
