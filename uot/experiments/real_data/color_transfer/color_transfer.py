@@ -16,7 +16,42 @@ from uot.utils.types import ArrayLike
 from uot.solvers.solver_config import SolverConfig
 from uot.data.dataset_loader import load_image_as_color_grid
 
-#TODO: Fix jax/non-jax
+class ImageData:
+
+    image_dir = None
+
+    def __init__(self, name: str):
+        self.name = name
+        self._np_grid = load_image_as_color_grid(os.path.join(ImageData.images_dir, name))
+        self._np_image = read_image(os.path.join(ImageData.images_dir, name))
+        self._jax_grid = None
+        self._jax_image = None
+    
+    def get_grid(self, use_jax: bool = False) -> ArrayLike:
+        """Get the color grid of the image, either as numpy or jax array"""
+        if use_jax:
+            if self._jax_grid is None:
+                self._jax_grid = self._np_grid.get_jax()
+            return self._jax_grid
+        return self._np_grid
+
+    def get_image(self, use_jax: bool = False) -> ArrayLike:
+        """Get the image as numpy or jax array"""
+        if use_jax:
+            if self._jax_image is None:
+                self._jax_image = jnp.array(self._np_image)
+            return self._jax_image
+        return self._np_image
+
+    def get_image_shape(self) -> tuple[int, int, int]:
+        """Get the shape of the image"""
+        return self._np_image.shape
+
+    @classmethod
+    def set_image_dir(cls, image_dir: str):
+        """Set the directory where images are stored"""
+        cls.images_dir = image_dir
+
 
 
 def load_config_info(config: dict)-> tuple[int, int, str, int]:
@@ -44,23 +79,21 @@ def read_image(image_path: str):
         image = np.clip(image, 0, 1)
     return image
 
-def export_images(image_pairs: list, actual_images: dict, results: dict, save_path: str, solvers: list):
+def export_images(data: dict[str, ImageData], image_pairs: list[tuple], results: dict, save_path: str, solvers: list):
     """
     Export transformed images based on results keyed by (source,target) -> solver -> param_key.
 
     Args:
-        image_pairs: list of ((source_name, source_image), (target_name, target_image))
-        actual_images: dict of actual_images[image_name]: image_matrix
-        results: dict of results[(source_name, target_name)][solver_name][param_key] = transformed_image
-        save_path: directory to save images
-        solvers: list of solver configs (to get solver.name for ordering)
+        data (dict): Dictionary of ImageData objects keyed by image names.
+        image_pairs (list): List of tuples containing pairs of image names.
+        results (dict): Dictionary containing the results of the experiments.
+        save_path (str): Directory where the images will be saved.
+        solvers (list): List of solver configurations used in the experiments.
     """
     os.makedirs(save_path, exist_ok=True)
 
-    #TODO: Improve representation
-
-    for (source_name, _), (target_name, _) in image_pairs:
-        key = (source_name, target_name)
+    for key in image_pairs:
+        source_name, target_name = key
         if key not in results:
             continue
 
@@ -89,7 +122,7 @@ def export_images(image_pairs: list, actual_images: dict, results: dict, save_pa
 
         for col in range(1, n_cols):
             ax = axes[0, col]
-            ax.imshow(actual_images[source_name])
+            ax.imshow(data[source_name].get_image())
             ax.axis("off")
             if col == 0:
                 ax.set_title("Source Image")
@@ -99,7 +132,7 @@ def export_images(image_pairs: list, actual_images: dict, results: dict, save_pa
 
         for col in range(1, n_cols):
             ax = axes[-1, col]
-            ax.imshow(actual_images[target_name])
+            ax.imshow(data[target_name].get_image())
             ax.axis("off")
             if col == 0:
                 ax.set_title("Target Image")
@@ -115,14 +148,14 @@ def export_images(image_pairs: list, actual_images: dict, results: dict, save_pa
                 if col_idx - 1 < len(params):
                     param_key = params[col_idx - 1]
                     img = results[key][solver_name][param_key]
-                    shape = actual_images[source_name].shape
+                    shape = data[source_name].get_image_shape()
                     ax.imshow(img.reshape(shape))
 
                     if row_idx == 1:
                         param_str = ', '.join(f"{k}={v}" for k, v in sorted(param_key))
                         ax.set_title(param_str, fontsize=8)
                 else:
-                    ax.imshow(np.zeros_like(actual_images[source_name]))
+                    ax.imshow(np.zeros(data[source_name].get_image_shape()))
                 ax.axis("off")
 
         plt.tight_layout()
@@ -136,13 +169,30 @@ def transport_image(
     source_palette: ArrayLike,
     target_palette: ArrayLike,
     batch_size: int = 1024
-) -> ArrayLike:
+) -> np.ndarray:
+    """Transforms the image using transport plan. Returns NumPy array."""
 
-    P_normalized = P / np.sum(P, axis=1, keepdims=True)
-    P_normalized = np.nan_to_num(P_normalized, nan=0.0, posinf=0.0, neginf=0.0)
+    is_jax = isinstance(P, jax.Array) or hasattr(P, "device_buffer")
+    lib = jnp if is_jax else np
 
+    P_normalized = P / lib.sum(P, axis=1, keepdims=True)
+    P_normalized = lib.nan_to_num(P_normalized, nan=0.0, posinf=0.0, neginf=0.0)
     projected_palette = P_normalized @ target_palette
 
+    if is_jax:
+        return np.asarray(_transform_jax(source_image, source_palette, projected_palette))
+    else:
+        return _transform_numpy(source_image, source_palette, projected_palette, batch_size)
+    
+@jax.jit
+def _transform_jax(source_image, source_palette, projected_palette):
+    def transform_pixel(pixel):
+        dists = jnp.linalg.norm(pixel - source_palette, axis=1)
+        closest = jnp.argmin(dists)
+        return projected_palette[closest]
+    return jax.vmap(transform_pixel)(source_image)
+
+def _transform_numpy(source_image, source_palette, projected_palette, batch_size):
     n_pixels = source_image.shape[0]
     transformed_chunks = []
 
@@ -160,7 +210,7 @@ def transport_image(
     return np.concatenate(transformed_chunks, axis=0)
 
 
-def perform_experiments(batch_size: int, actual_images: dict[str, np.ndarray], image_pairs: list[tuple], solver_configs: list[SolverConfig], jax_pairs: list[tuple]|None, jax_actual_images: list[tuple]|None)-> dict:
+def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: list[tuple], solver_configs: list[SolverConfig])-> dict:
     """Carry out the experiments specified in the config"""
 
     results = {}
@@ -171,44 +221,48 @@ def perform_experiments(batch_size: int, actual_images: dict[str, np.ndarray], i
 
         for solver in solver_configs:
 
-            data = image_pairs if not solver.is_jit else jax_pairs
             params = solver.param_grid
 
             for param_kwargs in params:
 
                 pbar.set_description(f'Running color transfer: Solver "{solver.name}" with parameters "{param_kwargs}"')
 
-                for source, target in data:
-                    source_name, source = source
-                    target_name, target = target
+                for (source_name, target_name) in image_pairs:
 
-                    source_points, target_points = source.to_discrete()[0], target.to_discrete()[0]
+                    source = data[source_name]
+                    target = data[target_name]
 
+                    source_points, target_points = source.get_grid(use_jax=solver.is_jit).to_discrete()[0], target.get_grid(use_jax=solver.is_jit).to_discrete()[0]
                     cost = cost_euclid(source_points, target_points, use_jax=solver.is_jit)
 
                     key = (source_name, target_name)
 
                     if key not in results:
                         results[key] = {}
-
+                    
                     if solver.name not in results[key]:
                         results[key][solver.name] = {}
-
-                    res = solver.solver().solve([source, target], [cost], **param_kwargs)
+                    
+                    res = solver.solver().solve(
+                                        [source.get_grid(use_jax=solver.is_jit), target.get_grid(use_jax=solver.is_jit)],
+                                        [cost],
+                                        **param_kwargs
+                                        )
 
                     P = res['transport_plan']
-
-                    img = im2mat(jax_actual_images[source_name]) if solver.is_jit else im2mat(actual_images[source_name])
-
+                    img = im2mat(source.get_image(use_jax=solver.is_jit))
                     param_key = frozenset(param_kwargs.items())
-                    results[key][solver.name][param_key] = transport_image(P, img, source.to_discrete()[0], target.to_discrete()[0], batch_size)
+
+                    results[key][solver.name][param_key] = transport_image(
+                        P, img, source_points, target_points, batch_size
+                    )
 
                     pbar.update(1)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     export_folder = os.path.join(script_dir, "results")
 
-    export_images(image_pairs, actual_images, results, export_folder, solver_configs)
+    export_images(data, image_pairs, results, export_folder, solver_configs)
 
 
 if __name__ == "__main__":
@@ -230,28 +284,10 @@ if __name__ == "__main__":
     bin_num, batch_size, images_dir, pair_num = load_config_info(config)
 
     solver_configs = load_solvers(config=config)
-    jax_needed = any(solver.is_jit for solver in solver_configs)
+    ImageData.set_image_dir(images_dir)
 
-    images = [(image_file, load_image_as_color_grid(os.path.join(images_dir, image_file), bins_per_channel=bin_num))
-           for image_file in os.listdir(images_dir)]
+    data = {name: ImageData(name) for name in os.listdir(images_dir)}
 
-    actual_images = {image_file: read_image(os.path.join(images_dir, image_file)) for image_file, _ in images}
+    image_pairs = list(itertools.permutations(data, 2))[:pair_num]
 
-    image_pairs = list(itertools.permutations(images, 2))[:pair_num]
-
-    jax_pairs, jax_actual_images = None, None
-
-    if jax_needed:
-        jax_images = {
-            fname: load_image_as_color_grid(os.path.join(images_dir, fname), bins_per_channel=bin_num, use_jax=True)
-            for fname in os.listdir(images_dir)
-        }
-
-        jax_pairs = [((source, jax_images[source]), (target, jax_images[target]))
-                    for (source, _), (target, _) in image_pairs]
-    
-        jax_actual_images = {
-            fname: jnp.array(im) for fname, im in actual_images.items()
-        }
-
-    perform_experiments(batch_size, actual_images, image_pairs, solver_configs, jax_pairs, jax_actual_images)
+    perform_experiments(batch_size, data, image_pairs, solver_configs)
