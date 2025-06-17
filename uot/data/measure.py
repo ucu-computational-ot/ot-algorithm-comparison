@@ -1,4 +1,5 @@
 import numpy as np
+import jax
 from abc import ABC, abstractmethod
 
 from uot.utils.types import ArrayLike
@@ -24,8 +25,8 @@ class DiscreteMeasure(BaseMeasure):
 
 class GridMeasure(BaseMeasure):
     def __init__(self,
-                 axes: list[np.ndarray],
-                 weights_nd: np.ndarray,
+                 axes: list[ArrayLike],
+                 weights_nd: ArrayLike,
                  name: str = "",
                  normalize: bool = True,
                  ):
@@ -59,3 +60,18 @@ class GridMeasure(BaseMeasure):
 
         non_zero = weights > 0
         return points[non_zero], weights[non_zero]
+
+    def get_jax(self)-> 'GridMeasure':
+        '''
+        Return a JAX-based version of this measure.
+        '''
+        if isinstance(self._axes, jax.Array) and isinstance(self._weights_nd, jax.Array):
+            return self
+        
+        else:
+            return GridMeasure(
+                axes=[jax.numpy.array(axis) for axis in self._axes],
+                weights_nd=jax.numpy.array(self._weights_nd),
+                name=self.name,
+                normalize=False
+            )
