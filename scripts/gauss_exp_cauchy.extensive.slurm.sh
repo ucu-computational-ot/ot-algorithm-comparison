@@ -23,6 +23,8 @@ mkdir -p "${RESULT_DIR}"
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate ot
 
+export JAX_PLATFORM_NAME=gpu
+
 if [ -d "${SCRATCH_DIR}/synthetic_gauss_exp_cauchy" ] && [ "$(ls -A ${SCRATCH_DIR}/synthetic_gauss_exp_cauchy)" ]; then
   echo "✔ Synthetic data already present; skipping generation."
 else
@@ -39,6 +41,7 @@ else
 fi
 
 echo "⏳ Running benchmark..."
+
 python -m uot.experiments.synthetic.benchmark \
     --config configs/runners/cauchy_exp_gauss.extensive.yaml \
     --folds 1 \
