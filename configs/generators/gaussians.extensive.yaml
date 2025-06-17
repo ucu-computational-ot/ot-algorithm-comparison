@@ -1,6 +1,8 @@
 generators:
   _gaussian_defaults: &gauss_defaults
     generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    n_points: 64
     num_components: 1
     num_datasets: 30
     borders: (-1, 1)
