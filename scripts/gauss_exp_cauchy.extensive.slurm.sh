@@ -40,6 +40,15 @@ else
     --export-dir "${SCRATCH_DIR}/synthetic_gauss_exp_cauchy"
 fi
 
+# gonna check for nans cause i get numerical instability in fused kernels
+# export XLA_FLAGS="--xla_hlo_profile=true --xla_cpu_enable_fast_math=false"
+# export JAX_CHECK_NANS=true
+
+# export XLA_FLAGS="--xla_gpu_autotune_level=0 --xla_gpu_enable_triton_gemm=false"
+export JAX_ENABLE_X64="True"
+# export JAX_CHECK_NANS="True"
+# export XLA_PYTHON_CLIENT_PREALLOCATE=false
+
 echo "⏳ Running benchmark..."
 
 python -m uot.experiments.synthetic.benchmark \
