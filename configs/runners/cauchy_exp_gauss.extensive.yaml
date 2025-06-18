@@ -1,14 +1,14 @@
 param-grids:
-  _regularizations: &regularizations
-    reg: [1, 0.001]
-
   sinkhorn_params:
-    # build a list of maps, one per reg
-    - <<: *regularizations
+    - reg: 1
+      maxiter: 100000
+    - reg: 0.001
       maxiter: 100000
 
   gradient_ascent_params:
-    - <<: *regularizations
+    - reg: 1
+      niter: 1000000
+    - reg: 0.001
       niter: 1000000
 
 
