@@ -16,14 +16,14 @@ solvers:
   sinkhorn:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
-    param-grid: regularizations
+    param-grid: sinkhorn_params
   gradient-ascent:
     solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
     jit: true
-    param-grid: regularizations
+    param-grid: gradient_ascent_params
 
 problems:
-  dir: /home/izhytkevych/datasets/synthetic
+  dir: /home/izhytkevych/datasets/synthetic_gauss_exp_cauchy
   names:
     - 1D-gaussians-1c-64p
     - 1D-gaussians-1c-128p
