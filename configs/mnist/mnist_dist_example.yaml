@@ -8,3 +8,5 @@ solvers:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
     param-grid: epsilons
+  
+batch-size: 5000
