@@ -148,6 +148,11 @@ dependencies:
   - zipp=3.23.0=pyhd8ed1ab_0
   - zstd=1.5.7=hb8e6e7a_2
   - pip:
+      - docopt==0.6.2
+      - gpu-tracker==5.0.1
+      - greenlet==3.2.3
       - jax-cuda12-pjrt==0.6.0
       - jax-cuda12-plugin==0.6.0
+      - psutil==7.0.0
+      - sqlalchemy==2.0.41
 prefix: /home/izhytkevych/miniconda3/envs/ot
