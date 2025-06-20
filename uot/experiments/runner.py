@@ -17,8 +17,7 @@ def run_pipeline(
     progress: bool = True,
 ) -> pd.DataFrame:
     # 1) generate all problems
-    logger.info(f"starting pipeline...")
-    logger.info(f"generating problems...")
+    logger.info("starting pipeline...")
 
     # 2) apply folds
     all_iterators = []
@@ -51,6 +50,8 @@ def run_pipeline(
     for cfg in solvers:
         params = cfg.param_grid
         for param_kwargs in params:
+            logger.info(f"Running set of problems on {
+                cfg.solver} with {param_kwargs}")
             description = f"{cfg.name}({param_kwargs})"
             if pbar:
                 pbar.set_description(description)

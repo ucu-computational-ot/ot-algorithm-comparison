@@ -31,6 +31,8 @@ class Experiment:
         for i, problem in enumerate(problems):
             marginals = problem.get_marginals()
             costs = problem.get_costs()
+            logger.info(f"Starting {solver.__class__.__name__} with {
+                        solver_kwargs} on {problem}")
             try:
                 metrics = self.solve_fn(
                     problem,
@@ -40,7 +42,7 @@ class Experiment:
                     **solver_kwargs,
                 )
                 metrics["status"] = "success"
-                logger.info(f"Successfully run {
+                logger.info(f"Successfully finished {
                             solver.__class__.__name__} with {solver_kwargs}")
             except Exception as e:
                 logger.error(f"{solver.__qualname__} failed with error {e}")
