@@ -4,8 +4,8 @@
 #SBATCH --error=logs/slurm-%j.err
 #SBATCH --time=10:00:00
 #SBATCH --ntasks=1                          # Number of MPI ranks
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=100G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=80G
 #SBATCH --gres=gpu:1
 
 # Email notifications (optional)
@@ -53,7 +53,7 @@ echo "⏳ Running benchmark..."
 
 python -m uot.experiments.synthetic.benchmark \
     --config configs/runners/cauchy_exp_gauss.extensive.yaml \
-    --folds 1 \
+    --folds 3 \
     --export "${RESULT_DIR}/gauss_exp_cauchy.extensive.csv"
 
 #### Deactivate virtualenv ####

@@ -94,5 +94,5 @@ problems:
     - 1D-exponential-32768  
 
 experiment: 
-  name: Measure on Gaussiand, Exp and Cauchy
-  function: uot.experiments.measurement.measure_time
+  name: Time and GPU usage test
+  function: uot.experiments.measurement.measure_with_tracker
