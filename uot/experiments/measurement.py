@@ -14,7 +14,7 @@ def measure_time(prob, solver, marginals, costs, **kwargs):
 
 def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     with Tracker(
-        sleep_time=0.001,
+        sleep_time=0.1,
         gpu_ram_unit='megabytes',
         time_unit='seconds',
     ) as gt:

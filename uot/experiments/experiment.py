@@ -31,7 +31,7 @@ class Experiment:
         for i, problem in enumerate(problems):
             marginals = problem.get_marginals()
             costs = problem.get_costs()
-            logger.info(f"Starting {solver.__class__.__name__} with {
+            logger.info(f"Starting {solver.__name__} with {
                         solver_kwargs} on {problem}")
             try:
                 metrics = self.solve_fn(
