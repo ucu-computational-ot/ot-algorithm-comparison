@@ -7,9 +7,9 @@ param-grids:
 
   gradient_ascent_params:
     - reg: 1
-      niter: 1000000
+      maxiter: 1000000
     - reg: 0.001
-      niter: 1000000
+      maxiter: 1000000
 
 solvers:
   sinkhorn:
