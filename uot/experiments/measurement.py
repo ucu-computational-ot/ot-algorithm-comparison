@@ -28,7 +28,7 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     peak_gpu_ram = usage.max_gpu_ram
     gpu_utilization = usage.gpu_utilization
     peak_ram = usage.max_ram
-    mean_cpu_pct = usage.cpu_utilization
+    cpu_utilization = usage.cpu_utilization
     metrics.update({
         'time_unit': usage.compute_time.unit,
         'time': usage.compute_time.time,
@@ -43,7 +43,7 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
         "peak_ram_MiB":              peak_ram.main,
         "combined_peak_ram_MiB":     peak_ram.combined,
 
-        "max_cpu_util_pct":          mean_cpu_pct.max_hardware_percent,
-        "mean_cpu_util_pct":         mean_cpu_pct.mean_hardware_percent,
+        "max_cpu_util_pct":          cpu_utilization.main.max_hardware_percent,
+        "mean_cpu_util_pct":         cpu_utilization.main.mean_hardware_percent,
     })
     return metrics
