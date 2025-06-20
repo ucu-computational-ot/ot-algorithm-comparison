@@ -72,4 +72,4 @@ problems:
   
 experiment: 
   name: Time and GPU usage test
-  function: uot.experiments.measurement.measure_with_tracker
+  function: uot.experiments.measurement.measure_with_gpu_tracker
