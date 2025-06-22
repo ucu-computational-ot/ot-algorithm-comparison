@@ -17,6 +17,10 @@ mkdir -p "${RESULT_DIR}"
 
 export JAX_ENABLE_X64="True"
 export JAX_PLATFORM_NAME=gpu
+# disable preallocation: this slows down the computations a bit
+# but we can monitor in real time what the memory consumption really is
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 
 #### Activate conda environment ####
 source ~/miniconda3/etc/profile.d/conda.sh

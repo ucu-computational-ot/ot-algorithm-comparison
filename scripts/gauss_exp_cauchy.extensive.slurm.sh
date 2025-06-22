@@ -23,7 +23,12 @@ mkdir -p "${RESULT_DIR}"
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate ot
 
+export JAX_ENABLE_X64="True"
 export JAX_PLATFORM_NAME=gpu
+# disable preallocation: this slows down the computations a bit
+# but we can monitor in real time what the memory consumption really is
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 
 if [ -d "${SCRATCH_DIR}/synthetic_gauss_exp_cauchy" ] && [ "$(ls -A ${SCRATCH_DIR}/synthetic_gauss_exp_cauchy)" ]; then
   echo "✔ Synthetic data already present; skipping generation."
