@@ -69,13 +69,12 @@ def create_kernel_matrix(distance_matrix: np.ndarray)-> np.ndarray:
     return kernel_matrix
 
 
-def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, sample_size: int, solver: SolverConfig)-> float:
+def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike, solver: SolverConfig)-> float:
     """Calculate classification results using proper cross-validation with precomputed kernel"""
-    X_indices = np.random.choice(len(X), size=min(int(sample_size), len(X)), replace=False)
-    X_sub = X[X_indices]
-    y_sub = y[X_indices]
+    X_sub = X[indices]
+    y_sub = y[indices]
 
-    sub_distance_matrix = distance[np.ix_(X_indices, X_indices)]
+    sub_distance_matrix = distance[np.ix_(indices, indices)]
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     scores = []
@@ -113,6 +112,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     X, y, _ = load_mnist_data()
+    X, y = X[:250], y[:250]
 
     with open(args.config, 'r') as file:
         config = yaml.safe_load(file) 
@@ -123,6 +123,9 @@ if __name__ == "__main__":
     
     results = []
     for sample_size in config['sample-sizes']:
+
+        X_indices = np.random.RandomState(42).choice(len(X), size=min(int(sample_size), len(X)), replace=False)
+
         for solver in solver_configs:
             if solver.name not in pairwise_distances:
                 continue
@@ -132,7 +135,7 @@ if __name__ == "__main__":
 
                 logger.info(f"Running {solver.name} with parameters {param_kwargs} on sample size {sample_size}")
 
-                accuracy = calculate_results(X, y, distance_matrix, sample_size, solver)
+                accuracy = calculate_results(X, y, distance_matrix, X_indices, solver)
 
                 result = {
                     'solver': solver.name,
