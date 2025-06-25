@@ -2,7 +2,7 @@
 #SBATCH --job-name=gaussian-ot-methods-benchmark
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
-#SBATCH --time=10:00:00
+#SBATCH --time=1-10:00:00
 #SBATCH --ntasks=1                          # Number of MPI ranks
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=100G
@@ -14,6 +14,13 @@ SCRATCH_DIR=/home/izhytkevych/datasets
 RESULT_DIR=/home/izhytkevych/results/raw
 mkdir -p "${SCRATCH_DIR}"
 mkdir -p "${RESULT_DIR}"
+
+export JAX_ENABLE_X64="True"
+export JAX_PLATFORM_NAME=gpu
+# disable preallocation: this slows down the computations a bit
+# but we can monitor in real time what the memory consumption really is
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 
 #### Activate conda environment ####
 source ~/miniconda3/etc/profile.d/conda.sh

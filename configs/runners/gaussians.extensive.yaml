@@ -1,50 +1,75 @@
 param-grids:
-  regularizations:
+  sinkhorn_params:
     - reg: 1
+      maxiter: 100000
     - reg: 0.001
+      maxiter: 100000
+
+  gradient_ascent_params:
+    - reg: 1
+      maxiter: 1000000
+    - reg: 0.001
+      maxiter: 1000000
 
 solvers:
   sinkhorn:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
     jit: true
-    param-grid: regularizations
+    param-grid: sinkhorn_params
   gradient-ascent:
     solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
     jit: true
-    param-grid: regularizations
+    param-grid: gradient_ascent_params
 
 problems:
-  dir: /home/izhytkevych/datasets/synthetic
+  dir: /home/izhytkevych/datasets/synthetic_gauss_exp_cauchy
   names:
-    - 1D-gaussians-64
-    - 1D-gaussians-128
-    - 1D-gaussians-256
-    - 1D-gaussians-512
-    - 1D-gaussians-1024
-    - 1D-gaussians-2048
-    - 1D-gaussians-4096
-    - 1D-gaussians-8192
-    - 1D-gaussians-16384
-    - 2D-gaussians-64
-    - 2D-gaussians-128
-    - 2D-gaussians-256
-    - 2D-gaussians-512
-    - 2D-gaussians-1024
-    - 1D-mixgaussians-64
-    - 1D-mixgaussians-128
-    - 1D-mixgaussians-256
-    - 1D-mixgaussians-512
-    - 1D-mixgaussians-1024
-    - 1D-mixgaussians-2048
-    - 1D-mixgaussians-4096
-    - 1D-mixgaussians-8192
-    - 1D-mixgaussians-16384
-    - 2D-mixgaussians-64
-    - 2D-mixgaussians-128
-    - 2D-mixgaussians-256
-    - 2D-mixgaussians-512
-    - 2D-mixgaussians-1024
+    - 1D-gaussians-1c-64p
+    - 1D-gaussians-1c-128p
+    - 1D-gaussians-1c-256p
+    - 1D-gaussians-2c-256p
+    - 1D-gaussians-1c-512p
+    - 1D-gaussians-2c-512p
+    - 1D-gaussians-3c-512p
+    - 1D-gaussians-1c-1024p
+    - 1D-gaussians-2c-1024p
+    - 1D-gaussians-3c-1024p
+    - 1D-gaussians-1c-2048p
+    - 1D-gaussians-2c-2048p
+    - 1D-gaussians-3c-2048p
+    - 1D-gaussians-1c-4096p
+    - 1D-gaussians-2c-4096p
+    - 1D-gaussians-3c-4096p
+    - 1D-gaussians-4c-4096p
+    # - 1D-gaussians-1c-8192p
+    # - 1D-gaussians-2c-8192p
+    # - 1D-gaussians-3c-8192p
+    # - 1D-gaussians-4c-8192p
+    # - 1D-gaussians-5c-8192p
+    # - 1D-gaussians-10c-8192p
+    # - 1D-gaussians-1c-16384p
+    # - 1D-gaussians-2c-16384p
+    # - 1D-gaussians-3c-16384p
+    # - 1D-gaussians-4c-16384p
+    # - 1D-gaussians-5c-16384p
+    # - 1D-gaussians-10c-16384p
+    # - 1D-gaussians-1c-32768p
+    # - 1D-gaussians-2c-32768p
+    # - 1D-gaussians-3c-32768p
+    # - 1D-gaussians-4c-32768p
+    # - 1D-gaussians-5c-32768p
+    # - 1D-gaussians-10c-32768p
+    - 2D-gaussians-1c-32p
+    - 2D-gaussians-1c-64p
+    - 2D-gaussians-2c-64p
+    - 2D-gaussians-3c-64p
+    # - 2D-gaussians-1c-96p
+    # - 2D-gaussians-2c-96p
+    # - 2D-gaussians-3c-96p
+    # - 2D-gaussians-1c-128p
+    # - 2D-gaussians-1c-160p
+    # - 2D-gaussians-1c-192p
   
 experiment: 
-  name: Measure on Gaussians
-  function: uot.experiments.measurement.measure_time
+  name: Time and GPU usage test
+  function: uot.experiments.measurement.measure_with_gpu_tracker

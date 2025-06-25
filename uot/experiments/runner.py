@@ -2,10 +2,9 @@ import pandas as pd
 from tqdm import tqdm
 from copy import deepcopy
 from typing import List
-from itertools import chain 
+from itertools import chain
 from uot.solvers.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
-from uot.problems.base_problem import MarginalProblem
 from uot.problems.iterator import ProblemIterator
 from uot.utils.logging import logger
 
@@ -18,21 +17,20 @@ def run_pipeline(
     progress: bool = True,
 ) -> pd.DataFrame:
     # 1) generate all problems
-    logger.info(f"starting pipeline...")
-    logger.info(f"generating problems...")
+    logger.info("starting pipeline...")
 
     # 2) apply folds
     all_iterators = []
     for _ in range(folds):
         all_iterators += deepcopy(iterators)
-    
+
     # 3) run each solver on params and problems
     results_list = []
-    # TODO: tqdm status bar
 
-    # count how many same problems may be used (re-runned) 
+    # count how many same problems may be used (re-runned)
     # for different solver's parameters
-    problems_multiplicity = sum(len(cfg.param_grid) if cfg.param_grid else 1 for cfg in solvers)
+    problems_multiplicity = sum(
+        len(cfg.param_grid) if cfg.param_grid else 1 for cfg in solvers)
     total_runs = problems_multiplicity * sum(len(it) for it in all_iterators)
 
     pbar = tqdm(total=total_runs,
@@ -40,9 +38,9 @@ def run_pipeline(
 
     all_iterators = chain(*all_iterators)
 
-    # copy is needed, because same problems instances 
-    # are needed to run with different solver configuration 
-    current_iterators = deepcopy(all_iterators) 
+    # copy is needed, because same problems instances
+    # are needed to run with different solver configuration
+    current_iterators = deepcopy(all_iterators)
 
     def progress_callback(n=1):
         if pbar:
@@ -52,10 +50,12 @@ def run_pipeline(
     for cfg in solvers:
         params = cfg.param_grid
         for param_kwargs in params:
+            logger.info(f"Running set of problems on {
+                cfg.solver} with {param_kwargs}")
             description = f"{cfg.name}({param_kwargs})"
             if pbar:
                 pbar.set_description(description)
-            
+
             df_res = experiment.run_on_problems(
                 problems=current_iterators,
                 solver=cfg.solver,
@@ -64,7 +64,7 @@ def run_pipeline(
             )
 
             df_res["name"] = cfg.name
-            
+
             for k, v in param_kwargs.items():
                 df_res[k] = v
 

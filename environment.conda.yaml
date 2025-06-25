@@ -31,6 +31,13 @@ dependencies:
   - cycler=0.12.1=pyhd8ed1ab_1
   - equinox=0.12.2=pyhd8ed1ab_0
   - etils=1.12.2=pyhd8ed1ab_0
+  - expat=2.7.0=h5888daf_0
+  - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
+  - font-ttf-inconsolata=3.000=h77eed37_0
+  - font-ttf-source-code-pro=2.038=h77eed37_0
+  - font-ttf-ubuntu=0.83=h77eed37_3
+  - fontconfig=2.15.0=h7e30c49_1
+  - fonts-conda-forge=1=0
   - fonttools=4.58.4=py313h8060acc_0
   - freetype=2.13.3=ha770c72_1
   - importlib-metadata=8.7.0=pyhe01879c_1
@@ -38,6 +45,7 @@ dependencies:
   - jaxlib=0.6.0=cuda126py313hb1b46e1_200
   - jaxopt=0.8.4=pyhd8ed1ab_0
   - jaxtyping=0.3.2=pyhd8ed1ab_0
+  - kaleido-core=0.2.1=h3644ca4_0
   - kiwisolver=1.4.7=py313h33d0bda_0
   - lcms2=2.17=h717163a_0
   - ld_impl_linux-64=2.43=h1423503_5
@@ -89,11 +97,15 @@ dependencies:
   - libxcb=1.17.0=h8a09558_0
   - libzlib=1.3.1=hb9d3cd8_2
   - lineax=0.0.7=pyhd8ed1ab_1
+  - mathjax=2.7.7=ha770c72_3
   - matplotlib-base=3.10.3=py313h129903b_0
   - ml_dtypes=0.5.1=py313ha87cce1_0
   - munkres=1.1.4=pyhd8ed1ab_1
+  - narwhals=1.31.0=py313h06a4308_1
   - nccl=2.27.3.1=h9b8ff78_0
   - ncurses=6.5=h2d0b736_3
+  - nspr=4.36=h5888daf_0
+  - nss=3.113=h159eef7_0
   - numpy=2.3.0=py313h17eae1a_0
   - openjpeg=2.5.3=h5fbd93e_0
   - openssl=3.5.0=h7b32b05_1
@@ -104,11 +116,13 @@ dependencies:
   - pandas=2.3.0=py313ha87cce1_0
   - pillow=11.2.1=py313h8db990d_0
   - pip=25.1.1=pyh145f28c_0
+  - plotly=6.0.1=py313h7040dfc_0
   - pot=0.9.5=py313ha87cce1_0
   - pthread-stubs=0.4=hb9d3cd8_1002
   - pyparsing=3.2.3=pyhd8ed1ab_1
   - python=3.13.5=hf636f53_101_cp313
   - python-dateutil=2.9.0.post0=pyhff2d567_1
+  - python-kaleido=0.2.1=pyhd8ed1ab_0
   - python-tzdata=2025.2=pyhd8ed1ab_0
   - python_abi=3.13=7_cp313
   - pytz=2025.2=pyhd8ed1ab_0
@@ -118,6 +132,7 @@ dependencies:
   - readline=8.2=h8c095d6_2
   - scipy=1.15.2=py313h86fcf2b_0
   - six=1.17.0=pyhd8ed1ab_0
+  - sqlite=3.50.1=h9eae976_0
   - tk=8.6.13=noxft_hd72426e_102
   - toolz=1.0.0=pyhd8ed1ab_1
   - tqdm=4.67.1=py313h7040dfc_0
@@ -125,12 +140,19 @@ dependencies:
   - typing_extensions=4.14.0=pyhe01879c_0
   - tzdata=2025b=h78e105d_0
   - wadler-lindig=0.1.5=pyh29332c3_0
+  - xorg-libx11=1.8.12=h9b100fa_1
   - xorg-libxau=1.0.12=hb9d3cd8_0
   - xorg-libxdmcp=1.1.5=hb9d3cd8_0
+  - xorg-xorgproto=2024.1=h5eee18b_1
   - yaml=0.2.5=h7f98852_2
   - zipp=3.23.0=pyhd8ed1ab_0
   - zstd=1.5.7=hb8e6e7a_2
   - pip:
+      - docopt==0.6.2
+      - gpu-tracker==5.0.1
+      - greenlet==3.2.3
       - jax-cuda12-pjrt==0.6.0
       - jax-cuda12-plugin==0.6.0
+      - psutil==7.0.0
+      - sqlalchemy==2.0.41
 prefix: /home/izhytkevych/miniconda3/envs/ot

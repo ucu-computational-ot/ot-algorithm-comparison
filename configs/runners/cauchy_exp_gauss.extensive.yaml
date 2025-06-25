@@ -1,15 +1,15 @@
 param-grids:
   sinkhorn_params:
     - reg: 1
-      maxiter: 100000
+      maxiter: 1000000
     - reg: 0.001
-      maxiter: 100000
+      maxiter: 1000000
 
   gradient_ascent_params:
     - reg: 1
-      niter: 1000000
+      maxiter: 10000000
     - reg: 0.001
-      niter: 1000000
+      maxiter: 10000000
 
 
 solvers:
@@ -94,5 +94,5 @@ problems:
     - 1D-exponential-32768  
 
 experiment: 
-  name: Measure on Gaussiand, Exp and Cauchy
-  function: uot.experiments.measurement.measure_time
+  name: Time and GPU usage test
+  function: uot.experiments.measurement.measure_with_gpu_tracker

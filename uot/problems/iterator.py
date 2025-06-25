@@ -1,5 +1,3 @@
-
-from pathlib import Path
 from typing import Iterator
 from uot.problems.store import ProblemStore
 from uot.problems.base_problem import MarginalProblem

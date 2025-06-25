@@ -1,11 +1,10 @@
 import os
-import time
 import yaml
 import argparse
 
-from uot.experiments.experiment import Experiment
 from uot.experiments.runner import run_pipeline
 from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
+from uot.utils.logging import logger
 
 
 if __name__ == "__main__":
@@ -61,6 +60,6 @@ if __name__ == "__main__":
         progress=args.progress,
     )
 
-    print(f"Exporting results to {args.export}")
+    logger.info(f"Exporting results to {args.export}")
     os.makedirs(os.path.dirname(args.export), exist_ok=True)
     df.to_csv(args.export, index=False)

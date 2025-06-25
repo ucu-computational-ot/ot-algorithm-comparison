@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Optional, Callable, Dict
+from typing import List, Optional, Callable, Dict, Iterable
 from uot.problems.base_problem import MarginalProblem
 from uot.data.measure import BaseMeasure
 from uot.solvers.base_solver import BaseSolver
@@ -22,7 +22,7 @@ class Experiment:
 
     def run_on_problems(
         self,
-        problems: List[MarginalProblem],
+        problems: Iterable[MarginalProblem],
         solver: BaseSolver,
         progress_callback: Optional[Callable[[int], None]] = None,
         **solver_kwargs,
@@ -31,6 +31,8 @@ class Experiment:
         for i, problem in enumerate(problems):
             marginals = problem.get_marginals()
             costs = problem.get_costs()
+            logger.info(f"Starting {solver.__name__} with {
+                        solver_kwargs} on {problem}")
             try:
                 metrics = self.solve_fn(
                     problem,
@@ -40,6 +42,8 @@ class Experiment:
                     **solver_kwargs,
                 )
                 metrics["status"] = "success"
+                logger.info(f"Successfully finished {
+                            solver.__class__.__name__} with {solver_kwargs}")
             except Exception as e:
                 logger.error(f"{solver.__qualname__} failed with error {e}")
                 metrics = {
