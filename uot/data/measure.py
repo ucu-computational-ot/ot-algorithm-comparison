@@ -52,11 +52,14 @@ class GridMeasure(BaseMeasure):
             if total_mass > 0:
                 self._weights_nd = weights_nd / total_mass
 
-    def to_discrete(self):
+    def to_discrete(self, include_zeros: bool = False):
         mesh = np.meshgrid(*self._axes, indexing='ij')
 
         points = np.stack([m.ravel() for m in mesh], axis=-1)
         weights = self._weights_nd.ravel()
+
+        if include_zeros:
+            return points, weights
 
         non_zero = weights > 0
         return points[non_zero], weights[non_zero]

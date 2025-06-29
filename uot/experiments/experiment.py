@@ -43,7 +43,7 @@ class Experiment:
                 )
                 metrics["status"] = "success"
                 logger.info(f"Successfully finished {
-                            solver.__class__.__name__} with {solver_kwargs}")
+                            solver.__name__} with {solver_kwargs}")
             except Exception as e:
                 logger.error(f"{solver.__qualname__} failed with error {e}")
                 metrics = {

@@ -5,14 +5,15 @@ from typing import List
 from itertools import chain
 from uot.solvers.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
-from uot.problems.iterator import ProblemIterator
+from uot.problems.base_problem import MarginalProblem
+from typing import Iterable
 from uot.utils.logging import logger
 
 
 def run_pipeline(
     experiment: Experiment,
     solvers: List[SolverConfig],
-    iterators: List[ProblemIterator],
+    iterators: List[Iterable[MarginalProblem]],
     folds: int = 1,
     progress: bool = True,
 ) -> pd.DataFrame:

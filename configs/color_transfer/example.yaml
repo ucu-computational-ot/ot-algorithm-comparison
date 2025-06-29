@@ -11,5 +11,6 @@ solvers:
 
 bin-number: 16
 batch-size: 100000
+pair-number: 2
 images-dir: ./datasets/images
-pair-number: 10
+output-dir: ./outputs/color_transfer

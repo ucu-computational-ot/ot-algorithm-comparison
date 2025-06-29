@@ -32,3 +32,6 @@ class MarginalProblem(ABC):
     def free_memory(self):
         # TODO: do we actually need this one?
         raise NotImplementedError()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {self.name}"
