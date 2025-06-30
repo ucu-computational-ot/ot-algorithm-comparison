@@ -31,7 +31,7 @@ class GradientAscentTwoMarginalSolver(BaseSolver):
 
         marginals = jnp.array([mu, nu])
 
-        final_potentials, i_final, final_err = gradient_ascent_opt_multimarginal(
+        final_potentials, i_final, final_loss, final_err = gradient_ascent_opt_multimarginal(
             marginals=marginals,
             cost=costs[0],
             eps=reg,
@@ -83,7 +83,7 @@ def gradient_ascent_opt_multimarginal(
     objective_gradient = jax.value_and_grad(objective)
 
     @jax.jit
-    def step(state: tuple[int, jax.Array, optax.OptState, float, bool]):
+    def step(state: tuple[int, jax.Array, optax.OptState, float, float, bool]):
         """Performs one gradient ascent step."""
         i, potentials, opt_state, prev_loss, _ = state
         loss, grad = objective_gradient(potentials)
@@ -93,15 +93,15 @@ def gradient_ascent_opt_multimarginal(
         # L-infinity norm
         max_change = jnp.max(jnp.abs(potentials - state[1]))
         has_converged = max_change < tol
-        return i + 1, potentials, opt_state, loss, has_converged
+        return i + 1, potentials, opt_state, loss, max_change, has_converged
     
-    def cond_fn(state: tuple[int, jax.Array, optax.OptState, float, bool]):
+    def cond_fn(state: tuple[int, jax.Array, optax.OptState, float, float, bool]):
         i, _, _, _, has_converged = state
         return jnp.logical_and(i < max_iterations, jnp.logical_not(has_converged))
 
     final_state = jax.lax.while_loop(
-        cond_fn, step, (0, potentials, opt_state, jnp.inf, False)
+        cond_fn, step, (0, potentials, opt_state, jnp.inf, jnp.inf, False)
     )
 
-    steps, final_potentials, _, final_loss, has_converged = final_state
-    return final_potentials, steps, final_loss
+    steps, final_potentials, _, final_loss, final_err, has_converged = final_state
+    return final_potentials, steps, final_loss, final_err
