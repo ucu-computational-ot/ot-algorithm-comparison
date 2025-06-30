@@ -11,6 +11,7 @@ from uot.problems.iterator import ProblemIterator
 from uot.utils.logging import setup_logger
 
 logger = setup_logger('inspect_store')
+logger.propagate = False
 
 # NOTE: ensure you have kaleido installed: pip install -U kaleido
 

@@ -5,6 +5,10 @@ import argparse
 from uot.utils.import_helpers import import_object
 from uot.problems.store import ProblemStore
 
+from uot.utils.logging import setup_logger
+
+logger = setup_logger(__name__)
+
 
 def parse_config(name, generator_config) -> dict:
     """
@@ -26,6 +30,9 @@ def serialize_problems(config_path: str, export_dir: str) -> None:
         config = yaml.safe_load(f)
 
     for name, generator_config in config['generators'].items():
+        # skip hidden keys
+        if name.startswith('_'):
+            continue
         store_dir = os.path.join(export_dir, name)
         problem_store = ProblemStore(store_dir)
 
@@ -39,6 +46,8 @@ def serialize_problems(config_path: str, export_dir: str) -> None:
 
         generator_class = generator_config.pop('generator')
         generator = generator_class(**generator_config)
+
+        logger.info(f"Generating {generator}")
 
         problems = generator.generate()
 
