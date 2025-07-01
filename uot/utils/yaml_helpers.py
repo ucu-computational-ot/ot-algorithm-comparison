@@ -3,6 +3,7 @@ import os
 from uot.problems.iterator import ProblemIterator
 from uot.problems.store import ProblemStore
 from uot.utils.import_helpers import import_object
+from uot.utils.exceptions import InvalidConfiguration
 from uot.solvers.solver_config import SolverConfig
 from uot.experiments.experiment import Experiment
 
@@ -41,8 +42,16 @@ def load_problems(config: dict) -> list[ProblemIterator]:
 
     for problemset_name in problemsets_names:
         store_path = os.path.join(problemsets_dir, problemset_name)
+
+        if not os.path.exists(store_path):
+            raise InvalidConfiguration(f"There is no problem store on path {store_path}")
+
         problems_store = ProblemStore(store_path)
         problems_iterator = ProblemIterator(problems_store)
+
+        if not len(problems_iterator):
+            raise InvalidConfiguration(f"There is no problems on path {store_path}")
+
         iterators.append(problems_iterator)
     
     return iterators

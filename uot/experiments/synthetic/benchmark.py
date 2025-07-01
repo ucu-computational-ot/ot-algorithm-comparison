@@ -4,10 +4,11 @@ import argparse
 
 from uot.experiments.runner import run_pipeline
 from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
+from uot.utils.exceptions import InvalidConfiguration
 from uot.utils.logging import logger
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run time precision experiments.")
 
@@ -47,10 +48,15 @@ if __name__ == "__main__":
 
     with open(args.config, 'r') as file:
         config = yaml.safe_load(file)
+    
+    try:
+        experiment = load_experiment(config=config)
+        solver_configs = load_solvers(config=config)
+        problems_iterators = load_problems(config=config)
+    except (InvalidConfiguration, ModuleNotFoundError, AttributeError) as ex:
+        print(ex)
+        return
 
-    experiment = load_experiment(config=config)
-    solver_configs = load_solvers(config=config)
-    problems_iterators = load_problems(config=config)
 
     df = run_pipeline(
         experiment=experiment,
@@ -63,3 +69,7 @@ if __name__ == "__main__":
     logger.info(f"Exporting results to {args.export}")
     os.makedirs(os.path.dirname(args.export), exist_ok=True)
     df.to_csv(args.export, index=False)
+
+
+if __name__ == "__main__":
+    main()
