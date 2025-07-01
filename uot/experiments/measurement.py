@@ -5,15 +5,16 @@ from gpu_tracker.tracker import Tracker
 
 def measure_time(prob, solver, marginals, costs, **kwargs):
     start_time = time.perf_counter()
-    metrics = solver().solve(marginals=marginals, costs=costs, **kwargs)
-    if isinstance(metrics['transport_plan'], jax.Array):
-        metrics['transport_plan'].block_until_ready()
-    metrics["time"] = (time.perf_counter() - start_time) * 1000
+    solution = solver().solve(marginals=marginals, costs=costs, **kwargs)
+    if isinstance(solution['transport_plan'], jax.Array):
+        solution['transport_plan'].block_until_ready()
+
+    metrics = {"time": (time.perf_counter() - start_time) * 1000}
     return metrics
 
 def measure_solution_precision(prob, solver, *args, **kwargs):
-    metrics = solver().solve(*args, **kwargs)
-    metrics["cost_rerr"] = abs(prob.get_exact_cost() - metrics['cost']) / prob.get_exact_cost()
+    solution = solver().solve(*args, **kwargs)
+    metrics = {"cost_rerr": abs(prob.get_exact_cost() - solution['cost']) / prob.get_exact_cost()}
     return metrics
 
 def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
