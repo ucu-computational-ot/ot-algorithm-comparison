@@ -28,6 +28,7 @@ class LinearProgrammingTwoMarginalSolver(BaseSolver):
 
         return {
             "transport_plan": coupling,
+            "cost": log['cost'],
             "u_final": log['u'],
             "v_final": log['v'],
             "iterations": None,

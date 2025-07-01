@@ -1,7 +1,10 @@
+import ot
 from typing import Callable, List
 from uot.data.measure import BaseMeasure
 from uot.problems.base_problem import MarginalProblem
 from uot.utils.types import ArrayLike
+
+from uot.utils.logging import logger
 
 
 class TwoMarginalProblem(MarginalProblem):
@@ -17,6 +20,9 @@ class TwoMarginalProblem(MarginalProblem):
         self._nu = nu
         self._cost_fn = cost_fn
         self._C = None
+
+        self._exact_cost = None
+        self._exact_coupling = None
 
     def get_marginals(self) -> List[BaseMeasure]:
         return [self._mu, self._nu]
@@ -36,6 +42,26 @@ class TwoMarginalProblem(MarginalProblem):
             self._C = [C]
 
         return self._C
+    
+    def get_exact_cost(self) -> float:
+        """
+        Return exact cost of transportation between measures
+        self._mu and self._nu, caching it in the self._exact_cost,
+        such that repeated calls do not recompute
+        """
+        if self._exact_cost is None:
+            self._compute_exact_solution()
+        return self._exact_cost
+
+    def get_exact_coupling(self) -> float:
+        """
+        Return exact map of transportation between measures
+        self._mu and self._nu, caching it in the self._exact_cost,
+        such that repeated calls do not recompute
+        """
+        if self._exact_coupling is None:
+            self._compute_exact_solution()
+        return self._exact_coupling
 
     def to_dict(self) -> dict:
         mu_size = len(self._mu.to_discrete()[0])
@@ -46,6 +72,23 @@ class TwoMarginalProblem(MarginalProblem):
             "nu_size": nu_size,
             "cost": self._cost_fn.__name__,
         }
+
+    def _compute_exact_solution(self):
+        """
+        Compute exact solution of transportation between
+        self._mu and self._nu and cache it in self._exact_cost and 
+        self._exact_coupling
+        """
+        a = self._mu.to_discrete()[1]
+        b = self._nu.to_discrete()[1]
+        C = self.get_costs()[0]
+
+        T, log = ot.emd(a, b, C, log=True, numItermax=10000000)
+        if log['warning'] is not None:
+            logger.warning(f"Computing ground truth for {self.to_dict()} didn't converge")
+
+        self._exact_coupling = T
+        self._exact_cost = log['cost']
 
     def free_memory(self):
         # TODO: as mentioned in the abstract class, consider removing this

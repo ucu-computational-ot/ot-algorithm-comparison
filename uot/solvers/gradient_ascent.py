@@ -41,8 +41,11 @@ class GradientAscentTwoMarginalSolver(BaseSolver):
 
         u, v = final_potentials[0][None, :].reshape(-1), final_potentials[1][:, None].reshape(-1)
 
+        transport_plan = coupling_tensor(u, v, costs[0], reg)
+
         return {
-            "transport_plan": coupling_tensor(u, v, costs[0], reg),
+            "transport_plan": transport_plan,
+            "cost": (transport_plan * costs[0]).sum(), 
             "u_final": u,
             "v_final": v,
             "iterations": i_final,

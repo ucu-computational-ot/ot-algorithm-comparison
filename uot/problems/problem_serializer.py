@@ -45,6 +45,7 @@ def serialize_problems(config_path: str, export_dir: str) -> None:
         generator_config = parse_config(name, generator_config)
 
         generator_class = generator_config.pop('generator')
+        cache_gt = generator_config.pop('cache_gt', False)
         generator = generator_class(**generator_config)
 
         logger.info(f"Generating {generator}")
@@ -53,6 +54,8 @@ def serialize_problems(config_path: str, export_dir: str) -> None:
 
         for problem in problems:
             problem.get_costs()  # pre-compute costs to save time in experiments
+            if cache_gt:
+                problem.get_exact_cost()
             problem_store.save(problem)
 
 

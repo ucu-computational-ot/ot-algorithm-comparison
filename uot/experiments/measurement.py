@@ -11,6 +11,10 @@ def measure_time(prob, solver, marginals, costs, **kwargs):
     metrics["time"] = (time.perf_counter() - start_time) * 1000
     return metrics
 
+def measure_solution_precision(prob, solver, *args, **kwargs):
+    metrics = solver().solve(*args, **kwargs)
+    metrics["cost_rerr"] = abs(prob.get_exact_cost() - metrics['cost']) / prob.get_exact_cost()
+    return metrics
 
 def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     with Tracker(

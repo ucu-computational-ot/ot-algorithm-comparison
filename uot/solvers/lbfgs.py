@@ -39,8 +39,11 @@ class LBFGSTwoMarginalSolver(BaseSolver):
         potentials = result.params
         u, v = potentials[0][None, :], potentials[1][:, None]
 
+        transport_plan = coupling_tensor(u, v, costs[0], epsilon=reg)
+
         return {
-            "transport_plan": coupling_tensor(u, v, costs[0], epsilon=reg),
+            "transport_plan": transport_plan,
+            "cost": (transport_plan * costs[0]).sum(), 
             "u_final": u,
             "v_final": v,
             "iterations": result.state.iter_num,
