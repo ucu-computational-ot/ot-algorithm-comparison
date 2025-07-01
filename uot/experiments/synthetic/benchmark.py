@@ -4,7 +4,7 @@ import argparse
 
 from uot.experiments.runner import run_pipeline
 from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
-from uot.utils.exceptions import InvalidConfiguration
+from uot.utils.exceptions import InvalidConfigurationException
 from uot.utils.logging import logger
 
 
@@ -53,7 +53,7 @@ def main() -> None:
         experiment = load_experiment(config=config)
         solver_configs = load_solvers(config=config)
         problems_iterators = load_problems(config=config)
-    except (InvalidConfiguration, ModuleNotFoundError, AttributeError) as ex:
+    except InvalidConfigurationException as ex:
         print(ex)
         return
 
