@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
@@ -8,10 +9,13 @@ from plotly.subplots import make_subplots
 from uot.problems.store import ProblemStore
 from uot.problems.iterator import ProblemIterator
 
+import logging
 from uot.utils.logging import setup_logger
 
 logger = setup_logger('inspect_store')
 logger.propagate = False
+logger.setLevel(
+    logging.DEBUG if os.environ.get('DEBUG', False) else logging.INFO)
 
 # NOTE: ensure you have kaleido installed: pip install -U kaleido
 
@@ -93,15 +97,50 @@ def plot_and_save(mu_pts, mu_w, nu_pts, nu_w, out_prefix):
     html_path = out_prefix + ".html"
     fig.write_html(html_path)
 
-    logger.info(f"Saved {img_path} and {html_path}")
+    logger.debug(f"Saved {img_path} and {html_path}")
+
+
+def plot_store(store_path: str, outdir: str):
+    store = ProblemStore(store_path)
+    iterator = ProblemIterator(store)
+    logger.debug(f"Beginning iteration over {store}")
+
+    for idx, problem in enumerate(iterator):
+        logger.debug(f"Processing problem {problem}")
+        mu, nu = problem.get_marginals()
+        mu_pts, mu_w = mu.to_discrete()
+        nu_pts, nu_w = nu.to_discrete()
+
+        prefix = os.path.join(outdir, f"problem_{idx:04d}")
+        logger.debug(f"Output files would have prefix {prefix}")
+        plot_and_save(mu_pts, mu_w, nu_pts, nu_w, prefix)
+    logger.info(f"Processed {len(iterator)} problems in {store}")
+
+
+def plot_dataset(dataset_path: str, outdir: str):
+    path = Path(dataset_path)
+    outpath = Path(outdir)
+    logger.debug(f"Dataset path is {path}")
+    logger.debug(f"Output path is {outpath}")
+    stores = [entry for entry in path.iterdir() if entry.is_dir()]
+    for store in stores:
+        store_output = outpath / store.name
+        os.makedirs(store_output, exist_ok=True)
+        logger.debug(f"Created store output directory in {store_output}")
+        plot_store(store, store_output)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Inspect & save dataset visualizations.")
-    parser.add_argument(
-        "--store", type=str, required=True,
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "--store", type=str, default=None,
         help="Path to the storage file to inspect."
+    )
+    input_group.add_argument(
+        "--dataset", type=str, default=None,
+        help="Path to the dataset location to inspect."
     )
     parser.add_argument(
         "--outdir", type=str, default="plots",
@@ -109,15 +148,17 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    logger.debug(f"Creating output directory {args.outdir}")
     os.makedirs(args.outdir, exist_ok=True)
 
-    store = ProblemStore(args.store)
-    iterator = ProblemIterator(store)
-
-    for idx, problem in enumerate(iterator):
-        mu, nu = problem.get_marginals()
-        mu_pts, mu_w = mu.to_discrete()
-        nu_pts, nu_w = nu.to_discrete()
-
-        prefix = os.path.join(args.outdir, f"problem_{idx:04d}")
-        plot_and_save(mu_pts, mu_w, nu_pts, nu_w, prefix)
+    if args.store is not None:
+        logger.debug(f"Flag set to visualize store. Will read {args.store} and\
+        output to {args.outdir}")
+        plot_store(args.store, args.outdir)
+    elif args.dataset is not None:
+        logger.debug(f"Flag set to visualize dataset. Will read {args.dataset}\
+        and output to {args.outdir}")
+        plot_dataset(args.dataset, args.outdir)
+    else:
+        raise ValueError("No input data option (either store or \
+        dataset) was specified.")
