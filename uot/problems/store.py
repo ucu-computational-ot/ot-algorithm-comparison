@@ -16,6 +16,9 @@ class ProblemStore:
         self.path = Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
 
+    def __repr__(self):
+        return f"<ProblemStore path={str(self.path)}>"
+
     def _key(self, problem: MarginalProblem) -> str:
         blob = pickle.dumps(problem, protocol=4)
         hash = hashlib.sha1(blob).hexdigest()
