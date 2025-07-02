@@ -2,6 +2,22 @@
 
 See [docs/index.md](docs/index.md) for full documentation.
 
+## Installing Pixi
+
+This project uses [Pixi](https://prefix.dev/docs/pixi/) to manage dependencies. Follow the official installation instructions for your platform:
+
+- [Linux](https://prefix.dev/docs/pixi/install#linux)
+- [macOS](https://prefix.dev/docs/pixi/install#macos)
+- [Windows](https://prefix.dev/docs/pixi/install#windows)
+
+After installation run `pixi install` to set up the environment. Available tasks can be invoked with `pixi run <task>`.
+
+### Common commands
+
+- `pixi run serialize --config <config.yaml> --export-dir <directory>` - create problem datasets from `config.yaml` in the target directory.
+- `pixi run benchmark --config <config.yaml> --folds <n> --export <file>` - run experiments using the configuration for `n` folds and write results to `file`.
+- `pixi run lint` or `ruff check .` to lint the code.
+
 
 ## Slurm
 

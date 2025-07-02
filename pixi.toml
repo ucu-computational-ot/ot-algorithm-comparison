@@ -20,3 +20,7 @@ bench_gauss = "python -m uot.experiments.synthetic.benchmark_gaussians"
 benchmark = "python -m uot.experiments.synthetic.benchmark"
 serialize = "python -m uot.problems.problem_serializer"
 inspect-store = "python -m uot.problems.inspect_store"
+lint = "ruff check ."
+
+[dependencies]
+black = ">=25.1.0,<26"
