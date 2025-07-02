@@ -50,8 +50,8 @@ def run_pipeline(
     for cfg in solvers:
         params = cfg.param_grid
         for param_kwargs in params:
-            logger.info(f"Running set of problems on {
-                cfg.solver} with {param_kwargs}")
+            logger.info(f"Running set of problems on {cfg.solver}\
+            with {param_kwargs}")
             description = f"{cfg.name}({param_kwargs})"
             if pbar:
                 pbar.set_description(description)
