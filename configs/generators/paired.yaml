@@ -1,0 +1,21 @@
+generators:
+  1D-cauchy-vs-gmm-32p:
+    generator: uot.problems.generators.PairedGenerator
+    __subgenerator_defaults: &subgenerator_defaults
+      dim: 1
+      n_points: 32
+      borders: [-3, 3]
+      cost_fn: uot.utils.costs.cost_euclid_squared
+      use_jax: false
+    num_datasets: 10
+    gen_a_cfg:
+      class: uot.problems.generators.CauchyGenerator
+      params:
+        <<: *subgenerator_defaults
+        seed: 42
+    gen_b_cfg:
+      class: uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *subgenerator_defaults
+        seed: 24
+        num_components: 3
