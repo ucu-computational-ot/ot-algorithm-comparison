@@ -9,7 +9,6 @@ from uot.experiments.experiment import Experiment
 
 
 def load_solvers(config: dict) -> list[SolverConfig]:
-
     solvers_configs = config['solvers']
     params = config['param-grids']
 
@@ -27,7 +26,7 @@ def load_solvers(config: dict) -> list[SolverConfig]:
             solver=solver,
             param_grid=params[params_grid_name] if params_grid_name else [{}],
             is_jit=is_jit
-        ) 
+        )
 
         loaded_solvers_configs.append(solver_config)
 
@@ -35,7 +34,6 @@ def load_solvers(config: dict) -> list[SolverConfig]:
 
 
 def load_problems(config: dict) -> list[ProblemIterator]:
-
     iterators = []
     problemsets_names = config['problems']['names']
     problemsets_dir = config['problems']['dir']
@@ -44,16 +42,18 @@ def load_problems(config: dict) -> list[ProblemIterator]:
         store_path = os.path.join(problemsets_dir, problemset_name)
 
         if not os.path.exists(store_path):
-            raise InvalidConfigurationException(f"There is no problem store on path {store_path}")
+            raise InvalidConfigurationException(
+                f"There is no problem store on path {store_path}")
 
         problems_store = ProblemStore(store_path)
         problems_iterator = ProblemIterator(problems_store)
 
         if not len(problems_iterator):
-            raise InvalidConfigurationException(f"There is no problems on path {store_path}")
+            raise InvalidConfigurationException(
+                f"There is no problems on path {store_path}")
 
         iterators.append(problems_iterator)
-    
+
     return iterators
 
 
