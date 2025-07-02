@@ -1,32 +1,57 @@
 import jax
 import time
 from gpu_tracker.tracker import Tracker
+from typing import Any
+
+
+def _wait_jax_finish(result: dict[str, Any]) -> dict[str, Any]:
+    """Block until all JAX arrays in `result` are ready."""
+    return jax.tree_util.tree_map(
+        lambda x: x.block_until_ready() if isinstance(x, jax.Array) else x,
+        result
+    )
+
+
+def _require(result: dict[str, Any], required: set[str]) -> None:
+    missing = required - result.keys()
+    if missing:
+        raise RuntimeError(f"Solver returned no `{missing}` fields")
 
 
 def measure_time(prob, solver, marginals, costs, **kwargs):
+    instance = solver()
     start_time = time.perf_counter()
-    solution = solver().solve(marginals=marginals, costs=costs, **kwargs)
-    if isinstance(solution['transport_plan'], jax.Array):
-        solution['transport_plan'].block_until_ready()
-
+    solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
+    _wait_jax_finish(solution)
+    # for metrics we return time in ms units
     metrics = {"time": (time.perf_counter() - start_time) * 1000}
     return metrics
 
+
 def measure_solution_precision(prob, solver, *args, **kwargs):
-    solution = solver().solve(*args, **kwargs)
-    metrics = {"cost_rerr": abs(prob.get_exact_cost() - solution['cost']) / prob.get_exact_cost()}
+    instance = solver()
+    result = instance.solve(*args, **kwargs)
+    _wait_jax_finish(result)
+    _require(result, {'cost'})
+    metrics = {
+        "cost_rerr": abs(prob.get_exact_cost() - result['cost']) / prob.get_exact_cost()
+    }
     return metrics
 
+
 def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
+    instance = solver()
     with Tracker(
         sleep_time=0.1,
         gpu_ram_unit='megabytes',
         time_unit='seconds',
     ) as gt:
         start_time = time.perf_counter()
-        metrics = solver().solve(*args, **kwargs)
+        metrics = instance.solve(*args, **kwargs)
+        _wait_jax_finish(metrics)
         finish_time = time.perf_counter()
-        # for now drop transport plan and potentials
+        # save some other metrics but drop plan and potintials
+        # as they use too much memory
         metrics.pop('transport_plan', None)
         metrics.pop('u_final', None)
         metrics.pop('v_final', None)
@@ -37,7 +62,10 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     peak_ram = usage.max_ram
     cpu_utilization = usage.cpu_utilization
     time_counter = finish_time - start_time
+    _require(result, {'cost'})
     metrics.update({
+        "cost_rerr": abs(prob.get_exact_cost() - result['cost']) / prob.get_exact_cost()
+
         'time_unit': usage.compute_time.unit,
         'time': usage.compute_time.time,
         'time_counter': time_counter,
@@ -56,3 +84,6 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
         "mean_cpu_util_pct":         cpu_utilization.main.mean_hardware_percent,
     })
     return metrics
+
+
+class 
