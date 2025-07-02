@@ -1,5 +1,8 @@
 # Utils for OT Methods Benchmark
 
+See [docs/index.md](docs/index.md) for full documentation.
+
+
 ## Slurm
 
 ### On *Compute Canada* clusters
