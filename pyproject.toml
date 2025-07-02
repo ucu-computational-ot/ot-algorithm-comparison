@@ -36,6 +36,7 @@ testing = [
 ]
 lint = [
     "black>=23.3.0",
+    "ruff>=0.4.1",
 ]
 
 [tool.setuptools]
@@ -53,3 +54,12 @@ testpaths = ["tests"]
 [tool.black]
 line-length = 80
 target-version = ['py311']
+
+[tool.ruff]
+line-length = 80
+target-version = "py311"
+# Enable common rule sets except import sorting.
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP"]
+# Disable Ruff's import sorting and allow code before imports for jax.
+ignore = ["I001", "E402"]

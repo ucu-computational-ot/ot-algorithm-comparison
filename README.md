@@ -74,3 +74,6 @@ $ pixi run benchmark --config configs/runners/gaussians.yaml --folds 1 --export 
 
 With `export` one can secify where to put csv-report of experiment
 
+## Linting
+
+This project uses [Black](https://black.readthedocs.io/) and [Ruff](https://docs.astral.sh/ruff/) for code style. Run `pixi run lint` or `ruff check .` to lint the code.
