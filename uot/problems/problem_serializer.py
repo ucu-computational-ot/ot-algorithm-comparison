@@ -1,70 +1,105 @@
 import os
 import yaml
 import argparse
+from typing import Any, Dict
 
 from uot.utils.import_helpers import import_object
 from uot.problems.store import ProblemStore
-
 from uot.utils.logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
-def parse_config(name, generator_config) -> dict:
+def _resolve_references(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Pase config: load specified generator and cost functions, pasrse borders
+    Recursively import any string references for 'generator', 'cost_fn',
+    and nested generator configs ending with '_cfg'.
+    Convert 'borders' lists or strings to tuples of floats.
     """
-    generator_config['generator'] = import_object(
-        generator_config['generator'])
-    generator_config['cost_fn'] = import_object(generator_config['cost_fn'])
-    generator_config['name'] = name
-    generator_config['borders'] = tuple(
-        map(int, generator_config['borders'].strip('()').split(',')))
+    resolved: Dict[str, Any] = {}
+    for key, val in cfg.items():
+        # skip hidden or anchor defaults
+        if key.startswith('__'):
+            continue
 
-    return generator_config
+        # import any class or function by defined path
+        if key == 'generator' or key == 'class' or key == 'cost_fn':
+            resolved[key] = import_object(val)
+        # parse borders param for genereators
+        elif key == 'borders':
+            # allow list/tuple of numbers or string '(a,b)'
+            if isinstance(val, str):
+                parts = val.strip('()').split(',')
+                resolved[key] = tuple(float(p) for p in parts)
+            else:
+                resolved[key] = tuple(float(p) for p in val)
+        # for the case of nested generators in generators (i.e. paired one)
+        elif key.endswith('_cfg') and isinstance(val, dict):
+            # nested generator config: has 'class' and optional 'params'
+            nested = val.copy()
+            # import nested class
+            nested['class'] = import_object(nested['class'])
+            # if params exist, resolve inside them
+            if 'params' in nested:
+                nested['params'] = _resolve_references(nested['params'])
+            resolved[key] = nested
+        else:
+            # leave other values (e.g. ints, floats, booleans) as-is
+            resolved[key] = val
+    return resolved
 
 
 def serialize_problems(config_path: str, export_dir: str) -> None:
+    # Load YAML config
+    with open(config_path, 'r', encoding='utf8') as f:
+        raw_cfg = yaml.safe_load(f)
 
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
+    generators = raw_cfg.get('generators', {})
 
-    for name, generator_config in config['generators'].items():
-        # skip hidden keys
+    for name, gen_cfg in generators.items():
+        # skip hidden or anchor defaults
         if name.startswith('_'):
             continue
+
+        # prepare directory and metadata
         store_dir = os.path.join(export_dir, name)
-        problem_store = ProblemStore(store_dir)
+        os.makedirs(store_dir, exist_ok=True)
+        meta_path = os.path.join(store_dir, 'meta.yaml')
+        with open(meta_path, 'w', encoding='utf8') as meta_file:
+            yaml.dump({name: gen_cfg}, meta_file, default_flow_style=False)
 
-        # save additional meta file to know how dataset was generated
-        meta_path = os.path.join(store_dir, "meta.yaml")
-        with open(meta_path, "w", encoding="utf8") as meta_file:
-            yaml.dump({name: generator_config},
-                      meta_file, default_flow_style=False)
+        # resolve imports and parsing
+        cfg = {'name': name, **gen_cfg}
+        cfg = _resolve_references(cfg)
 
-        generator_config = parse_config(name, generator_config)
+        generator_cls = cfg.pop('generator')
+        cache_gt = cfg.pop('cache_gt', False)
+        generator = generator_cls(**cfg)
 
-        generator_class = generator_config.pop('generator')
-        cache_gt = generator_config.pop('cache_gt', False)
-        generator = generator_class(**generator_config)
+        logger.info(f"Generating problems for '{name}' using {generator_cls.__name__}")
 
-        logger.info(f"Generating {generator}")
-
-        problems = generator.generate()
-
-        for problem in problems:
-            problem.get_costs()  # pre-compute costs to save time in experiments
+        # generate and serialize
+        store = ProblemStore(store_dir)
+        for problem in generator.generate():
+            # precompute costs (and optionally ground-truth)
+            problem.get_costs()
             if cache_gt:
                 problem.get_exact_cost()
-            problem_store.save(problem)
+            store.save(problem)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Read config path")
-    parser.add_argument('--config', type=str, required=True,
-                        help='Path to the config file')
-    parser.add_argument('--export-dir', type=str,
-                        required=True, help='Path to the export file')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Serialize marginal or two-marginal problems from config'
+    )
+    parser.add_argument(
+        '--config', '-c', type=str, required=True,
+        help='Path to YAML config defining generators'
+    )
+    parser.add_argument(
+        '--export-dir', '-o', type=str, required=True,
+        help='Directory under which each dataset folder will be created'
+    )
     args = parser.parse_args()
 
     serialize_problems(config_path=args.config, export_dir=args.export_dir)
