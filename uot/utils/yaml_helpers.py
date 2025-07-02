@@ -16,7 +16,7 @@ def load_solvers(config: dict) -> list[SolverConfig]:
 
     for solver_name, solver_config in solvers_configs.items():
         solver_class = solver_config['solver']
-        params_grid_name = solver_config['param-grid']
+        params_grid_name = solver_config.get('param-grid', {})
         is_jit = solver_config['jit']
 
         solver = import_object(solver_class)
