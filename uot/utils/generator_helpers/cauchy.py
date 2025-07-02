@@ -4,7 +4,37 @@ import jax.numpy as jnp
 from scipy.special import gamma
 
 from uot.utils.types import ArrayLike
-from uot.utils.generator_helpers import generate_random_covariance
+
+
+def generate_random_covariance(
+    dim: int,
+    rng: np.random.Generator,
+    scale_bounds: tuple[float, float] = (0.5, 2.0)
+) -> np.ndarray:
+    """
+    Generate a random symmetric positive-definite covariance matrix of size (dim, dim).
+
+    Returns:
+        A (dim x dim) positive-definite numpy array.
+    """
+    if dim < 1:
+        raise ValueError("dim must be a positive integer")
+
+    # 1) random Gaussian matrix
+    A = rng.standard_normal(size=(dim, dim))
+
+    # 2) orthogonal basis via QR
+    Q, _ = np.linalg.qr(A)
+
+    # 3) eigenvalues in given bounds
+    low, high = scale_bounds
+    if low <= 0 or high <= low:
+        raise ValueError("scale_bounds must be (low, high) with 0 < low < high")
+    eigenvalues = rng.uniform(low=low, high=high, size=(dim,))
+
+    # 4) build covariance
+    cov = (Q * eigenvalues) @ Q.T
+    return cov
 
 
 def generate_cauchy_parameters(
