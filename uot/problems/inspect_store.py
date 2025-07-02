@@ -64,6 +64,8 @@ def plot_and_save(mu_pts, mu_w, nu_pts, nu_w, out_prefix):
     mu_pts = np.atleast_2d(mu_pts)
     nu_pts = np.atleast_2d(nu_pts)
     dim = mu_pts.shape[1]
+    mu_w = mu_w.reshape(-1)
+    nu_w = nu_w.reshape(-1)
 
     # select plotting function
     plot_funcs = {1: plot_1d, 2: plot_2d}
