@@ -1,10 +1,9 @@
 from uot.utils.types import ArrayLike
 import numpy as np
 import jax.numpy as jnp
-from typing import List
 
 
-def generate_nd_grid(axes: List[ArrayLike], use_jax: bool = True) -> ArrayLike:
+def generate_nd_grid(axes: list[ArrayLike], use_jax: bool = True) -> ArrayLike:
     """
     Given a list of 1D arrays (or array‐like) `axes`, each of length m_i,
     return an array of shape (∏ m_i, n) whose rows are all points in the

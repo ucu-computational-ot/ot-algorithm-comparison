@@ -1,6 +1,6 @@
 import ot
 import numpy as np
-from typing import Sequence
+from collections.abc import Sequence
 
 from uot.data.measure import DiscreteMeasure
 from uot.solvers.base_solver import BaseSolver

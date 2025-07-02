@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Optional, Callable, Dict, Iterable
+from collections.abc import Callable, Iterable
 from uot.problems.base_problem import MarginalProblem
 from uot.data.measure import BaseMeasure
 from uot.solvers.base_solver import BaseSolver
@@ -11,8 +11,8 @@ class Experiment:
     def __init__(
             self,
             name: str,
-            solve_fn: Callable[[MarginalProblem, BaseSolver, List[BaseMeasure],
-                                List[ArrayLike]], Dict],
+            solve_fn: Callable[[MarginalProblem, BaseSolver, list[BaseMeasure],
+                                list[ArrayLike]], dict],
     ):
         """
         solve_fn: a function f(problem: MarginalProblem, solver: BaseSolver, **kwargs) -> metrics dict
@@ -24,7 +24,7 @@ class Experiment:
         self,
         problems: Iterable[MarginalProblem],
         solver: BaseSolver,
-        progress_callback: Optional[Callable[[int], None]] = None,
+        progress_callback: Callable[[int], None] | None = None,
         **solver_kwargs,
     ) -> pd.DataFrame:
         results = []
@@ -55,7 +55,7 @@ class Experiment:
                 progress_callback(1)
         return pd.DataFrame(results)
 
-    def run_single(self, problem: MarginalProblem, solver: BaseSolver, **solver_kwargs) -> Dict:
+    def run_single(self, problem: MarginalProblem, solver: BaseSolver, **solver_kwargs) -> dict:
         marginals = problem.get_marginals()
         costs = problem.get_costs()
         return self.solve_fn(

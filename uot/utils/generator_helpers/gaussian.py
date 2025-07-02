@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from jax import jit, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
 from scipy.stats import multivariate_normal, wishart
-from typing import Tuple, List, Callable
+from collections.abc import Callable
 
 # ——— Constants ———
 GAUSSIAN_MEAN_SAMPLE_GRID_N = 100
@@ -21,7 +21,7 @@ def generate_random_covariance(
     dim: int,
     diag_linspace: jnp.ndarray = None,
     offdiag_linspace: jnp.ndarray = None,
-) -> Tuple[PRNGKey, jnp.ndarray]:
+) -> tuple[PRNGKey, jnp.ndarray]:
     """
     JAX-only: generate a random SPD covariance in R^dim.
     Returns new key and a (dim,dim) SPD matrix.
@@ -67,9 +67,9 @@ def generate_gmm_coefficients(
     key: PRNGKey,
     dim: int,
     num_components: int,
-    mean_bounds: Tuple[float, float],
-    variance_bounds: Tuple[float, float],
-) -> Tuple[PRNGKey, jnp.ndarray, jnp.ndarray]:
+    mean_bounds: tuple[float, float],
+    variance_bounds: tuple[float, float],
+) -> tuple[PRNGKey, jnp.ndarray, jnp.ndarray]:
     """
     Returns key, means (K,d), covs (K,d,d)
     """
@@ -146,9 +146,9 @@ def get_gmm_pdf(
     key: PRNGKey,
     dim: int,
     num_components: int,
-    mean_bounds: Tuple[float, float],
-    variance_bounds: Tuple[float, float]
-) -> Tuple[Callable[[jnp.ndarray], jnp.ndarray], PRNGKey]:
+    mean_bounds: tuple[float, float],
+    variance_bounds: tuple[float, float]
+) -> tuple[Callable[[jnp.ndarray], jnp.ndarray], PRNGKey]:
     """
     Convenience: sample GMM params and return PDF and updated key.
     """
@@ -176,7 +176,7 @@ def build_gmm_pdf_scipy(
 
     def pdf_np(X: np.ndarray) -> np.ndarray:
         out = np.zeros(X.shape[0], dtype=float)
-        for w, comp in zip(weights, comps):
+        for w, comp in zip(weights, comps, strict=False):
             out += w * comp.pdf(X)
         return out
 
@@ -186,7 +186,7 @@ def build_gmm_pdf_scipy(
 def sample_gmm_params_wishart(
     K: int,
     d: int,
-    mean_bounds: Tuple[float, float],
+    mean_bounds: tuple[float, float],
     wishart_df: int,
     wishart_scale: np.ndarray,
     rng: np.random.Generator

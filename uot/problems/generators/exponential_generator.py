@@ -1,6 +1,4 @@
-from typing import List, Callable, Iterator
-import numpy as np
-import jax.numpy as jnp
+from collections.abc import Callable, Iterator
 from numpy.random import default_rng
 
 from uot.data.measure import DiscreteMeasure

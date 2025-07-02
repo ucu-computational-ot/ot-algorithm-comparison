@@ -20,7 +20,7 @@ def get_exponential_pdf(
             X = jnp.asarray(X)
 
             if X.ndim != 2 or X.shape[1] != 1:
-                raise ValueError(f"Input to pdf_fn must be shape (N, 1).")
+                raise ValueError("Input to pdf_fn must be shape (N, 1).")
 
             return jnp.where(X >= 0, scale * np.exp(-scale * X), 0)
 
@@ -30,7 +30,7 @@ def get_exponential_pdf(
             X = np.asarray(X)
 
             if X.ndim != 2 or X.shape[1] != 1:
-                raise ValueError(f"Input to pdf_fn must be shape (N, 1).")
+                raise ValueError("Input to pdf_fn must be shape (N, 1).")
 
             return np.where(X >= 0, scale * np.exp(-scale * X), 0)
 

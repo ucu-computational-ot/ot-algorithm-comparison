@@ -1,14 +1,11 @@
 import numpy as np
-import jax.numpy as jnp
 import pytest
-from numpy.random import default_rng
 
 from uot.utils.generate_nd_grid import generate_nd_grid
 from uot.utils.generator_helpers import get_axes
 from uot.problems.generators.exponential_generator import ExponentialGenerator
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
-from uot.utils.types import ArrayLike
 
 # Dummy cost function: Euclidean distance
 cost_fn = lambda x, y: np.linalg.norm(x - y, axis=1)

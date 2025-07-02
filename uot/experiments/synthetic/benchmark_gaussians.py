@@ -5,12 +5,8 @@ from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGe
 from uot.solvers.sinkhorn import SinkhornTwoMarginalSolver
 
 from uot.utils.costs import cost_euclid_squared
-from uot.utils.generate_nd_grid import generate_nd_grid
-from uot.utils.generator_helpers import get_gmm_pdf
 
 import time
-import jax.numpy as jnp
-from matplotlib import pyplot as plt
 
 
 def solve_fn(prob, solver, marginals, costs, **kwargs):

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence
+from collections.abc import Sequence
 
 from uot.data.measure import BaseMeasure
 from uot.utils.types import ArrayLike

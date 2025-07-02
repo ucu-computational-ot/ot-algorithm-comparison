@@ -5,7 +5,6 @@ from uot.utils.yaml_helpers import load_solvers
 from uot.utils.logging import logger
 from uot.utils.types import ArrayLike
 from uot.solvers.solver_config import SolverConfig
-from typing import List
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -19,7 +18,7 @@ import argparse
 np.random.seed(42)
 
 
-def get_solver_files(solvers: List[SolverConfig])-> List[str]:
+def get_solver_files(solvers: list[SolverConfig])-> list[str]:
     """
     Extract solver file names from the list of SolverConfig objects.
     """
@@ -44,7 +43,7 @@ def get_solver_files(solvers: List[SolverConfig])-> List[str]:
 
 
 
-def load_pairwise_distances(solvers: List[SolverConfig])-> dict:
+def load_pairwise_distances(solvers: list[SolverConfig])-> dict:
     """
     Load pre-computed pairwise distance matrices from CSV files.
     """
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     X, y, _ = load_mnist_data()
     X, y = X[:250], y[:250]
 
-    with open(args.config, 'r') as file:
+    with open(args.config) as file:
         config = yaml.safe_load(file) 
 
     solver_configs = load_solvers(config=config)

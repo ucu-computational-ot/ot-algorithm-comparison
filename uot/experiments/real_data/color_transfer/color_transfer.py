@@ -402,7 +402,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with open(args.config, 'r') as file:
+    with open(args.config) as file:
         config = yaml.safe_load(file)
 
     bin_num, batch_size, pair_num, images_dir, output_dir = load_config_info(config)

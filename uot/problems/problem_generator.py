@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from uot.problems.base_problem import MarginalProblem
-from typing import Iterator
+from collections.abc import Iterator
 
 
 class ProblemGenerator(ABC):

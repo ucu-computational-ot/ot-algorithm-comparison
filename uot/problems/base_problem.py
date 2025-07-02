@@ -1,13 +1,12 @@
 from abc import ABC
-import numpy as np
-from typing import List, Callable
+from collections.abc import Callable
 from uot.data.measure import BaseMeasure
 from uot.utils.types import ArrayLike
 
 
 class MarginalProblem(ABC):
     def __init__(
-        self, name: str, measures: List[BaseMeasure], cost_fns: List[Callable]
+        self, name: str, measures: list[BaseMeasure], cost_fns: list[Callable]
     ):
         super().__init__()
         if len(measures) < 2:
@@ -20,10 +19,10 @@ class MarginalProblem(ABC):
         # TODO: for now just compute WHOLE cost matrix and store it as it is.
         self._cost_cache = [None] * len(cost_fns)
 
-    def get_marginals(self) -> List[BaseMeasure]:
+    def get_marginals(self) -> list[BaseMeasure]:
         raise NotImplementedError()
 
-    def get_costs(self) -> List[ArrayLike]:
+    def get_costs(self) -> list[ArrayLike]:
         raise NotImplementedError()
 
     def to_dict(self) -> dict:

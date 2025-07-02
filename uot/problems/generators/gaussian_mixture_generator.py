@@ -10,7 +10,7 @@ from uot.utils.generator_helpers import (
 from uot.utils.generator_helpers import get_axes
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.data.measure import DiscreteMeasure
-from typing import Callable, Iterator, Tuple, Optional
+from collections.abc import Callable, Iterator
 import jax
 import jax.numpy as jnp
 
@@ -37,8 +37,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
         cost_fn: Callable[[ArrayLike, ArrayLike], ArrayLike],
         use_jax: bool = True,
         seed: int = 42,
-        wishart_df: Optional[int] = None,
-        wishart_scale: Optional[np.ndarray] = None,
+        wishart_df: int | None = None,
+        wishart_scale: np.ndarray | None = None,
     ):
         super().__init__()
         # TODO: arbitrary dim?
@@ -64,8 +64,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
 
     def _sample_weights_jax(
         self,
-        mean_bounds: Tuple[float, float],
-        variance_bounds: Tuple[float, float],
+        mean_bounds: tuple[float, float],
+        variance_bounds: tuple[float, float],
     ) -> jnp.ndarray:
         """
         Sample GMM, evaluate PDF on grid, and normalize weights (JAX).
@@ -82,8 +82,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
 
     def _sample_weights_np(
         self,
-        mean_bounds: Tuple[float, float],
-        variance_bounds: Tuple[float, float],
+        mean_bounds: tuple[float, float],
+        variance_bounds: tuple[float, float],
     ) -> np.ndarray:
         """
         Sample GMM parameters using Wishart-based covariances, evaluate PDF, and normalize weights (NumPy/SciPy).

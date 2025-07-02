@@ -1,5 +1,5 @@
 import ot
-from typing import Callable, List
+from collections.abc import Callable
 from uot.data.measure import BaseMeasure
 from uot.problems.base_problem import MarginalProblem
 from uot.utils.types import ArrayLike
@@ -24,10 +24,10 @@ class TwoMarginalProblem(MarginalProblem):
         self._exact_cost = None
         self._exact_coupling = None
 
-    def get_marginals(self) -> List[BaseMeasure]:
+    def get_marginals(self) -> list[BaseMeasure]:
         return [self._mu, self._nu]
 
-    def get_costs(self) -> List[ArrayLike]:
+    def get_costs(self) -> list[ArrayLike]:
         """
         Returns a single‐element list containing the cost matrix between
         self._mu and self._nu, caching it in self._C so that repeated

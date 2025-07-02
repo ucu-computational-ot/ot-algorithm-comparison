@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
 
-from uot.data.measure import DiscreteMeasure, GridMeasure
+from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.multi_marginal import MultiMarginalProblem
 from uot.problems.base_problem import MarginalProblem
-from uot.problems.problem_generator import ProblemGenerator
 from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGenerator
 
 
@@ -58,7 +57,7 @@ def test_two_marginal_problem_basic():
     assert prob._C is None
     # Next get_costs should recompute (new object)
     C3 = prob.get_costs()[0]
-    assert not (C3 is C)
+    assert C3 is not C
 
 
 @pytest.mark.skip()

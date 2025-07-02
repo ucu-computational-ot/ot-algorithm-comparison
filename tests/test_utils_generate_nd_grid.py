@@ -2,7 +2,6 @@ import numpy as np
 import jax.numpy as jnp
 import pytest
 
-from uot.utils.types import ArrayLike
 from uot.utils.generate_nd_grid import generate_nd_grid
 
 

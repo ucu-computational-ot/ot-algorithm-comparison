@@ -10,7 +10,7 @@ from uot.utils.types import ArrayLike
 from uot.solvers.solver_config import SolverConfig
 
 from tqdm import tqdm
-from typing import List, Callable
+from collections.abc import Callable
 import argparse
 import yaml
 import numpy as np
@@ -114,7 +114,7 @@ def compute_distances_jax(X: jnp.ndarray,
 
 def compute_distances_for_all_solvers(X: ArrayLike,
                                       C: ArrayLike,
-                                      solvers: List[SolverConfig],
+                                      solvers: list[SolverConfig],
                                       batch_size: int,
                                       export_folder: str
                                       ):
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     X, y, C = load_mnist_data()
     
-    with open(args.config, 'r') as file:
+    with open(args.config) as file:
         config = yaml.safe_load(file) 
 
     solver_configs = load_solvers(config=config)

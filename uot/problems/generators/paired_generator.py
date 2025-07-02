@@ -1,4 +1,5 @@
-from typing import Iterator, Dict, Any
+from typing import Any
+from collections.abc import Iterator
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
 
@@ -36,8 +37,8 @@ class PairedGenerator(ProblemGenerator):
     def __init__(
         self,
         name: str,
-        gen_a_cfg: Dict[str, Any],
-        gen_b_cfg: Dict[str, Any],
+        gen_a_cfg: dict[str, Any],
+        gen_b_cfg: dict[str, Any],
         num_datasets: int
     ):
         super().__init__()

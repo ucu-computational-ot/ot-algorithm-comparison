@@ -46,7 +46,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    with open(args.config, 'r') as file:
+    with open(args.config) as file:
         config = yaml.safe_load(file)
     
     try:

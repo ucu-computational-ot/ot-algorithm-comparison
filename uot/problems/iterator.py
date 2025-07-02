@@ -1,4 +1,4 @@
-from typing import Iterator
+from collections.abc import Iterator
 from uot.problems.store import ProblemStore
 from uot.problems.base_problem import MarginalProblem
 

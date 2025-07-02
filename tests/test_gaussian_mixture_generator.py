@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 
 from uot.problems.generators.gaussian_mixture_generator import GaussianMixtureGenerator

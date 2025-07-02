@@ -1,7 +1,7 @@
 import os
 import yaml
 import argparse
-from typing import Any, Dict
+from typing import Any
 
 from uot.utils.import_helpers import import_object
 from uot.problems.store import ProblemStore
@@ -10,13 +10,13 @@ from uot.utils.logging import setup_logger
 logger = setup_logger(__name__)
 
 
-def _resolve_references(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_references(cfg: dict[str, Any]) -> dict[str, Any]:
     """
     Recursively import any string references for 'generator', 'cost_fn',
     and nested generator configs ending with '_cfg'.
     Convert 'borders' lists or strings to tuples of floats.
     """
-    resolved: Dict[str, Any] = {}
+    resolved: dict[str, Any] = {}
     for key, val in cfg.items():
         # skip hidden or anchor defaults
         if key.startswith('__'):
@@ -51,7 +51,7 @@ def _resolve_references(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 def serialize_problems(config_path: str, export_dir: str) -> None:
     # Load YAML config
-    with open(config_path, 'r', encoding='utf8') as f:
+    with open(config_path, encoding='utf8') as f:
         raw_cfg = yaml.safe_load(f)
 
     generators = raw_cfg.get('generators', {})
