@@ -16,8 +16,8 @@ class TwoMarginalProblem(MarginalProblem):
         cost_fn: Callable[[ArrayLike, ArrayLike], ArrayLike],
     ):
         super().__init__(name, [mu, nu], [cost_fn])
-        self._mu = mu
-        self._nu = nu
+        self._mu = mu.get_jax()
+        self._nu = nu.get_jax()
         self._cost_fn = cost_fn
         self._C = None
 
@@ -42,7 +42,7 @@ class TwoMarginalProblem(MarginalProblem):
             self._C = [C]
 
         return self._C
-    
+
     def get_exact_cost(self) -> float:
         """
         Return exact cost of transportation between measures

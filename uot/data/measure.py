@@ -19,6 +19,13 @@ class DiscreteMeasure(BaseMeasure):
         self._weights = weights
         self.name = name
 
+    def get_jax(self) -> 'DiscreteMeasure':
+        return DiscreteMeasure(
+            points=jax.numpy.array(self._points),
+            weights=jax.numpy.array(self._weights),
+            name=self.name,
+        )
+
     def to_discrete(self):
         return self._points, self._weights
 
