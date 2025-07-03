@@ -62,9 +62,9 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     peak_ram = usage.max_ram
     cpu_utilization = usage.cpu_utilization
     time_counter = finish_time - start_time
-    _require(result, {'cost'})
+    _require(metrics, {'cost'})
     metrics.update({
-        "cost_rerr": abs(prob.get_exact_cost() - result['cost']) / prob.get_exact_cost()
+        "cost_rerr": abs(prob.get_exact_cost() - metrics['cost']) / prob.get_exact_cost(),
 
         'time_unit': usage.compute_time.unit,
         'time': usage.compute_time.time,
@@ -84,6 +84,3 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
         "mean_cpu_util_pct":         cpu_utilization.main.mean_hardware_percent,
     })
     return metrics
-
-
-class 
