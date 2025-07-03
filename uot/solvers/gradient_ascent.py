@@ -45,7 +45,7 @@ class GradientAscentTwoMarginalSolver(BaseSolver):
 
         return {
             "transport_plan": transport_plan,
-            "cost": (transport_plan * costs[0]).sum(), 
+            "cost": (transport_plan * costs[0]).sum(),
             "u_final": u,
             "v_final": v,
             "iterations": i_final,
@@ -88,7 +88,7 @@ def gradient_ascent_opt_multimarginal(
     @jax.jit
     def step(state: tuple[int, jax.Array, optax.OptState, float, float, bool]):
         """Performs one gradient ascent step."""
-        i, potentials, opt_state, prev_loss, _ = state
+        i, potentials, opt_state, prev_loss, prev_err, _ = state
         loss, grad = objective_gradient(potentials)
         # minus gradient because we are performing gradient ascent
         updates, opt_state = optimizer.update(-grad, opt_state, potentials)
@@ -97,10 +97,15 @@ def gradient_ascent_opt_multimarginal(
         max_change = jnp.max(jnp.abs(potentials - state[1]))
         has_converged = max_change < tol
         return i + 1, potentials, opt_state, loss, max_change, has_converged
-    
-    def cond_fn(state: tuple[int, jax.Array, optax.OptState, float, float, bool]):
+
+    def cond_fn(
+            state: tuple[int, jax.Array, optax.OptState, float, float, bool]
+    ):
         i, _, _, _, has_converged = state
-        return jnp.logical_and(i < max_iterations, jnp.logical_not(has_converged))
+        return jnp.logical_and(
+            i < max_iterations,
+            jnp.logical_not(has_converged),
+        )
 
     final_state = jax.lax.while_loop(
         cond_fn, step, (0, potentials, opt_state, jnp.inf, jnp.inf, False)
