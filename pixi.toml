@@ -1,7 +1,7 @@
 [workspace]
 channels = ["conda-forge"]
 name = "ot-algorithm-comparison"
-platforms = ["linux-64", "win-64"]
+platforms = ["linux-64", "win-64", "osx-64"]
 version = "0.1.0"
 
 [tool.pixi.source]
@@ -12,11 +12,8 @@ playground = "python -m uot.test.playground"
 color-transfer = "python -m uot.experiments.real_data.color_transfer.color_transfer"
 mnist_distances = "python -m uot.experiments.real_data.mnist_classification.count_pairwise_distances"
 mnist_classification = "python -m uot.experiments.real_data.mnist_classification.mnist_classification"
-experiments = "python -m uot.experiments.run_experiments"
-split-results = "python -m uot.experiments.split_results"
 tests = "python -m uot.experiments.run_tests"
 test = "pytest"
-bench_gauss = "python -m uot.experiments.synthetic.benchmark_gaussians"
 benchmark = "python -m uot.experiments.synthetic.benchmark"
 serialize = "python -m uot.problems.problem_serializer"
 inspect-store = "python -m uot.problems.inspect_store"
@@ -24,3 +21,4 @@ lint = "ruff check ."
 
 [dependencies]
 black = ">=25.1.0,<26"
+pyyaml = ">=6.0.2,<7"
