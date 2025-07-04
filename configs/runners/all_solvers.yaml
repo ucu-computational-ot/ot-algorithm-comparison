@@ -16,18 +16,18 @@ param-grids:
 
 
 solvers:
-  # sinkhorn:
-  #   solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
-  #   jit: true
-  #   param-grid: sinkhorn_params
-  # gradient-ascent:
-  #   solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
-  #   jit: true
-  #   param-grid: gradient_ascent_params
-  # lbfgs:
-  #   solver: uot.solvers.lbfgs.LBFGSTwoMarginalSolver
-  #   jit: true
-  #   param-grid: lbfgs_params
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: true
+    param-grid: sinkhorn_params
+  gradient-ascent:
+    solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
+    jit: true
+    param-grid: gradient_ascent_params
+  lbfgs:
+    solver: uot.solvers.lbfgs.LBFGSTwoMarginalSolver
+    jit: true
+    param-grid: lbfgs_params
   lp:
     solver: uot.solvers.linear_programming.LinearProgrammingTwoMarginalSolver
     jit: true

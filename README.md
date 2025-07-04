@@ -23,7 +23,9 @@ After installation run `pixi install` to set up the environment. Available tasks
 
 ### On *Compute Canada* clusters
 
-The basic script to run the computations is `scripts/basic_slurm_task.sh`.
+The generic script for both SLURM and local runs is `scripts/run_benchmark.sh`.
+For example:
+`sbatch scripts/run_benchmark.sh configs/generators/gaussians.yaml configs/runners/gaussians.yaml`
 
 One can monitor the GPU usage on the node with the following command, which runs `nvidia-smi` every 30 seconds
 ```

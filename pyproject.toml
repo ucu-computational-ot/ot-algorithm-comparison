@@ -42,8 +42,6 @@ lint = [
 [tool.setuptools]
 packages = [
     "uot",
-    "uot.core",
-    "uot.experiments",
 ]
 
 [tool.pytest.ini_options]
