@@ -5,17 +5,99 @@ import os
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from ot.utils import dist
-from jax import device_get
+import argparse
+import yaml
+import jax.numpy as jnp
+from pandas import DataFrame
+import cv2
+import datetime
 
-from uot.algorithms.sinkhorn import sinkhorn
-from uot.algorithms.gradient_ascent import gradient_ascent_two_marginal
-from uot.algorithms.lbfgs import lbfgs_potentials
-from uot.algorithms.lp import pot_lp
+import uot.experiments.real_data.color_transfer.color_transfer_metrics as ct_metrics
+from uot.utils.yaml_helpers import load_solvers
+from uot.utils.costs import cost_euclid
+from uot.utils.types import ArrayLike
+from uot.solvers.solver_config import SolverConfig
+from uot.data.dataset_loader import load_image_as_color_grid
+from uot.experiments.experiment import Experiment
+from uot.experiments.measurement import measure_time
+from uot.experiments.runner import run_pipeline
+from uot.utils.logging import logger
+from uot.problems.two_marginal import TwoMarginalProblem
+from uot.data.dataset_loader import load_matrix_as_color_grid
+
+class ImageData:
+
+    image_dir = None
+
+    def __init__(self, name: str, bin_num: int = 32):
+        self.name = name
+        self._np_grid = load_image_as_color_grid(os.path.join(ImageData.images_dir, name), bins_per_channel=bin_num)
+        self._np_image = read_image(os.path.join(ImageData.images_dir, name))
+        self._jax_grid = None
+        self._jax_image = None
+    
+    def get_grid(self, use_jax: bool = False) -> ArrayLike:
+        """Get the color grid of the image, either as numpy or jax array"""
+        if use_jax:
+            if self._jax_grid is None:
+                self._jax_grid = self._np_grid.get_jax()
+            return self._jax_grid
+        return self._np_grid
+
+    def get_image(self, use_jax: bool = False) -> ArrayLike:
+        """Get the image as numpy or jax array"""
+        if use_jax:
+            if self._jax_image is None:
+                self._jax_image = jnp.array(self._np_image)
+            return self._jax_image
+        return self._np_image
+
+    def get_image_shape(self) -> tuple[int, int, int]:
+        """Get the shape of the image"""
+        return self._np_image.shape
+
+    @classmethod
+    def set_image_dir(cls, image_dir: str):
+        """Set the directory where images are stored"""
+        cls.images_dir = image_dir
 
 
-rng = np.random.RandomState(42)
+
+def load_config_info(config: dict)-> tuple[int, int, str, int]:
+    """Get miscellaneous info from the config"""
+    return (
+        config['bin-number'], 
+        config['batch-size'],
+        config['pair-number'],
+        config['images-dir'],
+        config['output-dir']
+    )
+
+def get_image_problems(data: dict[str, ImageData], image_pairs: list[tuple]) -> list[TwoMarginalProblem]:
+    """Get the image pairs as problems for the experiment"""
+    return [
+        TwoMarginalProblem(
+            name=f"{source_name} -> {target_name}",
+            mu=data[source_name].get_grid(),
+            nu=data[target_name].get_grid(),
+            cost_fn=cost_euclid
+        )
+        for source_name, target_name in image_pairs
+    ]
+
+def name_to_tuple(name: str) -> tuple:
+    """Convert problem name to a tuple of source and target image names"""
+    parts = name.split(" -> ")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid problem name format: {name}")
+    return tuple(parts)
+
+
+def get_param_columns(output: DataFrame) -> list[str]:
+    """Get the parameter columns from the output DataFrame"""
+    cols = output.columns.tolist()
+    param_cols = [col for col in cols[cols.index('name') + 1:]]
+    return param_cols
 
 def im2mat(img):
     """Converts and image to matrix (one pixel per line)"""
@@ -25,174 +107,318 @@ def mat2im(X, shape):
     """Converts back a matrix to an image"""
     return X.reshape(shape)
 
-def minmax(img):
-    return np.clip(img, 0, 1)
-
-def get_samples(X1, X2, nb=500):
-    idx1 = rng.randint(X1.shape[0], size=(nb,))
-    idx2 = rng.randint(X2.shape[0], size=(nb,))
-
-    Xs = X1[idx1, :]
-    Xt = X2[idx2, :]
-    return Xs, Xt
-
 def read_image(image_path: str):
-    image = plt.imread(image_path).astype(np.float64) / 256
+    image = plt.imread(image_path)
+    if image.dtype == np.uint8:
+        image = image.astype(np.float64) / 255.0
+    elif image.dtype in [np.float32, np.float64]:
+        image = np.clip(image, 0, 1)
     return image
 
+def match_shape(target_img: np.ndarray, src_img: np.ndarray):
+    src_h, src_w = src_img.shape[:2]
+    tgt_h, tgt_w = target_img.shape[:2]
 
-def show_images(result):
-    _, axes = plt.subplots(len(images_pairs), len(solvers) + 2, figsize=(15, 6))
+    if tgt_h > src_h or tgt_w > src_w:
+        interp = cv2.INTER_AREA 
+    else:
+        interp = cv2.INTER_CUBIC
 
-    for image_ind in range(len(results)):
-
-        axes[image_ind, 0].imshow(images_pairs[image_ind][0])
-        axes[image_ind, 0].axis("off")
-        if image_ind == 0:
-            axes[image_ind, 0].set_title("Source")
-
-        for i, (name, img) in enumerate(results[image_ind].items()):
-            axes[image_ind, i + 1].imshow(img)
-            axes[image_ind, i + 1].axis("off")
-            if image_ind == 0:
-                axes[image_ind, i + 1].set_title(name)
-
-        axes[image_ind, -1].imshow(images_pairs[image_ind][1])
-        axes[image_ind, -1].axis("off")
-
-        if image_ind == 0:
-            axes[image_ind, -1].set_title("Target")
-
-    plt.tight_layout()
-    plt.show()
-
-def export_images(image_pairs, results: dict, save_path: str):
-    for (source_name, source_image), (target_name, target_image) in image_pairs:
-
-        height = (1024 * len(EPSILONS) + 100) // 100
-        width = (1024 * (len(solvers) + 2) + 100) // 100
-
-        _, axes = plt.subplots(len(EPSILONS), len(solvers) + 2, figsize=(width, height))
-
-        for i, (epsilon, imgs) in enumerate(results[(source_name, target_name)].items()):
-
-            axes[i, 0].imshow(source_image)
-            axes[i, 0].set_ylabel(f"e = {epsilon}")
-            axes[i, 0].set_xticklabels([])
-            axes[i, 0].set_yticklabels([])
-
-            for j, (name, img) in enumerate(imgs.items()):
-                axes[i, j + 1].imshow(img.astype(np.float64))
-                axes[i, j + 1].axis("off")
-                
-                if i == 0:
-                    axes[i, j + 1].set_title(name)
+    return cv2.resize(target_img, (src_w, src_h), interpolation=interp)
 
 
-            axes[i, -1].imshow(target_image)
-            axes[i, -1].axis("off")
+def transport_image(
+    P: ArrayLike,
+    source_image: ArrayLike,
+    source_palette: ArrayLike,
+    target_palette: ArrayLike,
+    batch_size: int = 1024
+) -> np.ndarray:
+    """Transforms the image using transport plan. Returns NumPy array."""
 
-        plt.tight_layout()
-        plt.savefig(os.path.join(save_path, f"{source_name}-{target_name}.png"))
+    is_jax = isinstance(P, jax.Array) or hasattr(P, "device_buffer")
+    lib = jnp if is_jax else np
 
+    P_normalized = P / lib.sum(P, axis=1, keepdims=True)
+    P_normalized = lib.nan_to_num(P_normalized, nan=0.0, posinf=0.0, neginf=0.0)
+    projected_palette = P_normalized @ target_palette
 
-def get_cost_matrix(X: np.ndarray, Y: np.ndarray):
-    return np.linalg.norm((X[:,None] - Y), axis=-1)
+    if is_jax:
+        return np.asarray(_transform_jax(source_image, source_palette, projected_palette))
+    else:
+        return _transform_numpy(source_image, source_palette, projected_palette, batch_size)
+    
+@jax.jit
+def _transform_jax(source_image, source_palette, projected_palette):
+    def transform_pixel(pixel):
+        dists = jnp.linalg.norm(pixel - source_palette, axis=1)
+        closest = jnp.argmin(dists)
+        return projected_palette[closest]
+    return jax.vmap(transform_pixel)(source_image)
 
+def _transform_numpy(source_image, source_palette, projected_palette, batch_size):
+    n_pixels = source_image.shape[0]
+    transformed_chunks = []
 
-def entropic_transport(v: np.ndarray, C: np.ndarray, source_image: np.ndarray,
-                       target_sample: np.ndarray, batch_size=128, epsilon=1e-2) -> np.ndarray:
-    indices = np.arange(source_image.shape[0])
-    batch_indices = [indices[i: i + batch_size] for i in range(0, len(indices), batch_size)]
+    for start in range(0, n_pixels, batch_size):
+        end = min(start + batch_size, n_pixels)
+        batch = source_image[start:end]
 
-    transported = []
+        diffs = batch[:, None, :] - source_palette[None, :, :]
+        dists = np.linalg.norm(diffs, axis=2)
+        closest_bins = np.argmin(dists, axis=1)
 
-    for i, batch_index in enumerate(batch_indices):
-        C = get_cost_matrix(source_image[batch_index], target_sample)
-        K = np.exp(-C/epsilon + v)
-        transported_X = np.dot(K, target_sample) / np.sum(K, axis=1)[:, None]
-        transported.append(transported_X)
-    return np.concatenate(transported, axis=0)
+        transformed_batch = projected_palette[closest_bins]
+        transformed_chunks.append(transformed_batch)
 
-
-def emd_transport(coupling: np.ndarray, source_image: np.ndarray, source_sample: np.ndarray,
-                  target_sample: np.ndarray, batch_size=128):
-    indices = np.arange(source_image.shape[0])
-    batch_indices = [
-        indices[i : i + batch_size]
-        for i in range(0, len(indices), batch_size)
-    ]
-
-    transp_Xs = []
-    for batch_index in batch_indices:
-        D0 = dist(source_image[batch_index], source_sample)
-        idx = np.argmin(D0, axis=1)
-
-        transp = coupling / np.sum(coupling, axis=1)[:, None]
-        transp = np.nan_to_num(transp, nan=0, posinf=0, neginf=0)
-        transp_Xs_ = np.dot(transp, target_sample)
-
-        transp_Xs_ = transp_Xs_[idx, :] + source_image[batch_index] - source_sample[idx, :]
-
-        transp_Xs.append(transp_Xs_)
-
-    transp_Xs = np.concatenate(transp_Xs, axis=0)
-
-    return transp_Xs
+    return np.concatenate(transformed_chunks, axis=0)
 
 
-SAMPLE_SIZE = 512
-BATCH_SIZE = 100000
-IMAGES_DIR = os.path.join("datasets", "color_images")
-EPSILONS = [1, 1e-1, 1e-2, 1e-3]
-images = [(image_file, read_image(os.path.join(IMAGES_DIR, image_file)))
-          for image_file in os.listdir(IMAGES_DIR)]
+def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: list[tuple], solver_configs: list[SolverConfig])-> tuple:
+    """Carry out the experiments specified in the config"""
 
-ENTROPIC_TRANSPORT = 'entropic'
-EMD_TRANSPORT = 'emd'
+    results = {}
 
-solvers = {
-    'sinkhorn': (sinkhorn, ENTROPIC_TRANSPORT),
-    'gradient-ascent': (gradient_ascent_two_marginal, ENTROPIC_TRANSPORT),
-    'lbgfs': (lbfgs_potentials, ENTROPIC_TRANSPORT),
-    'lp': (pot_lp, EMD_TRANSPORT),
-}
+    exp = Experiment(
+        name="Color Transfer",
+        solve_fn= measure_time,
+    )
 
-images_pairs = list(itertools.permutations(images, 2))[:10]
-
-results = {}
+    logger.info("Running color transfer experiments...")
 
 
-with tqdm(total=len(images_pairs) * len(solvers) * len(EPSILONS), desc="Running color transfer") as pbar:
-    for source_image, target_image in images_pairs:
-        source_name, source_image = source_image
-        target_name, target_image = target_image
+    output = run_pipeline(
+        experiment=exp,
+        solvers=solver_configs,
+        iterators=[get_image_problems(data, image_pairs)],
+        folds=2,
+        progress=True
+    )
 
-        results[(source_name, target_name)] = {}
+    param_cols = get_param_columns(output)
+    output = output.drop_duplicates(subset=['dataset', 'name'] + param_cols, keep='last')
 
-        shape = source_image.shape
-        source_image, target_image = im2mat(source_image), im2mat(target_image)
-        source_sample, target_sample = get_samples(source_image, target_image, SAMPLE_SIZE)
-        source_measure, target_measure = np.ones(SAMPLE_SIZE) / SAMPLE_SIZE, np.ones(SAMPLE_SIZE) / SAMPLE_SIZE
-        C = get_cost_matrix(source_sample, target_sample)
+    logger.info(f"Transporting {len(output)} images...")
 
-        for epsilon in EPSILONS:
-            results[(source_name, target_name)][epsilon] = {}
+    for _, row in output.iterrows():
+        problem_name = row['dataset']
+        solver_name = row['name']
 
-            for solver_name, (solver, transport_name) in solvers.items():
-                pbar.update(1)
+        key = name_to_tuple(problem_name)
 
-                if transport_name == ENTROPIC_TRANSPORT:
-                    _, v = solver(source_measure, target_measure, C, epsilon=epsilon)
-                    transported_image = entropic_transport(v, C, source_image, target_sample, batch_size=BATCH_SIZE, epsilon=epsilon)
-                elif transport_name == EMD_TRANSPORT:
-                    P, _, _ = solver(source_measure, target_measure, C)
-                    transported_image = emd_transport(coupling=P, source_image=source_image,
-                                                    source_sample=source_sample, target_sample=target_sample,
-                                                    batch_size=BATCH_SIZE)
-                
-                transported_image = minmax(mat2im(transported_image, shape))
-                results[(source_name, target_name)][epsilon][solver_name] = transported_image
+        if key not in results:
+            results[key] = {}
+
+        if solver_name not in results[key]:
+            results[key][solver_name] = {}
+        
+        param_kwargs = {col: row[col] for col in param_cols if col in row}
+
+        param_key = frozenset(param_kwargs.items())
+        P = row['transport_plan']
+        img = im2mat(data[key[0]].get_image(use_jax=isinstance(P, jax.Array)))
+        source_points = data[key[0]].get_grid(use_jax=isinstance(P, jax.Array)).to_discrete()[0]
+        target_points = data[key[1]].get_grid(use_jax=isinstance(P, jax.Array)).to_discrete()[0]
+
+        results[key][solver_name][param_key] = transport_image(
+            P, img, source_points, target_points, batch_size
+        )
+
+    logger.info("Color transfer experiments completed, calculating metrics...")
+    
+    return output, results
 
 
-export_images(images_pairs, results, "color_transfer_results/")
+def calculate_histogram_metrics(output: DataFrame, results: dict, data: dict[str, ImageData], param_columns: list[str], bin_num: int = 64) -> DataFrame:
+    """Calculate histogram metrics for the color transfer experiments"""
+    logger.info("Calculating histogram metrics...")
+
+    wasserstein_distances = []
+    kl_divergences = []
+
+    for _, row in output.iterrows():
+        problem_name = row['dataset']
+        solver_name = row['name']
+
+        key = name_to_tuple(problem_name)
+
+        if key not in results or solver_name not in results[key]:
+            logger.warning(f"Skipping {problem_name} with solver {solver_name} as results are not available.")
+            continue
+
+        param_kwargs = {col: row[col] for col in param_columns if col in row}
+
+        img = results[key][solver_name][frozenset(param_kwargs.items())]
+
+        target_grid = data[key[1]].get_grid()
+        transferred_grid = load_matrix_as_color_grid(
+            pixels=img,
+            num_channels=3,
+            bins_per_channel=bin_num,
+            use_jax=False
+        )
+
+        wasserstein_distance = ct_metrics.compute_wasserstein_distance(
+            source_grid=transferred_grid,
+            target_grid=target_grid
+        )
+
+        kl_divergence = ct_metrics.compute_kl_divergence(
+            source_grid=transferred_grid,
+            target_grid=target_grid
+        )
+
+        wasserstein_distances.append(wasserstein_distance)
+        kl_divergences.append(kl_divergence)
+        
+    output['wasserstein_distance'] = wasserstein_distances
+    output['kl_divergence'] = kl_divergences
+
+    return output
+
+
+def calculate_quality_metrics(output: DataFrame, results: dict, data: dict[str, ImageData], param_columns: list[str]) -> DataFrame:
+    """Compute SSIM, ΔE, and colorfulness metrics for transferred images."""
+    logger.info("Calculating perceptual quality metrics...")
+
+    ssims = []
+    delta_es = []
+    colorfulness_diffs = []
+
+    for _, row in output.iterrows():
+        problem_name = row['dataset']
+        solver_name = row['name']
+        key = name_to_tuple(problem_name)
+
+        if key not in results or solver_name not in results[key]:
+            logger.warning(f"Skipping {problem_name} with solver {solver_name} as results are not available.")
+            continue
+
+        param_kwargs = {col: row[col] for col in param_columns if col in row}
+        transferred = mat2im(results[key][solver_name][frozenset(param_kwargs.items())], data[key[0]].get_image_shape())
+        target = data[key[1]].get_image()
+        source = data[key[0]].get_image()
+
+        transferred = np.clip(transferred, 0, 1)
+        target = np.clip(target, 0, 1)
+        source = np.clip(source, 0, 1)
+
+        target_resized = match_shape(target, transferred)
+
+        assert source.shape == transferred.shape, f'{source.shape, transferred.shape}'
+
+        ssims.append(ct_metrics.compute_ssim_metric(transferred, source))
+        delta_es.append(ct_metrics.compute_delta_e(transferred, target_resized))
+
+        c1 = ct_metrics.compute_colorfulness(transferred)
+        c2 = ct_metrics.compute_colorfulness(target)
+        colorfulness_diffs.append(np.abs(c1 - c2))
+
+    output['ssim'] = ssims
+    output['delta_e'] = delta_es
+    output['colorfulness_diff'] = colorfulness_diffs
+
+    return output
+
+
+def calculate_spatial_metrics(output: DataFrame, results: dict, data: dict[str, ImageData], param_columns: list[str]) -> DataFrame:
+    logger.info("Calculating spatial-structure metrics...")
+
+    gradient_corrs = []
+    sharpness_values = []
+
+    for _, row in output.iterrows():
+        problem_name = row['dataset']
+        solver_name = row['name']
+        key = name_to_tuple(problem_name)
+
+        if key not in results or solver_name not in results[key]:
+            logger.warning(f"Skipping {problem_name} with solver {solver_name} as results are not available.")
+            continue
+
+        param_kwargs = {col: row[col] for col in param_columns if col in row}
+        img_transferred = results[key][solver_name][frozenset(param_kwargs.items())]
+        img_transferred = mat2im(img_transferred, data[key[0]].get_image().shape)
+
+        img_source = data[key[0]].get_image()
+
+        gradient_corr = ct_metrics.compute_gradient_magnitude_correlation(img_transferred, img_source)
+        sharpness_transferred = ct_metrics.compute_laplacian_variance(img_transferred)
+        sharpness_source = ct_metrics.compute_laplacian_variance(img_source)
+
+        gradient_corrs.append(gradient_corr)
+        sharpness_values.append(sharpness_transferred - sharpness_source)
+
+    output['gradient_correlation'] = gradient_corrs
+    output['laplacian_sharpness_diff'] = sharpness_values
+
+    return output
+
+
+def export_data(output: DataFrame, results: dict, output_dir: str, data: dict[str, ImageData], param_columns: list[str]):
+    """Export the results of the experiments to CSV and images"""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = os.path.join(output_dir, f"color_transfer_{timestamp}")
+    os.makedirs(base_dir, exist_ok=True)
+
+    img_dir = os.path.join(base_dir, "images")
+    os.makedirs(img_dir, exist_ok=True)
+
+    csv_path = os.path.join(base_dir, "color_transfer_results.csv")
+    output.to_csv(csv_path, index=False)
+
+    for _, row in output.iterrows():
+        problem_name = row['dataset']
+        solver_name = row['name']
+        key = name_to_tuple(problem_name)
+
+        if key not in results or solver_name not in results[key]:
+            continue
+
+        param_kwargs = {col: row[col] for col in param_columns if col in row}
+        img = results[key][solver_name][frozenset(param_kwargs.items())]
+        img = mat2im(img, data[key[0]].get_image_shape())
+        img = np.clip(img, 0, 1)
+
+        param_str = "_".join(f"{k}_{v}" for k, v in sorted(param_kwargs.items()))
+        base_name = f"{problem_name.replace(' -> ', '_')}_{solver_name}_{param_str}.png"
+        save_path = os.path.join(img_dir, base_name)
+
+        plt.imsave(save_path, img)
+
+    logger.info(f"Results exported to {output_dir}")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Run color transfer via optimal transport")
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to a configuration file with experiment parameters."
+    )
+
+    args = parser.parse_args()
+
+    with open(args.config) as file:
+        config = yaml.safe_load(file)
+
+    bin_num, batch_size, pair_num, images_dir, output_dir = load_config_info(config)
+
+    solver_configs = load_solvers(config=config)
+    ImageData.set_image_dir(images_dir)
+
+    data = {name: ImageData(name, bin_num) for name in os.listdir(images_dir)}
+
+    image_pairs = list(itertools.permutations(data, 2))[:pair_num]
+
+    output, results = perform_experiments(batch_size, data, image_pairs, solver_configs)
+    param_columns = get_param_columns(output)
+
+    output = calculate_histogram_metrics(output, results, data, param_columns, bin_num)
+    output = calculate_quality_metrics(output, results, data, param_columns)
+    output = calculate_spatial_metrics(output, results, data, param_columns)
+
+    export_data(output, results, output_dir, data, param_columns)
