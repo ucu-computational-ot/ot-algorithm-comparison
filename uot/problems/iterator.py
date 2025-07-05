@@ -10,7 +10,7 @@ class ProblemIterator(Iterator[MarginalProblem]):
     """
 
     def __init__(self, store: ProblemStore):
-        self._files = store.all_files()
+        self._problems = store.all_problems()
         self._idx = 0
         self._store = store
 
@@ -18,11 +18,11 @@ class ProblemIterator(Iterator[MarginalProblem]):
         return self
 
     def __len__(self) -> int:
-        return len(self._files)
+        return len(self._problems)
 
     def __next__(self) -> MarginalProblem:
-        if self._idx >= len(self._files):
+        if self._idx >= len(self._problems):
             raise StopIteration
-        fn = self._files[self._idx]
+        fn = self._problems[self._idx]
         self._idx += 1
         return self._store.load(fn)

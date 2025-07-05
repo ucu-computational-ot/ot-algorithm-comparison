@@ -5,10 +5,23 @@ import argparse
 from uot.experiments.runner import run_pipeline
 from uot.utils.yaml_helpers import load_solvers, load_problems, load_experiment
 from uot.utils.problems_loaders import load_problems_from_dir
+from uot.problems.hdf5_store import HDF5ProblemStore
+from uot.problems.iterator import ProblemIterator
 from uot.utils.exceptions import InvalidConfigurationException
 from uot.utils.logging import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def get_problem_iterators(
+        dataset: str | None, config
+) -> list[ProblemIterator]:
+    if dataset:
+        if dataset.endswith(".h5"):
+            store = HDF5ProblemStore(dataset)
+            return [ProblemIterator(store)]
+        return load_problems_from_dir(dataset)
+    return load_problems(config=config)
 
 
 def main() -> None:
@@ -62,10 +75,7 @@ def main() -> None:
     try:
         experiment = load_experiment(config=config)
         solver_configs = load_solvers(config=config)
-        if args.dataset is not None:
-            problems_iterators = load_problems_from_dir(args.dataset)
-        else:
-            problems_iterators = load_problems(config=config)
+        problems_iterators = get_problem_iterators(args.dataset, config)
     except InvalidConfigurationException as ex:
         logger.exception(ex)
         exit(1)
