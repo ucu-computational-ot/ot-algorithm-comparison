@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from uot.problems.store import ProblemStore
+from uot.problems.hdf5_store import HDF5ProblemStore
 from uot.problems.iterator import ProblemIterator
 
 import logging
@@ -132,6 +133,22 @@ def plot_dataset(dataset_path: str, outdir: str):
         plot_store(store, store_output)
 
 
+def plot_hdf5_dataset(path: str, outdir: str):
+    out_path = Path(outdir)
+    store = HDF5ProblemStore(path)
+    iterator = ProblemIterator(store)
+    for problem in iterator:
+        logger.debug(f"Processing problem {problem}")
+        prefix = str(out_path / f"problem-{problem.key()}")
+        logger.debug(f"The key for {problem} is {problem.key()}")
+        mu, nu = problem.get_marginals()
+        logger.debug(f"Marginals: [{mu}], [{nu}]")
+        mu_pts, mu_w = mu.to_discrete()
+        nu_pts, nu_w = nu.to_discrete()
+        logger.debug(f"Output files would have prefix {prefix}")
+        plot_and_save(mu_pts, mu_w, nu_pts, nu_w, prefix)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Inspect & save dataset visualizations.")
@@ -160,7 +177,10 @@ if __name__ == "__main__":
     elif args.dataset is not None:
         logger.debug(f"Flag set to visualize dataset. Will read {args.dataset}\
         and output to {args.outdir}")
-        plot_dataset(args.dataset, args.outdir)
+        if args.dataset.endswith('.h5'):
+            plot_hdf5_dataset(args.dataset, args.outdir)
+        else:
+            plot_dataset(args.dataset, args.outdir)
     else:
         raise ValueError("No input data option (either store or \
         dataset) was specified.")
