@@ -12,3 +12,6 @@ solvers:
 sample-sizes:
   - 100
   - 250
+
+costs-dir: ./outputs/mnist/costs
+output-dir: ./outputs/mnist/classification
