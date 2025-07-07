@@ -93,6 +93,40 @@ $ pixi run benchmark --config configs/runners/gaussians.yaml --folds 1 --export 
 
 With `export` one can secify where to put csv-report of experiment
 
+## Color Transfer
+
+To run a Color Transfer experiment, first create config file like:
+
+```yaml
+param-grids:
+  epsilons:
+    - reg: 1
+    - reg: 0.01
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    param-grid: epsilons
+    jit: true
+
+bin-number: 16
+batch-size: 100000
+pair-number: 2
+images-dir: ./datasets/images
+output-dir: ./outputs/color_transfer
+```
+Where the "bin-number" parameter affects the detailedness of color grids created for the images; "batch-size" represents the number of operations done simultaneously when working with JAX; "pair-number" represents the number of individual experiments performed per solver configuration (not including the warm-up runs); "images-dir" is the path to the directory with original images and "output-dir" is the path to a folder where the resulting images and output dataframe will be stored.
+
+The corresponding pixi command example:
+```
+pixi run color-transfer --config ./configs/color_transfer/example.yaml
+```
+
+There is also a feature to create a dashboard for visual comparison of the input images and results - the corresponding command is:
+```
+pixi run color-transfer-visualization --origin_folder <path_to_input_images> --results_folder <path_to_resulting_images>
+```
+
 ## Linting
 
 This project uses [Black](https://black.readthedocs.io/) and [Ruff](https://docs.astral.sh/ruff/) for code style. Run `pixi run lint` or `ruff check .` to lint the code.
