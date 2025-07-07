@@ -10,6 +10,7 @@ root = "uot"
 [tasks]
 playground = "python -m uot.test.playground"
 color-transfer = "python -m uot.experiments.real_data.color_transfer.color_transfer"
+color-transfer-visualization = "python -m uot.experiments.real_data.color_transfer.visualization"
 mnist_distances = "python -m uot.experiments.real_data.mnist_classification.count_pairwise_distances"
 mnist_classification = "python -m uot.experiments.real_data.mnist_classification.mnist_classification"
 tests = "python -m uot.experiments.run_tests"
