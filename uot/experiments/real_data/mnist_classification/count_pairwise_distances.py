@@ -161,7 +161,6 @@ if __name__ == "__main__":
     solver_configs = load_solvers(config=config)
     batch_size = config.get('batch-size', 10000)
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    export_folder = os.path.join(script_dir, "costs")
+    export_folder = config.get('output-dir', 'results')
 
     compute_distances_for_all_solvers(X, C, solver_configs, batch_size = batch_size, export_folder=export_folder)
