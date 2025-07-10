@@ -16,7 +16,6 @@ fi
 GEN_CFG="$1"
 RUN_CFG="$2"
 FOLDS="${3:-1}"
-DATA_FILE="${DATA_FILE:-datasets/synthetic.h5}"
 RESULT_DIR="${RESULT_DIR:-results}"
 
 mkdir -p "$RESULT_DIR" logs
@@ -33,20 +32,12 @@ export JAX_PLATFORM_NAME="gpu"
 export XLA_PYTHON_CLIENT_PREALLOCATE="false"
 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 
-# if DATA_FILE doesn't exist as a regular file, or exists but has zero size, regenerate
-if [[ ! -f "$DATA_FILE" ]] || [[ ! -s "$DATA_FILE" ]]; then
-  echo "Generating synthetic data into $DATA_FILE"
-  python -m uot.problems.problem_serializer \
-    --config "$GEN_CFG" \
-    --export-hdf5 "$DATA_FILE"
-fi
-
 echo "Running benchmark from $RUN_CFG"
 python -m uot.experiments.synthetic.benchmark \
   --config "$RUN_CFG" \
-  --dataset "$DATA_FILE" \
+  --generators-config "$GEN_CFG" \
   --folds "$FOLDS" \
-  --export "$RESULT_DIR/$(basename "$RUN_CFG" .yaml).csv"
+  --export "$RESULT_DIR/$(basename "$RUN_CFG" .yaml)_$(basename "$GEN_CFG" .yaml)_$(date +'%d-%H-%M').csv"
 
 if type conda >/dev/null 2>&1; then
   conda deactivate
