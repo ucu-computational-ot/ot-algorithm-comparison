@@ -22,3 +22,4 @@ lint = "ruff check ."
 [dependencies]
 black = ">=25.1.0,<26"
 pyyaml = ">=6.0.2,<7"
+hdf5 = ">=1.14.6,<2"
