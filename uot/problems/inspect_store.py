@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 
 import numpy as np
+from jax import numpy as jnp
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -31,15 +33,89 @@ def plot_1d(mu_pts, mu_w, nu_pts, nu_w):
     return fig
 
 
-def plot_2d(mu_pts, mu_w, nu_pts, nu_w):
-    Scatter = go.Scatter
-    fig = make_subplots(rows=1, cols=2,
-                        subplot_titles=('μ points', 'ν points'),
-                        horizontal_spacing=0.1)
-    fig.add_trace(Scatter(x=mu_pts[:, 0], y=mu_pts[:, 1], mode='markers',
-                          marker=dict(size=4, opacity=0.6), name='μ'), row=1, col=1)
-    fig.add_trace(Scatter(x=nu_pts[:, 0], y=nu_pts[:, 1], mode='markers',
-                          marker=dict(size=4, opacity=0.6), name='ν'), row=1, col=2)
+def grid_to_heatmap(pts, w):
+    xs = np.unique(pts[:, 0])
+    ys = np.unique(pts[:, 1])
+    Z = w.reshape(len(ys), len(xs))
+    return xs, ys, Z
+
+
+def plot_2d(mu_pts, mu_w, nu_pts, nu_w, bins=50):
+    Heatmap = go.Heatmap
+
+    xsmu, ysmu, Zmu = grid_to_heatmap(mu_pts, mu_w)
+    xsnu, ysnu, Znu = grid_to_heatmap(nu_pts, nu_w)
+    vmin = float(min(Zmu.min(), Znu.min()))
+    vmax = float(max(Zmu.max(), Znu.max()))
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('μ points', 'ν points'),
+        horizontal_spacing=0.1
+    )
+    # μ heatmap + scatter
+    fig.add_trace(
+        Heatmap(
+            x=xsmu,
+            y=ysmu,
+            z=Zmu,
+            zmin=vmin, zmax=vmax,
+            colorscale='Cividis',
+            showscale=False,
+            opacity=0.9,
+            name='μ heatmap'
+        ),
+        row=1, col=1
+    )
+    fig.add_trace(
+      go.Scatter(
+        x=mu_pts[:, 0], y=mu_pts[:, 1],
+        mode='markers',
+        marker=dict(size=3, color='black', opacity=0.4),
+        showlegend=False
+      ), row=1, col=1
+    )
+    fig.add_trace(
+      go.Contour(
+        x=xsmu, y=ysmu, z=Zmu,
+        contours=dict(showlines=True, start=0, end=float(Zmu.max()), size=int(Zmu.max()/10)),
+        line_width=1, showscale=False
+      ), row=1, col=1
+    )
+    # ν heatmap + scatter
+    fig.add_trace(
+        Heatmap(
+            x=xsnu,
+            y=ysnu,
+            z=Znu,
+            zmin=vmin, zmax=vmax,
+            colorscale='Cividis',
+            showscale=True,
+            opacity=0.9,
+            name='ν heatmap',
+            colorbar=dict(title='Density')
+        ),
+        row=1, col=2
+    )
+    fig.add_trace(
+      go.Scatter(
+        x=nu_pts[:, 0], y=nu_pts[:, 1],
+        mode='markers',
+        marker=dict(size=3, color='black', opacity=0.3),
+        showlegend=False
+      ), row=1, col=2
+    )
+    fig.add_trace(
+      go.Contour(
+        x=xsnu, y=ysnu, z=Znu,
+        contours=dict(showlines=True, start=0, end=float(Znu.max()), size=int(Znu.max()/10)),
+        line_width=1, showscale=False
+      ), row=1, col=2
+    )
+    fig.update_layout(
+        width=900, height=370,
+        margin=dict(t=50, l=20, r=20, b=20)
+    )
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
     return fig
 
 
@@ -145,6 +221,10 @@ def plot_hdf5_dataset(path: str, outdir: str):
         logger.debug(f"Marginals: [{mu}], [{nu}]")
         mu_pts, mu_w = mu.to_discrete()
         nu_pts, nu_w = nu.to_discrete()
+        if jnp.any(jnp.isnan(mu_w)):
+            logger.warning(f"Loaded nan mu weights for {problem}")
+        if jnp.any(jnp.isnan(nu_w)):
+            logger.warning(f"Loaded nan nu weights for {problem}")
         logger.debug(f"Output files would have prefix {prefix}")
         plot_and_save(mu_pts, mu_w, nu_pts, nu_w, prefix)
 

@@ -12,6 +12,7 @@ from uot.problems.problem_serializer import _resolve_references
 from uot.utils.logging import setup_logger
 
 logger = setup_logger(__name__)
+logger.propagate = False
 
 
 def get_problem_iterators(
