@@ -101,7 +101,7 @@ def gradient_ascent_opt_multimarginal(
     def cond_fn(
             state: tuple[int, jax.Array, optax.OptState, float, float, bool]
     ):
-        i, _, _, _, has_converged = state
+        i, _, _, _, _, has_converged = state
         return jnp.logical_and(
             i < max_iterations,
             jnp.logical_not(has_converged),
