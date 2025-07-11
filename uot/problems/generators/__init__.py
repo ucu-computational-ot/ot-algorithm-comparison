@@ -2,3 +2,7 @@ from .gaussian_mixture_generator import GaussianMixtureGenerator
 from .cauchy_generator import CauchyGenerator
 from .exponential_generator import ExponentialGenerator
 from .paired_generator import PairedGenerator
+from .independent_cauchy import IndependentCauchyGenerator
+from .independent_exponential import IndependentExponentialGenerator
+from .generalized_hyperbolic_mixture import GeneralizedHyperbolicMixtureGenerator
+from .students_t import StudentTGenerator
