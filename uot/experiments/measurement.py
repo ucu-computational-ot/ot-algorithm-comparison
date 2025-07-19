@@ -2,6 +2,7 @@ import jax
 import time
 from gpu_tracker.tracker import Tracker
 from typing import Any
+from uot.utils.instantiate_solver import instantiate_solver
 
 
 def _wait_jax_finish(result: dict[str, Any]) -> dict[str, Any]:
@@ -19,7 +20,8 @@ def _require(result: dict[str, Any], required: set[str]) -> None:
 
 
 def measure_time(prob, solver, marginals, costs, **kwargs):
-    instance = solver()
+    solver_init_kwargs = kwargs or {}
+    instance = instantiate_solver(solver_cls=solver, init_kwargs=solver_init_kwargs)
     start_time = time.perf_counter()
     solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
     _wait_jax_finish(solution)
@@ -29,7 +31,8 @@ def measure_time(prob, solver, marginals, costs, **kwargs):
 
 
 def measure_solution_precision(prob, solver, *args, **kwargs):
-    instance = solver()
+    solver_init_kwargs = kwargs or {}
+    instance = instantiate_solver(solver_cls=solver, init_kwargs=solver_init_kwargs)
     result = instance.solve(*args, **kwargs)
     _wait_jax_finish(result)
     _require(result, {'cost'})
@@ -40,7 +43,8 @@ def measure_solution_precision(prob, solver, *args, **kwargs):
 
 
 def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
-    instance = solver()
+    solver_init_kwargs = kwargs or {}
+    instance = instantiate_solver(solver_cls=solver, init_kwargs=solver_init_kwargs)
     with Tracker(
         sleep_time=0.1,
         gpu_ram_unit='megabytes',
