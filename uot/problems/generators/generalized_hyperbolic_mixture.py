@@ -9,9 +9,9 @@ from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
 
-MEAN_FROM_BORDERS_COEF = 0.9
+MEAN_FROM_BORDERS_COEF = 0.5
 VAR_LOWER = 0.05
-VAR_UPPER = 0.5
+VAR_UPPER = 0.3
 
 
 class GeneralizedHyperbolicMixtureGenerator(ProblemGenerator):

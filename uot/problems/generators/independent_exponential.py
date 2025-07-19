@@ -13,7 +13,8 @@ from uot.utils.logging import setup_logger
 
 logger = setup_logger(__name__)
 
-MEAN_FROM_BORDERS_COEF = 0.9
+MEAN_LOWER_FROM_BORDERS_COEF = 0.05
+MEAN_UPPER_FROM_BORDERS_COEF = 0.3
 
 
 class IndependentExponentialGenerator(ProblemGenerator):
@@ -47,15 +48,16 @@ class IndependentExponentialGenerator(ProblemGenerator):
         product-PDF on `points`, and return a normalized weight vector.
         """
         # We choose loc_i within the grid bounds so support covers negatives if any.
+        span = abs(self._borders[1] - self._borders[0])
         locs = self._rng.uniform(
-            self._borders[0] * MEAN_FROM_BORDERS_COEF,
-            self._borders[1] * MEAN_FROM_BORDERS_COEF,
+            0,
+            span * 0.25,
             size=self._dim,
         )
         # Scale must be positive; we pick it relative to border span.
         scales = self._rng.uniform(
-            abs(self._borders[1]) * MEAN_FROM_BORDERS_COEF * 0.1,
-            abs(self._borders[1]) * MEAN_FROM_BORDERS_COEF,
+            2 * MEAN_LOWER_FROM_BORDERS_COEF / span,
+            2 * MEAN_UPPER_FROM_BORDERS_COEF / span,
             size=self._dim,
         )
 
@@ -86,10 +88,7 @@ class IndependentExponentialGenerator(ProblemGenerator):
                 logger.warning("w_mu contains nan")
             w_nu = self._sample_exponential_weights(points)
             if np.any(np.isnan(w_nu)):
-                logger.warning("w_nu contains nan")
-
-            print(f"{w_mu=}")
-            print(f"{w_nu=}")
+                logger.warning("w_nu contains nan") 
 
             mu_measure = DiscreteMeasure(points=points, weights=w_mu)
             nu_measure = DiscreteMeasure(points=points, weights=w_nu)
