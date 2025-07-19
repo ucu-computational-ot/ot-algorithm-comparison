@@ -29,6 +29,15 @@ def measure_time(prob, solver, marginals, costs, **kwargs):
     metrics = {"time": (time.perf_counter() - start_time) * 1000}
     return metrics
 
+def measure_time_and_output(prob, solver, marginals, costs, **kwargs):
+    instance = solver()
+    start_time = time.perf_counter()
+    solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
+    _wait_jax_finish(solution)
+    metrics = {"time": (time.perf_counter() - start_time) * 1000}
+    metrics.update(solution)
+    return metrics
+
 
 def measure_solution_precision(prob, solver, *args, **kwargs):
     solver_init_kwargs = kwargs or {}
