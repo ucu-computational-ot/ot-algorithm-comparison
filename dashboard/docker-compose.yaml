@@ -1,0 +1,20 @@
+services:
+  dashboard:
+    build: .
+    command: python app.py
+    env_file:
+      - .env
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./data:/app/data
+      - ./app.py:/app/app.py
+      - ./dataset.py:/app/dataset.py
+      - ./pages:/app/pages
+    restart: unless-stopped
+    networks:
+      - dashboard-net
+
+networks:
+  dashboard-net:
+    driver: bridge

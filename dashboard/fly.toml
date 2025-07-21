@@ -1,0 +1,22 @@
+# fly.toml app configuration file generated for dashboard-silent-star-707 on 2025-07-21T00:45:16-04:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'dashboard-silent-star-707'
+primary_region = 'yyz'
+
+[build]
+
+[http_service]
+  internal_port = 8050
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
