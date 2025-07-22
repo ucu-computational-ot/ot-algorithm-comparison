@@ -42,6 +42,7 @@ class PDLPSolver(BaseSolver):
         )
         return {
             "transport_plan": coupling,
+            "cost": (coupling * costs[0]).sum(),
             "u_final": u,
             "v_final": v,
             "iterations": i_final,
