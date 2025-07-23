@@ -1,6 +1,7 @@
 # Utils for OT Methods Benchmark
 
-See [docs/index.md](docs/index.md) for full documentation.
+- See [docs/index.md](docs/index.md) for full documentation.
+- See [docs/slurm.md](docs/slurm.md) for examples related to slurm.
 
 ## Installing Pixi
 

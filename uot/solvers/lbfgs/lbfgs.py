@@ -12,6 +12,9 @@ from uot.utils.solver_helpers import coupling_tensor
 
 class LBFGSTwoMarginalSolver(BaseSolver):
 
+    def __init__(self):
+        super().__init__()
+
     def solve(
         self,
         marginals: Sequence[DiscreteMeasure],

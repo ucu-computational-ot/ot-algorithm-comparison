@@ -35,8 +35,8 @@ def load_solvers(config: dict) -> list[SolverConfig]:
 
 def load_problems(config: dict) -> list[ProblemIterator]:
     iterators = []
-    problemsets_names = config['problems']['names']
-    problemsets_dir = config['problems']['dir']
+    problemsets_names = config.get('problems', {'names': []})['names']
+    problemsets_dir = config.get('problems', {'dir': None})['dir']
 
     for problemset_name in problemsets_names:
         store_path = os.path.join(problemsets_dir, problemset_name)

@@ -8,6 +8,9 @@ from uot.solvers.base_solver import BaseSolver
 from uot.utils.types import ArrayLike
 
 class LinearProgrammingTwoMarginalSolver(BaseSolver):
+
+    def __init__(self):
+        super().__init__()
     
     def solve(
         self,
@@ -31,6 +34,9 @@ class LinearProgrammingTwoMarginalSolver(BaseSolver):
             "cost": log['cost'],
             "u_final": log['u'],
             "v_final": log['v'],
-            "iterations": None,
-            "error": 0,
+            "iterations": log.get("numIter", None),
+            "error": max(
+                np.max(np.abs(coupling.sum(axis=1) - mu)),
+                np.max(np.abs(coupling.sum(axis=0) - nu))
+            ),
         }
