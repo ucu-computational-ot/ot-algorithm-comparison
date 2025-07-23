@@ -33,6 +33,7 @@ pot = ">=0.9.5,<0.10"
 opencv = "*"
 scikit-image = ">=0.25.2,<0.26"
 tqdm = ">=4.67.1,<5"
+hdf5 = ">=1.14.6,<2"
 
 [pypi-dependencies]
 jax = { version = ">=0.4.38, <0.7", extras = ["cpu"] }
