@@ -1,7 +1,12 @@
 import os
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
+from convergence_thresholds import (
+    MAX_ITER_BY_SOLVER,
+    TOL_BY_SOLVER,
+)
 import logging
 
 load_dotenv()
@@ -53,17 +58,43 @@ def load_all_df():
     for file in df["__source_file__"]:
         logging.info(f"Loaded {file}")
 
-    cols_to_ensure = {
-        'dataset', 'iterations', 'error', 'time', 'time_counter',
-        'peak_gpu_mem', 'peak_util_pct', 'mean_util_pct', 'name',
-        'status', 'reg',
+    # first, verify the raw columns exist
+    raw_cols = {
+        "dataset", "iterations", "error", "time", "time_counter",
+        "peak_gpu_mem", "combined_peak_gpu_ram",
+        "peak_gpu_util_pct", "mean_gpu_util_pct",
+        "peak_ram_MiB", "combined_peak_ram_MiB",
+        "max_cpu_util_pct", "mean_cpu_util_pct",
+        "status", "name", "reg"
     }
-    missing_columns = cols_to_ensure.difference(set(df.columns))
-    if len(missing_columns) != 0:
-        print(f"Some columns are missing: {missing_columns}")
-        # TODO: handle missing columns
-        # well that never gonna happen but let's just be sure
-        pass
+    missing = raw_cols - set(df.columns)
+    if missing:
+        logging.warning(f"Missing expected raw columns: {missing}")
+
+    # now rename to your standardized names
+    df = df.rename(columns={
+        "combined_peak_gpu_ram": "combined_peak_gpu_mem",
+        "peak_gpu_util_pct":    "peak_util_pct",
+        "mean_gpu_util_pct":    "mean_util_pct",
+        "peak_ram_MiB":         "peak_ram_mem",
+        "combined_peak_ram_MiB": "combined_peak_ram_mem",
+        "max_cpu_util_pct":     "peak_cpu_util_pct",
+        "mean_cpu_util_pct":    "mean_cpu_util_pct",  # if you use this
+    })
+
+    # finally, ensure the standardized set that the dashboard expects
+    cols_to_ensure = {
+        "dataset", "iterations", "error", "time", "time_counter",
+        "peak_gpu_mem", "combined_peak_gpu_mem",
+        "peak_util_pct", "mean_util_pct",
+        "peak_ram_mem", "combined_peak_ram_mem",
+        "peak_cpu_util_pct", "mean_cpu_util_pct",
+        "status", "name", "reg",
+    }
+    missing_std = cols_to_ensure - set(df.columns)
+    if missing_std:
+        logging.warning(f"Missing standardized columns: {missing_std}")
+
     return df
 
 
@@ -75,8 +106,9 @@ def preprocess(dataframe: pd.DataFrame):
         "tol": 'na',
     }
     dataframe.fillna(value=replacements, inplace=True)
-    dataframe['size'] = dataframe['dataset'].str.extract(r'(\d+)p')
-    dataframe['dim'] = dataframe['dataset'].str.extract(r'(\d)D-')
+    dataframe['reg'] = dataframe['reg'].astype(float)
+    dataframe['size'] = dataframe['dataset'].str.extract(r'(\d+)p').astype(int)
+    dataframe['dim'] = dataframe['dataset'].str.extract(r'(\d)D-').astype(int)
     dataframe.rename(columns={
         'name': 'solver',
     }, inplace=True)
@@ -86,3 +118,31 @@ def preprocess(dataframe: pd.DataFrame):
 
 def select_dimension(df: pd.DataFrame, dim: int) -> pd.DataFrame:
     return df[df['dataset'].str.startswith(dim + 'D') == True]
+
+
+def filter_converged(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Return only those rows where the solver actually converged.
+    A row is dropped if:
+      - error is NaN, or
+      - iterations >= solver’s max_iter AND error > solver’s tol.
+    Solvers not in the dicts are assumed to always converge (unless error is NaN).
+    """
+    # copy and coerce types
+    good = df.copy()
+    # ensure numeric
+    good["iterations"] = pd.to_numeric(good["iterations"], errors="coerce").fillna(0).astype(int)
+    good["error"] = pd.to_numeric(good["error"], errors="coerce")
+
+    # 1) drop NaN errors
+    good = good[~good["error"].isna()]
+
+    # 2) map per‑solver thresholds, defaulting to “never fail”
+    max_iters = good["solver"].map(MAX_ITER_BY_SOLVER).fillna(np.inf)
+    tols = good["solver"].map(TOL_BY_SOLVER).fillna(-np.inf)
+
+    # 3) failure iff it actually hit its max and is still above tol
+    failures = (good["iterations"] >= max_iters) & (good["error"] > tols)
+
+    # 4) keep only non‑failures
+    return good[~failures].reset_index(drop=True)

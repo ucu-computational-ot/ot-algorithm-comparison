@@ -16,8 +16,8 @@ coverage_df = (
     df
     .groupby("distribution")
     .agg(
-        solvers = ("solver", lambda x: ", ".join(sorted(x.unique()))),
-        regs = ("reg", lambda x: ", ".join(sorted(map(str, x.unique()))))
+        solvers=("solver", lambda x: ", ".join(sorted(x.unique()))),
+        regs=("reg", lambda x: ", ".join(sorted(map(str, x.unique()))))
     )
     .reset_index()
     .rename(columns={"distribution": "Dataset", "solvers": "Solvers", "regs": "Regularizations"})
