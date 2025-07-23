@@ -2,7 +2,6 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import os
-import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -74,7 +73,7 @@ def load_config_info(config: dict)-> tuple:
         config.get('drop-columns', [])
     )
 
-def get_image_problems(data: dict[str, ImageData], image_pairs: list[tuple]) -> list[TwoMarginalProblem]:
+def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> list[TwoMarginalProblem]:
     """Get the image pairs as problems for the experiment"""
     return [
         TwoMarginalProblem(
@@ -86,21 +85,33 @@ def get_image_problems(data: dict[str, ImageData], image_pairs: list[tuple]) -> 
         for source_name, target_name in image_pairs
     ]
 
-def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int = 42) -> tuple[dict, list[tuple[str, ImageData]]]:
+
+def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int = 42) -> tuple[dict[str, ImageData], set[tuple[str, str]]]:
 
     rng = np.random.default_rng(seed)
     all_images = os.listdir(images_dir)
 
-    min_images = 2
-    while min_images * (min_images - 1) < pair_num * 2:
-        min_images += 1
+    if len(all_images) * (len(all_images) - 1) < pair_num:
+        raise ValueError("Not enough images to sample the required number of pairs.")
     
-    sampled_images = rng.choice(all_images, size= min(min_images, len(all_images)), replace=False)
+    pairs = set()
+    data = {}
 
-    data = {name: ImageData(name, bin_num) for name in sampled_images}
-    image_pairs = list(itertools.permutations(data, 2))[:pair_num]
+    while len(pairs) < pair_num:
 
-    return data, image_pairs
+        source_name, target_name = rng.choice(all_images, size=2, replace=False)
+
+        if (source_name, target_name) not in pairs:
+            pairs.add((source_name, target_name))
+
+            if source_name not in data:
+                data[source_name] = ImageData(source_name, bin_num)
+
+            if target_name not in data:
+                data[target_name] = ImageData(target_name, bin_num)
+    
+    return data, pairs
+    
 
 def name_to_tuple(name: str) -> tuple:
     """Convert problem name to a tuple of source and target image names"""
@@ -191,7 +202,7 @@ def _transform_numpy(source_image, source_palette, projected_palette, batch_size
     return np.concatenate(transformed_chunks, axis=0)
 
 
-def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: list[tuple], solver_configs: list[SolverConfig], experiment: Experiment)-> tuple:
+def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: set[tuple], solver_configs: list[SolverConfig], experiment: Experiment)-> tuple:
     """Carry out the experiments specified in the config"""
 
     results = {}
