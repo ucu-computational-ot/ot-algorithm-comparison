@@ -152,15 +152,19 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    X, y, C = load_mnist_data()
     
     with open(args.config) as file:
-        config = yaml.safe_load(file) 
+        config = yaml.safe_load(file)
+
+    X, y, C = load_mnist_data()
 
     solver_configs = load_solvers(config=config)
     batch_size = config.get('batch-size', 10000)
 
-    export_folder = config.get('output-dir', 'results')
+    try:
+        export_folder = config['output-dir']
+    except KeyError:
+        logger.error("Output directory not specified in the configuration file.")
+        raise ValueError("Configuration file must contain 'output-dir' key.")
 
-    compute_distances_for_all_solvers(X, C, solver_configs, batch_size = batch_size, export_folder=export_folder)
+    compute_distances_for_all_solvers(X, C, solver_configs, batch_size=batch_size, export_folder=export_folder)
