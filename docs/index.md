@@ -117,6 +117,17 @@ runner later loads them via `ProblemStore` and `ProblemIterator`.  When using th
 YAML configs, loading happens automatically so you rarely need to interact with
 these classes directly.
 
+One can also use another backend to store problems. Currently we support `HDF5`
+format, which can be enabled simply by changing the export argument:
+
+```bash
+pixi run serializee --config <path/to/generator.yaml> --export-hdf5 <output/path.h5>
+```
+
+By default, we use `gzip` compression and chunks of 1024 bytes for marginals and
+256 for cost matrices in the `HDF5ProblemStore`, that implements one
+for `hdf5` format.
+
 To visually inspect a dataset you can run `python -m uot.problems.inspect_store
 --dataset <path> --outdir plots` which saves plots of the stored distributions.
 
@@ -137,7 +148,7 @@ solvers:
     jit: true
     param-grid: regularizations
 
-problems:
+problems:                   # is optional
   dir: datasets/synthetic
   names:
     - 1D-gaussians-64
@@ -149,8 +160,10 @@ experiment:
 
 `param-grids` define sets of solver parameters. Each entry under `solvers`
 references a `BaseSolver` subclass and optionally one of the parameter grids.
-The `problems` section points to the previously serialised datasets. Finally the
-`experiment` section chooses one of the measurement functions.
+The `problems` section points to the previously serialised datasets, which is optional.
+One can pass the path to the dataset via command line or use online generation.
+
+Finally the `experiment` section chooses one of the measurement functions.
 
 A runner file may use YAML anchors in the same spirit as generator configs.  For
 example common solver parameters can be defined once and reused:
@@ -185,6 +198,23 @@ pixi run benchmark --config <path/to/runner.yaml> --folds 1 --export results.csv
 
 The command produces a CSV table with the collected metrics. The `folds`
 argument controls how many times the experiment is repeated.
+
+The list of the datasets and problems in the runner's configuration is optional
+and you may directly pass the directory to the problem sets (as described before
+in the serialization section) or to the `.h5` file:
+
+```bash
+pixi run benchmark --config <path/to/runner.yaml> --dataset <directory/path> --folds 1 --export results.csv
+```
+
+Another variant is to generate problems online as the experiments are being run.
+Add additionally `--generators-config` argument with the path to the configuration
+to extend the available set of problems with ones specified in the configuration:
+
+```bash
+pixi run benchmark --config <path/to/runner.yaml>\
+    --generators-config <path/to/generator.yaml> --folds 1 --export results.csv
+```
 
 Internally the CLI calls `run_pipeline` from `uot.experiments.runner`.  The
 function loads the problems, repeats them according to `folds`, and iterates

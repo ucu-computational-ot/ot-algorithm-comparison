@@ -51,9 +51,11 @@ class ExponentialGenerator(ProblemGenerator):
         ]
 
         for i in range(self._num_datasets):
-            mu_weights = exponential_pdfs[2 * i](points)
+            # NOTE: for some reason the returned shape is still (n, 1)
+            #       so we just reshape it to be back (n,)
+            mu_weights = exponential_pdfs[2 * i](points).reshape(-1)
             mu_weights /= mu_weights.sum()
-            nu_weights = exponential_pdfs[2 * i + 1](points)
+            nu_weights = exponential_pdfs[2 * i + 1](points).reshape(-1)
             nu_weights /= nu_weights.sum()
             mu = DiscreteMeasure(points=points, weights=mu_weights)
             nu = DiscreteMeasure(points=points, weights=nu_weights)

@@ -63,6 +63,12 @@ def run_pipeline(
                 **param_kwargs,
             )
 
+            if len(df_res) == 0:
+                logger.warning("Result of run returned empty. Either the\
+                    set of problems is empty or the solver and\
+                    dataset is encorrectly configured.")
+                continue
+
             df_res["name"] = cfg.name
 
             for k, v in param_kwargs.items():
