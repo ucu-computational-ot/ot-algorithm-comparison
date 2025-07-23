@@ -106,13 +106,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     X, y, _ = load_mnist_data()
-    X, y = X[:250], y[:250]  # Limit to 250 samples for faster computation
 
     with open(args.config) as file:
         config = yaml.safe_load(file) 
 
     solver_configs = load_solvers(config=config)
-    costs_dir = config.get('costs-dir', 'results/costs')
+
+    try: 
+        costs_dir = config['costs-dir']
+        export_folder = config['output-dir']
+    except KeyError as e:
+        logger.error(f"Missing key in configuration file: {e.args[0]}")
+        raise ValueError(f"Configuration file must contain '{e.args[0]}' key.")
 
     pairwise_distances = load_pairwise_distances(solver_configs, costs_dir)
     
@@ -140,8 +145,6 @@ if __name__ == "__main__":
 
                 result.update(param_kwargs)
                 results.append(result)
-
-    export_folder = config.get('output-dir', 'results')
 
     if not os.path.exists(export_folder):
         os.makedirs(export_folder, exist_ok=True)
