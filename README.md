@@ -1,7 +1,8 @@
 # Utils for OT Methods Benchmark
 
-- See [docs/index.md](docs/index.md) for full documentation.
+- See [docs/index.md](docs/index.md) for full documentation on main pipeline.
 - See [docs/slurm.md](docs/slurm.md) for examples related to slurm.
+- See [docs/color_transfer.md](docs/color_transfer.md) for detailed explanation of the color transfer experiment.
 
 ## Installing Pixi
 
@@ -111,11 +112,21 @@ solvers:
 
 bin-number: 16
 batch-size: 100000
-pair-number: 2
+pair-number: 3
 images-dir: ./datasets/images
 output-dir: ./outputs/color_transfer
+rng-seed: 42
+
+drop-columns:
+  - transport_plan
+  - u_final
+  - v_final
+
+experiment: 
+  name: Time and test
+  function: uot.experiments.measurement.measure_time_and_output
 ```
-Where the "bin-number" parameter affects the detailedness of color grids created for the images; "batch-size" represents the number of operations done simultaneously when working with JAX; "pair-number" represents the number of individual experiments performed per solver configuration (not including the warm-up runs); "images-dir" is the path to the directory with original images and "output-dir" is the path to a folder where the resulting images and output dataframe will be stored.
+For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md).
 
 The corresponding pixi command example:
 ```
