@@ -63,7 +63,7 @@ def create_kernel_matrix(distance_matrix: np.ndarray)-> np.ndarray:
     return kernel_matrix
 
 
-def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike, solver: SolverConfig)-> float:
+def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike)-> float:
     """Calculate classification results using proper cross-validation with precomputed kernel"""
     X_sub = X[indices]
     y_sub = y[indices]
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
                 logger.info(f"Running {solver.name} with parameters {param_kwargs} on sample size {sample_size}")
 
-                accuracy = calculate_results(X, y, distance_matrix, X_indices, solver)
+                accuracy = calculate_results(X, y, distance_matrix, X_indices)
 
                 result = {
                     'solver': solver.name,
