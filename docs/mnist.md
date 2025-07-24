@@ -50,7 +50,7 @@ output-dir: ./outputs/mnist/classification
 ```
 
     - "sample-sizes" specify how many numbers will be sampled for training and accuracy analysis;
-    - "costs-dir" corresponds to the directory with distance matrices per solver configuration, geterated on the previous step;
+    - "costs-dir" corresponds to the directory with distance matrices per solver configuration, generated on the previous step;
     - "output-dir" is the path to a folder where the resulting metrics will be stored.
 
 
