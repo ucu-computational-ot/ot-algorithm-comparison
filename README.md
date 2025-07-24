@@ -3,6 +3,7 @@
 - See [docs/index.md](docs/index.md) for full documentation on main pipeline.
 - See [docs/slurm.md](docs/slurm.md) for examples related to slurm.
 - See [docs/color_transfer.md](docs/color_transfer.md) for detailed explanation of the color transfer experiment.
+- See [docs/mnist.md](docs/mnist.md) for detailed explanation of the MNIST Classification experiment.
 
 ## Installing Pixi
 
@@ -136,6 +137,27 @@ pixi run color-transfer --config ./configs/color_transfer/example.yaml
 There is also a feature to create a dashboard for visual comparison of the input images and results - the corresponding command is:
 ```
 pixi run color-transfer-visualization --origin_folder <path_to_input_images> --results_folder <path_to_resulting_images>
+```
+
+## MNIST Classification
+
+The MNIST classification experiment is performed in two steps.
+
+- Distance matrix calculation.
+- Classification itself.
+
+For detailed config examples for each of them, please refer to [docs/mnist.md](docs/mnist.md).
+
+The corresponding pixi commands:
+
+- Step 1:
+```
+pixi run mnist_distances --config ./configs/mnist_dist_example.yaml
+```
+
+- Step 2:
+```
+pixi run mnist_classification --config ./configs/mnist_classification_example.yaml
 ```
 
 ## Linting
