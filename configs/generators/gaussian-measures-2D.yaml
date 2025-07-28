@@ -1,0 +1,65 @@
+generators:
+  _gaussian_defaults: &gauss_defaults
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    n_points: 64
+    num_components: 1
+    num_datasets: 20
+    borders: (-10, 10)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    seed: 42
+
+  2D-gaussians-1c-64p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 64
+    num_components: 1
+
+  2D-gaussians-2c-64p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 64
+    num_components: 2
+
+  2D-gaussians-3c-64p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 64
+    num_components: 3
+
+  2D-gaussians-1c-128p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 128
+    num_components: 1
+
+  2D-gaussians-2c-128p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 128
+    num_components: 2
+
+  2D-gaussians-1c-160p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 160
+    num_components: 1
+
+  2D-gaussians-1c-192p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 192
+    num_components: 1
+
+  2D-gaussians-3c-192p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 192
+    num_components: 3
+
+  2D-gaussians-1c-256p:
+    <<: *gauss_defaults
+    dim: 2
+    n_points: 256
+    num_components: 1

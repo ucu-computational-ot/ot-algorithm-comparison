@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+datasets/*
+datests/*
+sd19_by_class
+sd19_by_class.zip
+logs/*
 
 # C extensions
 *.so

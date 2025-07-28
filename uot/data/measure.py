@@ -1,6 +1,7 @@
 import numpy as np
 import jax
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from uot.utils.types import ArrayLike
 
@@ -13,22 +14,27 @@ class BaseMeasure(ABC):
 
 
 class DiscreteMeasure(BaseMeasure):
-    def __init__(self, points: ArrayLike, weights: ArrayLike, name: str = ""):
+    def __init__(self, points: ArrayLike, weights: ArrayLike, name: str = "", means: Optional[ArrayLike] = None, covs: Optional[ArrayLike] = None, comp_weights: Optional[ArrayLike] = None):
         super().__init__()
         self._points = points
-        self._weights = weights
+        self.weights = weights
         self.name = name
+        self.means = means
+        self.covs = covs
+        self.comp_weights = comp_weights
 
     def get_jax(self) -> 'DiscreteMeasure':
         return DiscreteMeasure(
             points=jax.numpy.array(self._points),
-            weights=jax.numpy.array(self._weights),
+            weights=jax.numpy.array(self.weights),
             name=self.name,
+            means=self.means,
+            covs=self.covs,
+            comp_weights=self.comp_weights,
         )
 
     def to_discrete(self):
-        return self._points, self._weights
-
+        return self._points, self.weights
 
 class GridMeasure(BaseMeasure):
     def __init__(self,

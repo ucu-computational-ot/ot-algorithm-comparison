@@ -14,6 +14,7 @@ from collections.abc import Callable, Iterator
 import jax
 import jax.numpy as jnp
 
+from uot.problems.barycenter_problem import BarycenterProblem
 
 MEAN_FROM_BORDERS_COEF = 0.5
 VARIANCE_LOWER_BOUND_COEF = 0.001
@@ -35,6 +36,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
         num_datasets: int,
         borders: tuple[float, float],
         cost_fn: Callable[[ArrayLike, ArrayLike], ArrayLike],
+        num_marginals: int = 2,
+        weights: ArrayLike = None,
         use_jax: bool = True,
         seed: int = 42,
         wishart_df: int | None = None,
@@ -47,6 +50,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
         self._name = name
         self._dim = dim
         self._num_components = num_components
+        self._num_marginals = num_marginals
+        self._weights = weights
         self._n_points = n_points
         self._num_datasets = num_datasets
         self._borders = borders
@@ -70,7 +75,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
         """
         Sample GMM, evaluate PDF on grid, and normalize weights (JAX).
         """
-        pdf, self._key = get_gmm_pdf_jax(
+        pdf, self._key, means, covs = get_gmm_pdf_jax(
             key=self._key,
             dim=self._dim,
             num_components=self._num_components,
@@ -78,7 +83,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
             variance_bounds=variance_bounds,
         )
         w = pdf(self._points)
-        return w / jnp.sum(w)
+        return w / jnp.sum(w), means, covs
 
     def _sample_weights_np(
         self,
@@ -98,7 +103,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
         )
         pdf = build_gmm_pdf_scipy(means_arr, covs_arr, weights)
         w = pdf(np.asarray(self._points))
-        return w / np.sum(w)
+        print(weights)
+        return w / np.sum(w), means_arr, covs_arr, weights
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         axes = get_axes(self._dim, self._borders,
@@ -121,15 +127,49 @@ class GaussianMixtureGenerator(ProblemGenerator):
         )
 
         for _ in range(self._num_datasets):
-            w_mu = sampler(mean_bounds, variance_bounds)
-            w_nu = sampler(mean_bounds, variance_bounds)
+            w_mu, m_mu, sigma_mu, cw_mu = sampler(mean_bounds, variance_bounds)
+            w_nu, m_nu, sigma_nu, cw_nu = sampler(mean_bounds, variance_bounds)
 
-            mu = DiscreteMeasure(points=self._points, weights=w_mu)
-            nu = DiscreteMeasure(points=self._points, weights=w_nu)
+            mu = DiscreteMeasure(points=self._points, weights=w_mu, means=m_mu, covs=sigma_mu, comp_weights=cw_mu)
+            nu = DiscreteMeasure(points=self._points, weights=w_nu, means=m_nu, covs=sigma_nu, comp_weights=cw_nu)
 
             yield TwoMarginalProblem(
                 name=self._name,
                 mu=mu,
                 nu=nu,
+                cost_fn=self._cost_fn,
+            )
+
+    def generate_barycenter(self) -> Iterator[BarycenterProblem]:
+        axes = get_axes(self._dim, self._borders,
+                        self._n_points, use_jax=self._use_jax)
+        self._points = generate_nd_grid(axes, use_jax=self._use_jax)
+
+        mean_bounds = (
+            self._borders[0] * MEAN_FROM_BORDERS_COEF,
+            self._borders[1] * MEAN_FROM_BORDERS_COEF
+        )
+        variance_bounds = (
+            abs(self._borders[1]) * VARIANCE_LOWER_BOUND_COEF,
+            abs(self._borders[1]) * VARIANCE_UPPER_BOUND_COEF
+        )
+
+        sampler = (
+            self._sample_weights_jax
+            if self._use_jax
+            else self._sample_weights_np
+        )
+
+        for _ in range(self._num_datasets):
+            params = [sampler(mean_bounds, variance_bounds) for _ in range(self._num_marginals)]
+
+            measures = [
+                DiscreteMeasure(points=self._points, weights=weights, means=means, covs=covs, comp_weights=comp_weights) for (weights, means, covs, comp_weights) in params
+            ]
+
+            yield BarycenterProblem(
+                name=self._name,
+                measures=measures,
+                weights=jnp.array(self._weights),
                 cost_fn=self._cost_fn,
             )

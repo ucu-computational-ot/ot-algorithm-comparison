@@ -1,0 +1,141 @@
+
+generators:
+  _gaussian_defaults: &gauss_defaults
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    n_points: 64
+    num_components: 1
+    num_datasets: 10
+    borders: (-10, 10)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    seed: 42
+
+
+
+  1D-gaussians-1c-1024p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 1024
+
+  1D-gaussians-2c-1024p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 1024
+    num_components: 2
+
+  1D-gaussians-3c-1024p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 1024
+    num_components: 3
+
+  1D-gaussians-1c-2048p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 2048
+
+  1D-gaussians-2c-2048p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 2048
+    num_components: 2
+
+  1D-gaussians-3c-2048p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 2048
+    num_components: 3
+
+  1D-gaussians-1c-4096p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 4096
+
+  1D-gaussians-2c-4096p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 4096
+    num_components: 2
+
+  1D-gaussians-3c-4096p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 4096
+    num_components: 3
+
+  1D-gaussians-4c-4096p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 4096
+    num_components: 4
+
+  1D-gaussians-1c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+
+  1D-gaussians-2c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+    num_components: 2
+
+  1D-gaussians-3c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+    num_components: 3
+
+  1D-gaussians-4c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+    num_components: 4
+
+  1D-gaussians-5c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+    num_components: 5
+
+  1D-gaussians-10c-8192p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 8192
+    num_components: 10
+
+  1D-gaussians-1c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+
+  1D-gaussians-2c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+    num_components: 2
+
+  1D-gaussians-3c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+    num_components: 3
+
+  1D-gaussians-4c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+    num_components: 4
+
+  1D-gaussians-5c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+    num_components: 5
+
+  1D-gaussians-10c-16384p:
+    <<: *gauss_defaults
+    dim: 1
+    n_points: 16384
+    num_components: 10

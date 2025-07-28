@@ -1,0 +1,39 @@
+generators:
+  _exponential_defaults: &exponential_defaults
+    generator: uot.problems.generators.ExponentialGenerator
+    dim: 1
+    num_datasets: 20
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: true
+    seed: 42
+    borders: (0, 20)
+
+  1D-exponential-1024p:
+    <<: *exponential_defaults
+    n_points: 1024
+    borders: (0, 20)
+
+  1D-exponential-2048p:
+    <<: *exponential_defaults
+    n_points: 2048
+    borders: (0, 20)
+
+  1D-exponential-4096p:
+    <<: *exponential_defaults
+    n_points: 4096
+    borders: (0, 20)
+
+  1D-exponential-8162p:
+    <<: *exponential_defaults
+    n_points: 8162
+    borders: (0, 20)
+
+  1D-exponential-16324p:
+    <<: *exponential_defaults
+    n_points: 16324
+    borders: (0, 20)
+
+#  1D-exponential-32768p:
+#    <<: *exponential_defaults
+#    n_points: 32768
+#    borders: (0, 20)
