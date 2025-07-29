@@ -1,2 +1,3 @@
 from .sinkhorn_log import SinkhornTwoMarginalLogJaxSolver
 from .sinkhorn import SinkhornTwoMarginalSolver
+from .sinkhorn_ott import OTTSinkhornSolver
