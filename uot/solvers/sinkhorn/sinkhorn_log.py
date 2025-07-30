@@ -25,7 +25,8 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
             raise ValueError("Sinkhorn solver accepts only two marginals.")
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
-        C = costs[0]
+        # with the normalized cost sinkhorn performs MUCH faster
+        C = costs[0] / costs[0].sum()
         mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
 
         P, cost, phi, psi, n_steps, err = sinkhorn_jax(
@@ -38,7 +39,7 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         )
         return {
             "transport_plan": P,
-            "cost": cost,
+            "cost": jnp.sum(P * costs[0]),
             # "u_final": u,
             # "v_final": v,
             "iterations": n_steps,
