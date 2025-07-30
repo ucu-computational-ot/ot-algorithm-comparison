@@ -82,7 +82,6 @@ def sinkhorn_jax(mu, nu, C, maxiter: int, tol: float, epsilon: float = 1e-3):
             i % 10 == 0,
             lambda: compute_error(ln_u, ln_v),
             lambda: err,
-            operand=None,
         )
 
         return (ln_u, ln_v, i + 1, err)
