@@ -47,9 +47,9 @@ hero = html.Div(
 
 # -- Summary Cards ------------------------------------------------
 stats = [
-    ("Datasets", "12"),
-    ("Solvers",  "5"),
-    ("Total Runs", "1 234"),
+    ("Datasets", len(df['dataset'].unique())),
+    ("Solvers",  len(df['solver'].unique())),
+    ("Total Runs", len(df)),
 ]
 
 cards = [
