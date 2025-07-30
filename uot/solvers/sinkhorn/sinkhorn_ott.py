@@ -36,7 +36,9 @@ class OTTSinkhornSolver(BaseSolver):
         # unpack marginals
         mu = jnp.array(marginals[0].to_discrete()[1])  # shape (n,)
         nu = jnp.array(marginals[1].to_discrete()[1])  # shape (m,)
-        C = jnp.array(costs[0])                       # shape (n, m)
+        C = jnp.array(costs[0])
+        # NOTE: with the normalization sinkhorn performs MUCH faster
+        C = C / C.sum()
 
         # override defaults if provided
         epsilon = reg if reg is not None else self.epsilon
@@ -70,7 +72,7 @@ class OTTSinkhornSolver(BaseSolver):
 
         return {
             "transport_plan": coupling,
-            "cost": cost_val,
+            "cost": jnp.sum(coupling * costs[0]),
             "error": error,
             "u_final": f,
             "v_final": g,
