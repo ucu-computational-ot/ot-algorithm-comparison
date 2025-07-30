@@ -27,16 +27,18 @@ class SinkhornTwoMarginalSolver(BaseSolver):
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
         mu, nu = marginals[0], marginals[1]
+        # with the normalized cost sinkhorn performs MUCH faster
+        C = costs[0] / costs[0].sum()
         u, v, i_final, final_err = _sinkhorn(
             a=mu.to_discrete()[1],
             b=nu.to_discrete()[1],
-            cost=costs[0],
+            cost=C,
             epsilon=reg,
             precision=tol,
             max_iters=maxiter,
         )
 
-        transport_plan = coupling_tensor(u, v, costs[0], reg)
+        transport_plan = coupling_tensor(u, v, C, reg)
 
         return {
             "transport_plan": transport_plan,
