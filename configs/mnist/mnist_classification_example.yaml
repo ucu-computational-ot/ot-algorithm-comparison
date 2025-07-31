@@ -12,3 +12,5 @@ solvers:
 sample-sizes:
   - 100
   - 250
+
+rng-seed: 42
