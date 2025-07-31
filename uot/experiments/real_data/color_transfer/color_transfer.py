@@ -2,7 +2,6 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import os
-import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -13,13 +12,12 @@ import cv2
 import datetime
 
 import uot.experiments.real_data.color_transfer.color_transfer_metrics as ct_metrics
-from uot.utils.yaml_helpers import load_solvers
+from uot.utils.yaml_helpers import load_solvers, load_experiment
 from uot.utils.costs import cost_euclid
 from uot.utils.types import ArrayLike
 from uot.solvers.solver_config import SolverConfig
 from uot.data.dataset_loader import load_image_as_color_grid
 from uot.experiments.experiment import Experiment
-from uot.experiments.measurement import measure_time
 from uot.experiments.runner import run_pipeline
 from uot.utils.logging import logger
 from uot.problems.two_marginal import TwoMarginalProblem
@@ -63,17 +61,19 @@ class ImageData:
 
 
 
-def load_config_info(config: dict)-> tuple[int, int, str, int]:
+def load_config_info(config: dict)-> tuple:
     """Get miscellaneous info from the config"""
     return (
         config['bin-number'], 
         config['batch-size'],
         config['pair-number'],
         config['images-dir'],
-        config['output-dir']
+        config['output-dir'],
+        config['rng-seed'],
+        config.get('drop-columns', [])
     )
 
-def get_image_problems(data: dict[str, ImageData], image_pairs: list[tuple]) -> list[TwoMarginalProblem]:
+def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> list[TwoMarginalProblem]:
     """Get the image pairs as problems for the experiment"""
     return [
         TwoMarginalProblem(
@@ -84,6 +84,34 @@ def get_image_problems(data: dict[str, ImageData], image_pairs: list[tuple]) -> 
         )
         for source_name, target_name in image_pairs
     ]
+
+
+def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int = 42) -> tuple[dict[str, ImageData], set[tuple[str, str]]]:
+
+    rng = np.random.default_rng(seed)
+    all_images = os.listdir(images_dir)
+
+    if len(all_images) * (len(all_images) - 1) < pair_num:
+        raise ValueError("Not enough images to sample the required number of pairs.")
+    
+    pairs = set()
+    data = {}
+
+    while len(pairs) < pair_num:
+
+        source_name, target_name = rng.choice(all_images, size=2, replace=False)
+
+        if (source_name, target_name) not in pairs:
+            pairs.add((source_name, target_name))
+
+            if source_name not in data:
+                data[source_name] = ImageData(source_name, bin_num)
+
+            if target_name not in data:
+                data[target_name] = ImageData(target_name, bin_num)
+    
+    return data, pairs
+    
 
 def name_to_tuple(name: str) -> tuple:
     """Convert problem name to a tuple of source and target image names"""
@@ -174,21 +202,15 @@ def _transform_numpy(source_image, source_palette, projected_palette, batch_size
     return np.concatenate(transformed_chunks, axis=0)
 
 
-def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: list[tuple], solver_configs: list[SolverConfig])-> tuple:
+def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs: set[tuple], solver_configs: list[SolverConfig], experiment: Experiment)-> tuple:
     """Carry out the experiments specified in the config"""
 
     results = {}
-
-    exp = Experiment(
-        name="Color Transfer",
-        solve_fn= measure_time,
-    )
-
     logger.info("Running color transfer experiments...")
 
 
     output = run_pipeline(
-        experiment=exp,
+        experiment=experiment,
         solvers=solver_configs,
         iterators=[get_image_problems(data, image_pairs)],
         folds=2,
@@ -215,7 +237,13 @@ def perform_experiments(batch_size: int, data: dict[str, ImageData], image_pairs
         param_kwargs = {col: row[col] for col in param_cols if col in row}
 
         param_key = frozenset(param_kwargs.items())
-        P = row['transport_plan']
+
+        try:
+            P = row['transport_plan']
+        except KeyError:
+            logger.error(f"Transport plan not found for {problem_name} with solver {solver_name}. Make sure the experiment is configured to output it.")
+            exit(1)
+
         img = im2mat(data[key[0]].get_image(use_jax=isinstance(P, jax.Array)))
         source_points = data[key[0]].get_grid(use_jax=isinstance(P, jax.Array)).to_discrete()[0]
         target_points = data[key[1]].get_grid(use_jax=isinstance(P, jax.Array)).to_discrete()[0]
@@ -355,7 +383,7 @@ def calculate_spatial_metrics(output: DataFrame, results: dict, data: dict[str, 
     return output
 
 
-def export_data(output: DataFrame, results: dict, output_dir: str, data: dict[str, ImageData], param_columns: list[str]):
+def export_data(output: DataFrame, results: dict, output_dir: str, data: dict[str, ImageData], param_columns: list[str], drop_columns: list[str]):
     """Export the results of the experiments to CSV and images"""
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     base_dir = os.path.join(output_dir, f"color_transfer_{timestamp}")
@@ -365,6 +393,16 @@ def export_data(output: DataFrame, results: dict, output_dir: str, data: dict[st
     os.makedirs(img_dir, exist_ok=True)
 
     csv_path = os.path.join(base_dir, "color_transfer_results.csv")
+
+    if drop_columns:
+
+        if any(col not in output.columns for col in drop_columns):
+
+            wrong_columns = [col for col in drop_columns if col not in output.columns]
+            logger.warning(f"Some columns to drop are not present in the output: {wrong_columns}")
+
+        output = output.drop(columns=drop_columns)
+
     output.to_csv(csv_path, index=False)
 
     for _, row in output.iterrows():
@@ -405,20 +443,19 @@ if __name__ == "__main__":
     with open(args.config) as file:
         config = yaml.safe_load(file)
 
-    bin_num, batch_size, pair_num, images_dir, output_dir = load_config_info(config)
+    bin_num, batch_size, pair_num, images_dir, output_dir, rng_seed, drop_columns = load_config_info(config)
+    experiment = load_experiment(config)
 
     solver_configs = load_solvers(config=config)
     ImageData.set_image_dir(images_dir)
 
-    data = {name: ImageData(name, bin_num) for name in os.listdir(images_dir)}
+    data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
 
-    image_pairs = list(itertools.permutations(data, 2))[:pair_num]
-
-    output, results = perform_experiments(batch_size, data, image_pairs, solver_configs)
+    output, results = perform_experiments(batch_size, data, image_pairs, solver_configs, experiment)
     param_columns = get_param_columns(output)
 
     output = calculate_histogram_metrics(output, results, data, param_columns, bin_num)
     output = calculate_quality_metrics(output, results, data, param_columns)
     output = calculate_spatial_metrics(output, results, data, param_columns)
 
-    export_data(output, results, output_dir, data, param_columns)
+    export_data(output, results, output_dir, data, param_columns, drop_columns)
