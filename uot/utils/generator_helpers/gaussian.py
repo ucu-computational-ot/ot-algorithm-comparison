@@ -148,7 +148,7 @@ def get_gmm_pdf(
     num_components: int,
     mean_bounds: tuple[float, float],
     variance_bounds: tuple[float, float]
-) -> tuple[Callable[[jnp.ndarray], jnp.ndarray], PRNGKey]:
+) -> tuple[Callable[[jnp.ndarray], jnp.ndarray], PRNGKey, jnp.ndarray, jnp.ndarray]:
     """
     Convenience: sample GMM params and return PDF and updated key.
     """
@@ -156,7 +156,7 @@ def get_gmm_pdf(
         key, dim, num_components, mean_bounds, variance_bounds
     )
     pdf = build_gmm_pdf(means, covs)
-    return pdf, key
+    return pdf, key, means, covs
 
 
 def build_gmm_pdf_scipy(

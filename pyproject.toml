@@ -27,7 +27,6 @@ dependencies = [
     "ott-jax",
     "memory_profiler",
     "pytest>=7.0",
-    "hdf5",
     "PyYAML"
 ]
 requires-python = ">=3.11"
