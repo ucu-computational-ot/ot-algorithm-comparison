@@ -1,5 +1,6 @@
 import jax
 
+from functools import partial
 from uot.data.measure import DiscreteMeasure
 from uot.solvers.base_solver import BaseSolver
 from uot.utils.types import ArrayLike
@@ -37,34 +38,34 @@ class PDLPSolver(BaseSolver):
             b=nu.to_discrete()[1],
             cost=costs[0],
             epsilon=reg,
-            precision=tol,
-            max_iters=maxiter,
+            tol=tol,
+            maxiter=maxiter,
         )
         return {
             "transport_plan": coupling,
+            "cost": (coupling * costs[0]).sum(),
             "u_final": u,
             "v_final": v,
             "iterations": i_final,
             "error": final_err,
         }
 
-@jax.jit
+@partial(jax.jit, static_argnums=(4,5))
 def _solve_pdlp(
     a: jnp.ndarray,
     b: jnp.ndarray,
     cost: jnp.ndarray,
     epsilon: float = 1e-3,
-    precision: float = 1e-4,
-    max_iters: int = 10_000,
+    tol: float = 1e-4,
+    maxiter: int = 10_000,
 ):
     solver = raPDHG(
         verbose=False,
-        jit=True,
         reg=epsilon,
-        eps_abs=precision,
-        eps_rel=precision,
-        iteration_limit=max_iters,
-        termination_evaluation_frequency=40,
+        eps_abs=tol,
+        eps_rel=tol,
+        iteration_limit=maxiter,
+        termination_evaluation_frequency=64,
     )
     problem = create_ot_problem(cost, a, b)
     result, ci = solver.optimize(problem, dim=problem.n)

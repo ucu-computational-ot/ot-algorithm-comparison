@@ -1,0 +1,65 @@
+param-grids:
+  grad:
+    - reg: 0.1
+      maxiter: 100000
+    - reg: 0.001
+      maxiter: 100000
+    - reg: 0.0001
+      maxiter: 100000
+  sink:
+    - reg: 0.1
+      maxiter: 100000
+    - reg: 0.001
+      maxiter: 100000
+    - reg: 0.0001
+      maxiter: 100000
+  pdlp:
+    - reg: 0.01
+      maxiter: 300000
+    - reg: 0.1
+      maxiter: 300000
+    - reg: 1.0
+      maxiter: 300000
+    - reg: 10.0
+      maxiter: 300000
+solvers:
+  grad:
+    solver: uot.solvers.gradient_ascent.GradientAscentTwoMarginalSolver
+    jit: true
+    param-grid: grad
+
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    jit: true
+    param-grid: sink
+
+  pdlp:
+    solver: uot.solvers.pdlp.PDLPSolver
+    jit: true
+    param-grid: pdlp
+
+problems:
+  dir: datasets/synthetic
+  names:
+    - 1D-gaussians-1c-1024p
+    - 1D-gaussians-1c-2048p
+    - 1D-gaussians-1c-4096p
+    - 1D-gaussians-1c-8192p
+    - 1D-gaussians-1c-16384p
+    - 1D-gaussians-2c-1024p
+    - 1D-gaussians-2c-2048p
+    - 1D-gaussians-2c-4096p
+    - 1D-gaussians-2c-8192p
+    - 1D-gaussians-2c-16384p
+    - 2D-gaussians-1c-64p
+    - 2D-gaussians-1c-128p
+    - 2D-gaussians-1c-160p
+    - 1D-cauchy-1024p
+    - 1D-cauchy-2048p
+    - 1D-cauchy-4096p
+    - 1D-cauchy-8162p
+    - 1D-cauchy-16324p
+
+experiment:
+  name: Measure Extensive
+  function: uot.experiments.measurement.measure_time
