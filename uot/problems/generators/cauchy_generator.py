@@ -52,12 +52,12 @@ class CauchyGenerator(ProblemGenerator):
         ]
 
         for i in range(self._num_datasets):
-            mu_weights = cauchy_pdfs[2 * i](points)
+            mu_weights, mu_mean, mu_cov = cauchy_pdfs[2 * i][0](points), cauchy_pdfs[2 * i][1], cauchy_pdfs[2 * i][2]
             mu_weights /= mu_weights.sum()
-            nu_weights = cauchy_pdfs[2 * i + 1](points)
+            nu_weights, nu_mean, nu_cov = cauchy_pdfs[2 * i + 1][0](points), cauchy_pdfs[2 * i + 1][1], cauchy_pdfs[2 * i + 1][2]
             nu_weights /= nu_weights.sum()
-            mu = DiscreteMeasure(points=points, weights=mu_weights)
-            nu = DiscreteMeasure(points=points, weights=nu_weights)
+            mu = DiscreteMeasure(points=points, weights=mu_weights, means=mu_mean, covs=mu_cov)
+            nu = DiscreteMeasure(points=points, weights=nu_weights, means=nu_mean, covs=nu_cov)
             yield TwoMarginalProblem(
                 name=self._name,
                 mu=mu,

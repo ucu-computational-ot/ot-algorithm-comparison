@@ -27,11 +27,7 @@ class POTSinkhornBarycenterSolver(BaseSolver):
 
         A = jnp.asarray([marg.to_discrete()[1] for marg in marginals]).T
 
-        # print(A.shape)
-
         C = costs[0]
-
-        barycenter_with_plans(A, C, reg=reg, weights=weights, numItermax=maxiter, tol=tol)
 
         barycenter, couplings, us, vs, i_final, final_err = barycenter_with_plans(
             A,

@@ -3,9 +3,11 @@ import jax
 from uot.data.measure import DiscreteMeasure
 from uot.solvers.base_solver import BaseSolver
 from uot.utils.types import ArrayLike
+from uot.utils.logging import logger
 
 from jax import numpy as jnp
 from uot.algorithms.pdlp_bary import raPDHG, create_barycenter_problem
+from functools import partial
 
 from typing import Sequence
 
@@ -43,7 +45,7 @@ class PDLPBarycenterSolver(BaseSolver):
             "error": final_err,
         }
 
-@jax.jit
+@partial(jax.jit, static_argnums=(4, 5))
 def _solve_pdlp_barycenter(
     cost: jnp.ndarray,
     marginals: Sequence[ArrayLike],
@@ -68,7 +70,7 @@ def _solve_pdlp_barycenter(
 
     couplings = result.primal_solution.P
     barycenter = result.primal_solution.a
-    us = result.dual_solution[:M]           # (M, n)
+    us = result.dual_solution[:M]
     vs = result.dual_solution[M:]
     iters = result.iteration_count
     error = result.primal_residual_norm

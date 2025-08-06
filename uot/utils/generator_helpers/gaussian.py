@@ -205,5 +205,4 @@ def sample_gmm_params_wishart(
         covs = covs[np.newaxis, :]
 
     weights = np.ones(K) / K
-    print(weights)
     return means, covs, weights

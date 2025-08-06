@@ -5,6 +5,8 @@ from typing import Any
 from uot.utils.instantiate_solver import instantiate_solver
 import jax.numpy as jnp
 import ot
+import numpy as np
+from scipy.special import gamma
 from ucp.benchmarks.cudf_merge import exchange_and_concat_bins
 
 
@@ -46,6 +48,7 @@ def measure_solution_precision(prob, solver, *args, **kwargs):
 
 def measure_time_and_precision(prob, solver, *args, **kwargs):
     instance = solver()
+    instance.solve(*args, **kwargs)
     start_time = time.perf_counter()
     result = instance.solve(*args, **kwargs)
     _wait_jax_finish(result)
@@ -116,8 +119,8 @@ def get_marginal_params(marginal):
     return means, covs, weights
 
 def gm_pdf(x, means, sigmas, weights=None):
-    means  = jnp.asarray(means,  dtype=float)
-    sigmas = jnp.asarray(sigmas, dtype=float)
+    means  = jnp.asarray(means,  dtype=float).reshape(-1)
+    sigmas = jnp.asarray(sigmas, dtype=float).reshape(-1)
     if weights is None:
         weights = jnp.ones_like(means) / means.size
     else:
@@ -128,6 +131,25 @@ def gm_pdf(x, means, sigmas, weights=None):
     z = (x - means) / sigmas
     comp_pdf = jnp.exp(-0.5 * z**2) / (sigmas * jnp.sqrt(2.0 * jnp.pi))
     return jnp.sum(weights * comp_pdf, axis=-1)
+
+def cauchy_pdf(x, mean, cov, _, d=1):
+    x = np.asarray(x)
+    cov_inv = np.linalg.inv(covs)
+    if X.ndim != 2 or X.shape[1] != d:
+        raise ValueError(f"Input to pdf_fn must be shape (N, {d}).")
+
+    diff = x - mean
+
+    qf = np.einsum("nd,de,ne->n", diff, cov_inv, diff)
+
+    numerator = gamma((d + 1) / 2)
+    denominator = (
+            gamma(0.5) * (np.pi ** (d / 2)) *
+            (np.linalg.det(cov) ** 0.5) *
+            (1 + qf) ** ((d + 1) / 2)
+    )
+
+    return numerator / denominator
 
 def _cost_1d(x):                                     # pair‑wise ‖x−y‖² on a grid
     xx = x[:, None]
@@ -159,13 +181,13 @@ def interp_scalar(x, grid, u):
     t  = (x - x0) / (x1 - x0 + 1e-12)
     return ((1 - t) * u[i] + t * u[i + 1]).reshape(())
 
-def monge_bias(mu_x, nu_w, u_vals, nu_params):
+def monge_bias(mu_x, nu_w, u_vals, nu_params, pdf):
     mu_x = _vec(mu_x)
     grad_fn = jax.grad(lambda z: interp_scalar(z, mu_x, u_vals))
     grad = jax.vmap(grad_fn)(mu_x)
 
     T    = mu_x - grad
-    nu_hat_w = gm_pdf(T, *nu_params)
+    nu_hat_w = pdf(T, *nu_params)
     nu_hat_w = nu_hat_w / nu_hat_w.sum()
 
     l2   = jnp.linalg.norm(nu_hat_w - nu_w)
@@ -185,7 +207,8 @@ def measure_pushforward(prob, Solver, *args, **kw):
     μ_x, μ_w, ν_x, ν_w = map(_vec, (μ_x, μ_w, ν_x, ν_w))
 
     bl2, bw2 = bary_bias(μ_w, ν_x, ν_w, π)
-    ml2, mw2 = monge_bias(μ_x, ν_w, u, get_marginal_params(margs[1]))
+    ml2, mw2 = monge_bias(μ_x, ν_w, u, get_marginal_params(margs[1]),
+                          pdf=cauchy_pdf if "Cauchy" in margs[1].name else gm_pdf)
 
     return dict(
         barycentric_l2_bias = bl2,

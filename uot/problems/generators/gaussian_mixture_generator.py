@@ -103,7 +103,6 @@ class GaussianMixtureGenerator(ProblemGenerator):
         )
         pdf = build_gmm_pdf_scipy(means_arr, covs_arr, weights)
         w = pdf(np.asarray(self._points))
-        print(weights)
         return w / np.sum(w), means_arr, covs_arr, weights
 
     def generate(self) -> Iterator[TwoMarginalProblem]:

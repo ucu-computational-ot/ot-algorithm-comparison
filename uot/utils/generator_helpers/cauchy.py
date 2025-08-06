@@ -111,4 +111,4 @@ def get_cauchy_pdf(
 
             return numerator / denominator
 
-    return pdf_fn
+    return pdf_fn, mean, cov

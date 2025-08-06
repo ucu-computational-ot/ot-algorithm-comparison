@@ -142,7 +142,7 @@ def pdhg_quadratic_ot(
         sigma: float = 0.9,
         tol: float = 1e-8,
         max_outer_iter: int = 1000,
-        ref_coupling: jax.Array = None,
+        # ref_coupling: jax.Array = None,
 ):
     """
     Run PDHG to solve the Quadratic-regularized OT problem:
@@ -209,23 +209,23 @@ def pdhg_quadratic_ot(
     mu = jnp.asarray(mu)
     nu = jnp.asarray(nu)
 
-    # @jax.jit
-    # def cond_fn(state):
-    #     row_sum, col_sum = state.computed_marginals
-    #
-    #     marginals_error = jnp.maximum(
-    #         jnp.linalg.norm(row_sum - mu),
-    #         jnp.linalg.norm(col_sum - nu)
-    #     )
-    #     return jnp.logical_or(
-    #         jnp.logical_and(marginals_error >= tol, state.k < max_outer_iter),
-    #         state.k < 5
-    #     )
+    @jax.jit
+    def cond_fn(state):
+        row_sum, col_sum = state.computed_marginals
+
+        marginals_error = jnp.maximum(
+            jnp.linalg.norm(row_sum - mu),
+            jnp.linalg.norm(col_sum - nu)
+        )
+        return jnp.logical_or(
+            jnp.logical_and(marginals_error >= tol, state.k < max_outer_iter),
+            state.k < 5
+        )
 
     # 2) Use lax.scan to unroll up to max_outer_iter
     init_state = OTState(coupling_k, u, v, computed_marginals, 0)
 
-    def one_step(state, _):
+    def one_step(state):
         coupling_k, u_k, v_k, cmarg_prev, k = state
         coupling_next, u_next, v_next, cmarg_next, grad = pdhg_quadratic_ot_step(
             coupling_k, u_k, v_k, cmarg_prev, C, mu, nu, tau, sigma, eps
@@ -239,27 +239,27 @@ def pdhg_quadratic_ot(
         # dual = u_next @ mu + v_next @ nu - (0.5 / eps) * jnp.sum(jnp.clip(-grad, 0.0)**2)
         stats = {
             "primal_feas": marginals_error,
-            "obj_diff": jnp.abs(jnp.sum(C * coupling_next) - jnp.sum(C * ref_coupling)),
-            "l2_diff": jnp.linalg.norm(ref_coupling - coupling_next),
+            # "obj_diff": jnp.abs(jnp.sum(C * coupling_next) - jnp.sum(C * ref_coupling)),
+            # "l2_diff": jnp.linalg.norm(ref_coupling - coupling_next),
             "dual_feas": jnp.linalg.norm(coupling_k - jnp.clip((-grad)/eps, 0.0))
 
         }
-        return OTState(coupling_next, u_next, v_next, cmarg_next, k + 1), stats
+        return OTState(coupling_next, u_next, v_next, cmarg_next, k + 1)
 
-    # cpl_fin, u_fin, v_fin, cmarg_fin, final_iter = jax.lax.while_loop(
-    #     cond_fn,
-    #     one_step,
-    #     init_state
-    # )
-
-    (cpl_fin, u_fin, v_fin, cmarg_fin, final_iter), iters = jax.lax.scan(
+    cpl_fin, u_fin, v_fin, cmarg_fin, final_iter = jax.lax.while_loop(
+        cond_fn,
         one_step,
-        init_state,
-        xs=None,
-        length=max_outer_iter,
+        init_state
     )
 
-    return cpl_fin, u_fin, v_fin, iters
+    # (cpl_fin, u_fin, v_fin, cmarg_fin, final_iter), iters = jax.lax.scan(
+    #     one_step,
+    #     init_state,
+    #     xs=None,
+    #     length=max_outer_iter,
+    # )
+
+    return cpl_fin, u_fin, v_fin, final_iter
 #
 #
 # class PDHGSolver(BaseSolver):

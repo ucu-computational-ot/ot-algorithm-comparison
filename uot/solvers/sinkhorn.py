@@ -100,6 +100,7 @@ def _sinkhorn(
         cond_fn, body_fn, (u, v, jnp.array(0), init_err)
     )
 
+
     return u_final, v_final, i_final, final_err
 
 
@@ -180,7 +181,7 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         # transport_plan = jnp.exp(ln_u[:, None] + ln_K + ln_v[None, :])
     
 
-        P, n_steps, err = sinkhorn_jax(
+        P, u_final, v_final, n_steps, err = sinkhorn_jax(
             mu=mu,
             nu=nu,
             C=C,
@@ -191,18 +192,10 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         return {
             "transport_plan": P,
             "cost": (P * costs[0]).sum(),
-            # "u_final": u,
-            # "v_final": v,
+            "u_final": u_final,
+            "v_final": v_final,
             "iterations": n_steps,
             "error": err,
-        }
-        return {
-            "transport_plan": transport_plan,
-            "cost": (transport_plan * costs[0]).sum(),
-            # "u_final": u,
-            # "v_final": v,
-            "iterations": i_final,
-            "error": final_err,
         }
     
 
@@ -256,4 +249,4 @@ def sinkhorn_jax(mu, nu, C, maxiter: int, tol: float, epsilon: float = 1e-3):
         (ln_u0, ln_v0, 0, init_error)
     )
     P_final = jnp.exp(ln_u_final[:, None] + ln_K + ln_v_final[None, :])
-    return P_final, iters, final_err
+    return P_final, ln_u_final, ln_v_final, iters, final_err
