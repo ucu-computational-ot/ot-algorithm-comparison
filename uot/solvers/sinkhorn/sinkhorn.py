@@ -28,7 +28,7 @@ class SinkhornTwoMarginalSolver(BaseSolver):
             raise ValueError("Cost tensors not defined.")
         mu, nu = marginals[0], marginals[1]
         # with the normalized cost sinkhorn performs MUCH faster
-        C = costs[0] / costs[0].sum()
+        C = costs[0] / costs[0].max()
         u, v, i_final, final_err = _sinkhorn(
             a=mu.to_discrete()[1],
             b=nu.to_discrete()[1],

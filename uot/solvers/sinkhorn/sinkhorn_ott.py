@@ -38,7 +38,7 @@ class OTTSinkhornSolver(BaseSolver):
         nu = jnp.array(marginals[1].to_discrete()[1])  # shape (m,)
         C = jnp.array(costs[0])
         # NOTE: with the normalization sinkhorn performs MUCH faster
-        C = C / C.sum()
+        C = C / C.max()
 
         # override defaults if provided
         epsilon = reg if reg is not None else self.epsilon

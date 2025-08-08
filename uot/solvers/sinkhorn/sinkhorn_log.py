@@ -26,7 +26,7 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
         # with the normalized cost sinkhorn performs MUCH faster
-        C = costs[0] / costs[0].sum()
+        C = costs[0] / costs[0].max()
         mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
 
         P, cost, phi, psi, n_steps, err = sinkhorn_jax(
