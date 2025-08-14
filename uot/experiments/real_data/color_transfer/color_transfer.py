@@ -8,151 +8,32 @@ import argparse
 import yaml
 import jax.numpy as jnp
 from pandas import DataFrame
-import cv2
 import datetime
+import logging
 
 import uot.experiments.real_data.color_transfer.color_transfer_metrics as ct_metrics
 from uot.utils.yaml_helpers import load_solvers, load_experiment
-from uot.utils.costs import cost_euclid
 from uot.utils.types import ArrayLike
 from uot.solvers.solver_config import SolverConfig
-from uot.data.dataset_loader import load_image_as_color_grid
 from uot.experiments.experiment import Experiment
 from uot.experiments.runner import run_pipeline
 from uot.utils.logging import logger
-from uot.problems.two_marginal import TwoMarginalProblem
 from uot.data.dataset_loader import load_matrix_as_color_grid
-
-class ImageData:
-
-    image_dir = None
-
-    def __init__(self, name: str, bin_num: int = 32):
-        self.name = name
-        self._np_grid = load_image_as_color_grid(os.path.join(ImageData.images_dir, name), bins_per_channel=bin_num)
-        self._np_image = read_image(os.path.join(ImageData.images_dir, name))
-        self._jax_grid = None
-        self._jax_image = None
-    
-    def get_grid(self, use_jax: bool = False) -> ArrayLike:
-        """Get the color grid of the image, either as numpy or jax array"""
-        if use_jax:
-            if self._jax_grid is None:
-                self._jax_grid = self._np_grid.get_jax()
-            return self._jax_grid
-        return self._np_grid
-
-    def get_image(self, use_jax: bool = False) -> ArrayLike:
-        """Get the image as numpy or jax array"""
-        if use_jax:
-            if self._jax_image is None:
-                self._jax_image = jnp.array(self._np_image)
-            return self._jax_image
-        return self._np_image
-
-    def get_image_shape(self) -> tuple[int, int, int]:
-        """Get the shape of the image"""
-        return self._np_image.shape
-
-    @classmethod
-    def set_image_dir(cls, image_dir: str):
-        """Set the directory where images are stored"""
-        cls.images_dir = image_dir
+from uot.experiments.real_data.color_transfer.image_data import ImageData
+from uot.experiments.real_data.color_transfer.utils import (
+    get_image_problems,
+    get_param_columns,
+    im2mat,
+    load_config_info,
+    mat2im,
+    match_shape,
+    name_to_tuple,
+    sample_image_pairs,
+)
 
 
-
-def load_config_info(config: dict)-> tuple:
-    """Get miscellaneous info from the config"""
-    return (
-        config['bin-number'], 
-        config['batch-size'],
-        config['pair-number'],
-        config['images-dir'],
-        config['output-dir'],
-        config['rng-seed'],
-        config.get('drop-columns', [])
-    )
-
-def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> list[TwoMarginalProblem]:
-    """Get the image pairs as problems for the experiment"""
-    return [
-        TwoMarginalProblem(
-            name=f"{source_name} -> {target_name}",
-            mu=data[source_name].get_grid(),
-            nu=data[target_name].get_grid(),
-            cost_fn=cost_euclid
-        )
-        for source_name, target_name in image_pairs
-    ]
-
-
-def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int = 42) -> tuple[dict[str, ImageData], set[tuple[str, str]]]:
-
-    rng = np.random.default_rng(seed)
-    all_images = os.listdir(images_dir)
-
-    if len(all_images) * (len(all_images) - 1) < pair_num:
-        raise ValueError("Not enough images to sample the required number of pairs.")
-    
-    pairs = set()
-    data = {}
-
-    while len(pairs) < pair_num:
-
-        source_name, target_name = rng.choice(all_images, size=2, replace=False)
-
-        if (source_name, target_name) not in pairs:
-            pairs.add((source_name, target_name))
-
-            if source_name not in data:
-                data[source_name] = ImageData(source_name, bin_num)
-
-            if target_name not in data:
-                data[target_name] = ImageData(target_name, bin_num)
-    
-    return data, pairs
-    
-
-def name_to_tuple(name: str) -> tuple:
-    """Convert problem name to a tuple of source and target image names"""
-    parts = name.split(" -> ")
-    if len(parts) != 2:
-        raise ValueError(f"Invalid problem name format: {name}")
-    return tuple(parts)
-
-
-def get_param_columns(output: DataFrame) -> list[str]:
-    """Get the parameter columns from the output DataFrame"""
-    cols = output.columns.tolist()
-    param_cols = [col for col in cols[cols.index('name') + 1:]]
-    return param_cols
-
-def im2mat(img):
-    """Converts and image to matrix (one pixel per line)"""
-    return img.reshape((img.shape[0] * img.shape[1], img.shape[2]))
-
-def mat2im(X, shape):
-    """Converts back a matrix to an image"""
-    return X.reshape(shape)
-
-def read_image(image_path: str):
-    image = plt.imread(image_path)
-    if image.dtype == np.uint8:
-        image = image.astype(np.float64) / 255.0
-    elif image.dtype in [np.float32, np.float64]:
-        image = np.clip(image, 0, 1)
-    return image
-
-def match_shape(target_img: np.ndarray, src_img: np.ndarray):
-    src_h, src_w = src_img.shape[:2]
-    tgt_h, tgt_w = target_img.shape[:2]
-
-    if tgt_h > src_h or tgt_w > src_w:
-        interp = cv2.INTER_AREA 
-    else:
-        interp = cv2.INTER_CUBIC
-
-    return cv2.resize(target_img, (src_w, src_h), interpolation=interp)
+if os.environ.get('DEBUG', False):
+    logger.setLevel(logging.DEBUG)
 
 
 def transport_image(
@@ -440,17 +321,23 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    logger.debug('Reading configuration...')
     with open(args.config) as file:
         config = yaml.safe_load(file)
 
+    logger.debug('Loading configuration...')
     bin_num, batch_size, pair_num, images_dir, output_dir, rng_seed, drop_columns = load_config_info(config)
+    logger.debug('Loading experiment...')
     experiment = load_experiment(config)
 
+    logger.debug('Loading solvers...')
     solver_configs = load_solvers(config=config)
     ImageData.set_image_dir(images_dir)
 
+    logger.debug('Sampling images pairs...')
     data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
 
+    logger.debug('Performing experiments...')
     output, results = perform_experiments(batch_size, data, image_pairs, solver_configs, experiment)
     param_columns = get_param_columns(output)
 
