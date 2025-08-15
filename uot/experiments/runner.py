@@ -50,6 +50,16 @@ def run_pipeline(
     for cfg in solvers:
         params = cfg.param_grid
         for param_kwargs in params:
+            if cfg.is_jit:
+                logger.debug(f"Warming up JIT compilation for {cfg.name}")
+                first_problem = next(deepcopy(current_iterators))
+                experiment.run_on_problems(
+                    problems=[first_problem],
+                    solver=cfg.solver,
+                    progress_callback=None,
+                    **param_kwargs,
+                )
+
             logger.info(f"Running set of problems on {cfg.solver}\
             with {param_kwargs}")
             description = f"{cfg.name}({param_kwargs})"
@@ -73,19 +83,6 @@ def run_pipeline(
 
             for k, v in param_kwargs.items():
                 df_res[k] = v
-
-            if cfg.is_jit:
-                # NOTE: basically, drop the first occurence filtering
-                #       on ds and cfg name
-                drop_idxs = []
-                for dataset in df_res["dataset"].unique():
-                    subset = df_res[
-                        (df_res["dataset"] == dataset) & (
-                            df_res["name"] == cfg.name)
-                    ]
-                    if not subset.empty:
-                        drop_idxs.append(subset.index[0])
-                df_res = df_res.drop(drop_idxs, axis=0)
 
             current_iterators = deepcopy(all_iterators)
 
