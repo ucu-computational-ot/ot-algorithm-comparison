@@ -13,8 +13,7 @@ bin-number: 16
 batch-size: 100000
 pair-number: 3
 images-dir: ./datasets/images
-output-dir: ./outputs/color_transfer
-rng-seed: 42
+rng-seed: 55
 
 drop-columns:
   - transport_plan
@@ -23,4 +22,4 @@ drop-columns:
 
 experiment: 
   name: Time and GPU usage test
-  function: uot.experiments.measurement.measure_time_and_output
+  output-dir: ./outputs/color_transfer

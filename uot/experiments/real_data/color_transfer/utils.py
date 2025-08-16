@@ -10,6 +10,7 @@ from pandas import DataFrame
 from uot.experiments.real_data.color_transfer.image_data import ImageData
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.utils.costs import cost_euclid
+from uot.experiments.real_data.color_transfer.color_transfer_problem import ColorTransferProblem
 
 from uot.utils.logging import logger
 
@@ -20,13 +21,23 @@ def load_config_info(config: dict)-> tuple:
         config['batch-size'],
         config['pair-number'],
         config['images-dir'],
-        config['output-dir'],
         config['rng-seed'],
         config.get('drop-columns', [])
     )
 
 def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> list[TwoMarginalProblem]:
     """Get the image pairs as problems for the experiment"""
+    return [
+        ColorTransferProblem(
+            name=f"{source_name} -> {target_name}",
+            mu=data[source_name].get_grid(),
+            nu=data[target_name].get_grid(),
+            cost_fn=cost_euclid,
+            source_image=data[source_name].get_image(),
+            target_image=data[target_name].get_image(),
+        )
+        for source_name, target_name in image_pairs
+    ]
     return [
         TwoMarginalProblem(
             name=f"{source_name} -> {target_name}",
