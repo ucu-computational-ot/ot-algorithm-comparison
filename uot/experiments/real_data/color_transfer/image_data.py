@@ -17,7 +17,7 @@ class ImageData:
         logger.info('after load_image_as_color_grid')
         # self._np_image = read_image(os.path.join(ImageData.images_dir, name))
         im = Image.open(os.path.join(ImageData.images_dir, name))
-        self._np_image = jnp.asarray(im, dtype=jnp.float64) / 255.0
+        self._np_image = jnp.asarray(im, dtype=jnp.float32) / 255.0
         self._jax_grid = None
         self._jax_image = None
     
