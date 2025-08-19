@@ -7,6 +7,7 @@ from uot.utils.generator_helpers import (
     build_gmm_pdf_scipy,
     sample_gmm_params_wishart
 )
+from uot.utils.build_measure import _build_measure
 from uot.utils.generator_helpers import get_axes
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.data.measure import DiscreteMeasure
@@ -39,6 +40,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
         seed: int = 42,
         wishart_df: int | None = None,
         wishart_scale: np.ndarray | None = None,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
     ):
         super().__init__()
         # TODO: arbitrary dim?
@@ -52,6 +54,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
         self._borders = borders
         self._cost_fn = cost_fn
         self._use_jax = use_jax
+        self._measure_mode = measure_mode
         # Wishart parameters for NumPy path
         # default df is dim+1 if not provided, scale defaults to identity
         self._wishart_df = wishart_df if wishart_df is not None else dim + 1
@@ -124,8 +127,10 @@ class GaussianMixtureGenerator(ProblemGenerator):
             w_mu = sampler(mean_bounds, variance_bounds)
             w_nu = sampler(mean_bounds, variance_bounds)
 
-            mu = DiscreteMeasure(points=self._points, weights=w_mu)
-            nu = DiscreteMeasure(points=self._points, weights=w_nu)
+            # mu = DiscreteMeasure(points=self._points, weights=w_mu)
+            # nu = DiscreteMeasure(points=self._points, weights=w_nu)
+            mu = _build_measure(self._points, w_mu, axes, self._measure_mode, self._use_jax)
+            nu = _build_measure(self._points, w_nu, axes, self._measure_mode, self._use_jax)
 
             yield TwoMarginalProblem(
                 name=self._name,

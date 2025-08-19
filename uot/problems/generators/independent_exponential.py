@@ -8,6 +8,7 @@ from uot.utils.generator_helpers import get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
+from uot.utils.build_measure import _build_measure
 
 from uot.utils.logging import setup_logger
 
@@ -32,6 +33,7 @@ class IndependentExponentialGenerator(ProblemGenerator):
         borders: tuple[float, float],
         cost_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
         seed: int = 42,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
     ):
         super().__init__()
         self._name = name
@@ -39,8 +41,10 @@ class IndependentExponentialGenerator(ProblemGenerator):
         self._n_points = n_points
         self._num_datasets = num_datasets
         self._borders = borders
+        self._use_jax = False
         self._cost_fn = cost_fn
         self._rng = np.random.default_rng(seed)
+        self._measure_mode = measure_mode
 
     def _sample_exponential_weights(self, points: np.ndarray) -> np.ndarray:
         """
@@ -90,8 +94,10 @@ class IndependentExponentialGenerator(ProblemGenerator):
             if np.any(np.isnan(w_nu)):
                 logger.warning("w_nu contains nan") 
 
-            mu_measure = DiscreteMeasure(points=points, weights=w_mu)
-            nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            # mu_measure = DiscreteMeasure(points=points, weights=w_mu)
+            # nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            mu_measure = _build_measure(points, w_mu, axes, self._measure_mode, self._use_jax)
+            nu_measure = _build_measure(points, w_nu, axes, self._measure_mode, self._use_jax)
 
             yield TwoMarginalProblem(
                 name=self._name,

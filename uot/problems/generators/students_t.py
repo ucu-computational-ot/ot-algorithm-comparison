@@ -8,6 +8,7 @@ from uot.utils.generator_helpers import sample_gmm_params_wishart, get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
+from uot.utils.build_measure import _build_measure
 
 MEAN_FROM_BORDERS_COEF = 0.9
 VAR_LOWER = 0.05
@@ -30,6 +31,7 @@ class StudentTGenerator(ProblemGenerator):
         borders: tuple[float, float],
         cost_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
         seed: int = 42,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
     ):
         super().__init__()
         self._name = name
@@ -43,6 +45,7 @@ class StudentTGenerator(ProblemGenerator):
         # Wishart params for covariance sampling
         self._wishart_df = dim + 1
         self._wishart_scale = np.eye(dim)
+        self._measure_mode = measure_mode
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build the evaluation grid once
@@ -85,8 +88,10 @@ class StudentTGenerator(ProblemGenerator):
             w_nu = rv_nu.pdf(points)
             w_nu /= w_nu.sum()
 
-            mu_measure = DiscreteMeasure(points=points, weights=w_mu)
-            nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            # mu_measure = DiscreteMeasure(points=points, weights=w_mu)
+            # nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            mu_measure = _build_measure(points, w_mu, axes, self._measure_mode, self._use_jax)
+            nu_measure = _build_measure(points, w_nu, axes, self._measure_mode, self._use_jax)
 
             yield TwoMarginalProblem(
                 name=self._name,

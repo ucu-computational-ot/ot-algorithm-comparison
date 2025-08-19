@@ -8,6 +8,7 @@ from uot.problems.problem_generator import ProblemGenerator
 from uot.utils.types import ArrayLike
 from uot.utils.generate_nd_grid import generate_nd_grid
 from uot.utils.generator_helpers import get_exponential_pdf, get_axes
+from uot.utils.build_measure import _build_measure
 
 
 class ExponentialGenerator(ProblemGenerator):
@@ -22,6 +23,7 @@ class ExponentialGenerator(ProblemGenerator):
         cost_fn: Callable[[ArrayLike, ArrayLike], ArrayLike],
         use_jax: bool = False,
         seed: int = 42,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
     ):
         if dim != 1:
             raise ValueError("For exponential distribution dim must be 1")
@@ -34,6 +36,7 @@ class ExponentialGenerator(ProblemGenerator):
         self._cost_fn = cost_fn
         self._use_jax = use_jax
         self._rng = default_rng(seed)
+        self._measure_mode = measure_mode
 
     def generate(self, *args, **kwargs) -> Iterator[TwoMarginalProblem]:
         pdfs_num = 2 * self._num_datasets
@@ -57,8 +60,11 @@ class ExponentialGenerator(ProblemGenerator):
             mu_weights /= mu_weights.sum()
             nu_weights = exponential_pdfs[2 * i + 1](points).reshape(-1)
             nu_weights /= nu_weights.sum()
-            mu = DiscreteMeasure(points=points, weights=mu_weights)
-            nu = DiscreteMeasure(points=points, weights=nu_weights)
+            # mu = DiscreteMeasure(points=points, weights=mu_weights)
+            # nu = DiscreteMeasure(points=points, weights=nu_weights)
+            mu = _build_measure(points, mu_weights, axes_support, self._measure_mode, self._use_jax)
+            nu = _build_measure(points, nu_weights, axes_support, self._measure_mode, self._use_jax)
+
             yield TwoMarginalProblem(
                 name=self._name,
                 mu=mu,
