@@ -41,6 +41,7 @@ class StudentTGenerator(ProblemGenerator):
         self._num_datasets = num_datasets
         self._borders = borders
         self._cost_fn = cost_fn
+        self._use_jax = False
         self._rng = np.random.default_rng(seed)
         # Wishart params for covariance sampling
         self._wishart_df = dim + 1
