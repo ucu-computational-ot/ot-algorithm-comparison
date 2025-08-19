@@ -68,7 +68,10 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     time_counter = finish_time - start_time
     _require(metrics, {'cost'})
     metrics.update({
-        "cost_rerr": abs(prob.get_exact_cost() - metrics['cost']) / prob.get_exact_cost(),
+        # NOTE: consider dropping this as we have a separate measurement function
+        #       to measure the precision plus run LP solver separately.
+        # "cost_rerr": abs(prob.get_exact_cost() - metrics['cost']) / prob.get_exact_cost(),
+        'cost': metrics.get('cost', None),
 
         'time_unit': usage.compute_time.unit,
         'time': usage.compute_time.time,
