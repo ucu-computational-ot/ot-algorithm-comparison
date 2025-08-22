@@ -16,7 +16,10 @@ def get_filtered(solvers, regs, dims, distributions, sizes, converged=False):
     return filter_converged(dff) if converged else dff
 
 
-palette = px.colors.qualitative.G10
+# palette = px.colors.qualitative.G10
+# palette = px.colors.qualitative.Plotly
+palette = px.colors.qualitative.Vivid
+# palette = px.colors.qualitative.Set1
 SOLVERS_COLOR_MAP = {
     solver: palette[i % len(palette)]
     for i, solver in enumerate(sorted(df_master["solver"].unique()))

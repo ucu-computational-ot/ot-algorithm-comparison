@@ -59,7 +59,7 @@ def update_iterations_boxplot(solvers, regs, dims, datasets, size):
     )
 
     fig.update_layout(
-        title="Iterations vs. Problem Size by Solver (Box-Plot)",
+        # title="Iterations vs. Problem Size by Solver (Box-Plot)",
         template="plotly_white",
         height=400,
         width=310 * n_solvers,

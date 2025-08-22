@@ -6,8 +6,17 @@ from .iteration_vs_size import *
 
 from .instability_stats import *
 from .pivot_table import *
+from .instability_heatmap import *
+from .maxiter_heatmap import *
+from .instability_per_eps_heatmap import *
+from .maxiter_per_eps_heatmap import *
+
+from .distribution_sensivity import *
+
+from .pareto_scatter import *
 
 from .error_vs_runtime_scatter import *
+from .accuracy_vs_size import *
 
 from .scaling_scatter import *
 

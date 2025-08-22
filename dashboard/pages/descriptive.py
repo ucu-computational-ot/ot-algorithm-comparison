@@ -24,10 +24,9 @@ npoints = sorted(df_master["size"].dropna().astype(int).unique())
 dash.register_page(__name__, path="/descriptive", name="Descriptive")
 
 layout = dbc.Container(fluid=True, class_name="p-4", children=[
-
     html.H2("Descriptive Statistics", className="mb-4"),
 
-    # Filters
+    # Filters (unchanged)
     dbc.Card(dbc.CardBody(
         dbc.Row([
             filters.solver_filter(solvers, solvers),
@@ -38,71 +37,91 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
         ], class_name="g-3"), style={"background": "#f0f0f0"},
     ), class_name="mb-4"),
 
-    # --- Section: Instability Statistics ---------------------------
-    dbc.Card([
-        dbc.CardHeader("Instability Statistics"),
-        dbc.CardBody(
-            dbc.Table(
-                id="desc-instability-stats",
-                striped=True,
-                bordered=True,
-                hover=True,
-                responsive=True,
-            )
-        ),
-    ], className='mb-4'),
+    # ---------- TABS ----------
+    dcc.Tabs(id="desc-tabs", value="tab-instability", children=[
 
-    # --- Section: Runtime Violin Plot ------------------------------
-    graph_card_single("Runtime Violin Plot", "desc-runtime-violinplot"),
-    html.Hr(),
+        # Tab 1: Instability
+        dcc.Tab(label="Instability", value="tab-instability", children=[
+            # dbc.Card([
+            #     dbc.CardHeader("Instability Statistics"),
+            #     dbc.CardBody(
+            #         dbc.Table(
+            #             id="desc-instability-stats",
+            #             striped=True, bordered=True, hover=True, responsive=True,
+            #         )
+            #     ),
+            # ], class_name="mb-4"),
 
-    # --- Section: Iteration vs Problem Size ------------------------
-    graph_card_single("Iteration vs Problem Size", "desc-iteration-vs-problem-size"),
-    html.Hr(),
+            graph_card_single("Instability Heatmap", "desc-instability-heatmap"),
+            html.Hr(),
 
-    # --- Section: Runtime Distribution -----------------------------
-    graph_card_double("Runtime Distribution", (
-        "desc-runtime-hist",
-        "desc-runtime-box"
-    )),
-    html.Hr(),
+            graph_card_single("Max iterations hit rate per solver",
+                              "desc-maxiter-heatmap"),
 
-    # --- Section: Scaling & Error vs Runtime -----------------------
-    # html.H4("Scaling: Runtime vs Size"),
-    # filters.only_converged_filter("desc-scaling-scatter-only-converged"),
-    # dcc.Graph(id='desc-scaling-scatter'),
-    graph_card_single(
-        title="Scaling: Runtime vs Size",
-        graph_id="desc-scaling-scatter",
-        convergence_switch_id="desc-scaling-scatter-only-converged",
-    ),
+            graph_card_single(
+                "Instability (NaN rate) per regularization level (per solver)",
+                "desc-instability-per-epsilon-heatmap"
+            ),
 
-    # html.H4("Error vs Runtime"),
-    # dcc.Graph(id='desc-error-runtime-scatter'),
-    graph_card_single(
-        title="Error vs Runtime",
-        graph_id="desc-error-runtime-scatter",
-    ),
-    html.Hr(),
+            graph_card_single(
+                "Max iterations hit rate per regularization level (per solver)",
+                "desc-maxiter-per-epsilon-heatmap"
+            ),
+        ]),
 
-    # --- Section: Pivot Table ---------------------
-    html.H4("Pivot Table"),
-    filters.only_converged_filter("desc-median-pivot-only-converged"),
-    html.Div(id="desc-pivot-table", style={"overflowX": "auto"}),
-    html.Hr(),
+        # Tab 2: Runtime
+        dcc.Tab(label="Runtime", value="tab-runtime", children=[
+            graph_card_single("Runtime Violin Plot", "desc-runtime-violinplot"),
+            # dcc.Graph(id="desc-runtime-violinplot"),
+            html.Hr(),
+            graph_card_double("Runtime Distribution", ("desc-runtime-hist", "desc-runtime-box")),
+            html.Hr(),
+        ]),
 
-    # --- Section: Resource Usage -----------------------------------
-    html.H4("Resource Usage"),
-    dcc.Graph(id='desc-resources-violins'),
+        # Tab 3: Iterations & Scaling
+        dcc.Tab(label="Iterations & Scaling", value="tab-iter-scale", children=[
+            graph_card_single("Iteration vs Problem Size", "desc-iteration-vs-problem-size"),
+            html.Hr(),
+            graph_card_single(
+                title="Scaling: Runtime vs Size",
+                graph_id="desc-scaling-scatter",
+                convergence_switch_id="desc-scaling-scatter-only-converged",
+            ),
+            html.Hr(),
+        ]),
 
+        # Tab 4: Error
+        dcc.Tab(label="Error", value="tab-error", children=[
+            graph_card_single(title="Error vs Runtime", graph_id="desc-error-runtime-scatter"),
 
-    # --- Section: Cost Relative Error ------------------------------
-    html.H4("Cost Error"),
-    dcc.Graph(id='desc-cost-error-vs-runtime'),
+            graph_card_single(
+                title="Pareto scatter: runtime vs cost error (lower-left is better)",
+                graph_id="desc-pareto-scatter"
+            ),
 
-    dcc.Graph(id='desc-cost-err-problem-size-violinplot'),
+            graph_card_single(
+                title="Distribution Family Sensitivity (boxplots by family, colored by solver)",
+                graph_id="desc-dist-sensitivity",
+            ),
 
-    dcc.Graph(id='desc-cost-rerr-vs-problem-size'),
+            html.Hr(),
+            graph_card_single("Accuracy vs. Size (cost error vs LP baseline)", "desc-accuracy-vs-size"),
+            # html.H4("Cost Error"),
+            # dcc.Graph(id="desc-cost-error-vs-runtime"),
+            graph_card_single("Cost RERR vs. Problem Size by Solver (Box-Plot)", "desc-cost-rerr-vs-problem-size"),
+            # dcc.Graph(id="desc-cost-rerr-vs-problem-size"),
+            html.Hr(),
+            # dcc.Graph(id='desc-cost-err-problem-size-violinplot'),
+        ]),
+
+        # Tab 5: Pivot & Resources
+        dcc.Tab(label="Pivot & Resources", value="tab-pivot-resources", children=[
+            html.H4("Pivot Table"),
+            filters.only_converged_filter("desc-median-pivot-only-converged"),
+            html.Div(id="desc-pivot-table", style={"overflowX": "auto"}),
+            html.Hr(),
+            html.H4("Resource Usage"),
+            dcc.Graph(id="desc-resources-violins"),  # uncomment when callback ready
+        ]),
+    ])
 ])
-
-

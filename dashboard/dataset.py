@@ -22,6 +22,40 @@ LIMIT_TO_FILES = [
     if fn.strip() and fn.strip().lower() != "none"
 ]
 
+SOLVERS_MAP = {
+    "gradient": "SGD",
+    "gradient-log": "Log-Domain Gradient Ascent (ADAM optimizer)",
+    "gradient-plain": "Vanilla Gradient Ascent",
+    "lbfgs": "LBFGS",
+    "lp": "Simplex",
+    "sinkhorn": "Vanilla Sinkhorn",
+    "sinkhorn-log": "Log-Domain Sinkhorn",
+    "sinkhorn-normed": "Sinkhorn (normalized cost matrix)",
+    "sinkhorn-normed-log": "Log-Domain Sinkhorn (normalized cost matrix)",
+}
+
+DISTRIBUTIONS_MAP = {
+    "cauchy": "Cauchy",
+    "exponential": "Exponential",
+    "gaussian-1c": "Gaussian",
+
+    "gaussian-2c": "Gaussian (2 comp.)",
+    "gaussian-4c": "Gaussian (4 comp.)",
+    "gaussian-6c": "Gaussian (6 comp.)",
+
+    "gen-hyperb-mixture-2c": "Gen.Hyperb.Mixt. (2 comp.)",
+    "gen-hyperb-mixture-4c": "Gen.Hyperb.Mixt. (4 comp.)",
+    "gen-hyperb-mixture-6c": "Gen.Hyperb.Mixt. (6 comp.)",
+
+    "students-2df": "Students (2 deg.f.)",
+    "students-4df": "Students (4 deg.f.)",
+    "students-6df": "Students (6 deg.f.)",
+
+    "cauchy-vs-gaussian": "Cauchy to Gaussian",
+    "exp-vs-cauchy": "Exponential to Cauchy",
+    "exp-vs-gaussian": "Exponential to Gaussian",
+}
+
 
 def load_all_csvs(base_dir: Path, subdirs: list[str]) -> pd.DataFrame:
     """
@@ -112,8 +146,10 @@ def preprocess(dataframe: pd.DataFrame):
     dataframe.rename(columns={
         'name': 'solver',
     }, inplace=True)
+    dataframe['solver'] = dataframe['solver'].map(lambda x: SOLVERS_MAP.get(x, x))
     dataframe['runtime'] = dataframe['time_counter'].copy()
     dataframe['distribution'] = dataframe['dataset'].str.extract(r'\dD-(.+)-\d+p')
+    dataframe['distribution'] = dataframe['distribution'].map(lambda x: DISTRIBUTIONS_MAP.get(x, x))
 
 
 def select_dimension(df: pd.DataFrame, dim: int) -> pd.DataFrame:
@@ -122,27 +158,47 @@ def select_dimension(df: pd.DataFrame, dim: int) -> pd.DataFrame:
 
 def filter_converged(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Return only those rows where the solver actually converged.
+    Keep only rows where the solver converged.
+
     A row is dropped if:
-      - error is NaN, or
-      - iterations >= solver’s max_iter AND error > solver’s tol.
-    Solvers not in the dicts are assumed to always converge (unless error is NaN).
+      - error is NaN, OR
+      - (iterations >= maxiter) AND (error > tol)
+
+    Notes
+    -----
+    - Uses per-row `maxiter` (and optional per-row `tol`) from the DataFrame.
+    - If `maxiter` is missing/NaN → treated as +inf (i.e., cannot 'hit' max).
+    - If `tol` is missing/NaN or absent → treated as -inf (i.e., any error is acceptable
+      unless maxiter was hit, which still requires error > tol to count as failure).
     """
-    # copy and coerce types
+    if df.empty:
+        return df.copy()
+
     good = df.copy()
-    # ensure numeric
-    good["iterations"] = pd.to_numeric(good["iterations"], errors="coerce").fillna(0).astype(int)
-    good["error"] = pd.to_numeric(good["error"], errors="coerce")
 
-    # 1) drop NaN errors
-    good = good[~good["error"].isna()]
+    # Coerce numerics
+    good["iterations"] = pd.to_numeric(good.get("iterations", np.nan), errors="coerce")
+    good["error"]      = pd.to_numeric(good.get("error", np.nan), errors="coerce")
+    maxiter_series     = pd.to_numeric(good.get("maxiter", np.nan), errors="coerce")
+    # Optional tolerance column; fall back to -inf
+    if "tol" in good.columns:
+        tol_series = pd.to_numeric(good["tol"], errors="coerce")
+    else:
+        tol_series = pd.Series(np.nan, index=good.index)
 
-    # 2) map per‑solver thresholds, defaulting to “never fail”
-    max_iters = good["solver"].map(MAX_ITER_BY_SOLVER).fillna(np.inf)
-    tols = good["solver"].map(TOL_BY_SOLVER).fillna(-np.inf)
+    # 1) Drop NaN errors (non-converged by definition)
+    good = good[~good["error"].isna()].copy()
+    if good.empty:
+        return good.reset_index(drop=True)
 
-    # 3) failure iff it actually hit its max and is still above tol
-    failures = (good["iterations"] >= max_iters) & (good["error"] > tols)
+    # 2) Fill missing thresholds
+    maxiter_filled = maxiter_series.reindex(good.index).fillna(np.inf)
+    tol_filled     = tol_series.reindex(good.index).fillna(-np.inf)
 
-    # 4) keep only non‑failures
+    # 3) Failure: hit (or exceeded) its own maxiter AND still above tol
+    #    (treat NaN iterations as 0 to avoid spurious failures)
+    iters = good["iterations"].fillna(0)
+    failures = (iters >= maxiter_filled) & (good["error"] > tol_filled)
+
+    # 4) Keep only non-failures
     return good[~failures].reset_index(drop=True)

@@ -58,8 +58,10 @@ def update_cost_error_vs_size_boxplot(solvers, regs, dims, datasets, size):
         tickangle=45  # tilt labels if needed
     )
 
+    fig.update_layout(yaxis_type="log")
+
     fig.update_layout(
-        title="Cost RERR vs. Problem Size by Solver (Box-Plot)",
+        # title="Cost RERR vs. Problem Size by Solver (Box-Plot)",
         template="plotly_white",
         height=400,
         width=300 * n_solvers,

@@ -27,7 +27,7 @@ def update_scaling_scatter(
         y="mean_runtime",
         color="solver",
         markers=True,
-        title="Mean Runtime vs Problem Size",
+        # title="Mean Runtime vs Problem Size",
         labels={
             "size": "Problem Size (# points)",
             "mean_runtime": "Mean Runtime (s)"
