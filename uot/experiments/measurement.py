@@ -66,6 +66,10 @@ def measure_with_gpu_tracker(prob, solver, *args, **kwargs):
     peak_ram = usage.max_ram
     cpu_utilization = usage.cpu_utilization
     time_counter = finish_time - start_time
+
+    # don't need the map for these tests
+    metrics.pop('monge_map', None)
+
     _require(metrics, {'cost'})
     metrics.update({
         # NOTE: consider dropping this as we have a separate measurement function
