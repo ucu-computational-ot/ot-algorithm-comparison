@@ -4,6 +4,7 @@ from jax import numpy as jnp
 from jax.scipy.fft import dctn, idctn
 from functools import partial
 from .c_transform import c_transform_quadratic_fast
+from .pushforward import _cic_pushforward_nd
 
 
 # ------------------------ main BFM (d-dimensional) ------------------------
