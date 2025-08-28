@@ -51,19 +51,19 @@ def update_iterations_boxplot(solvers, regs, dims, datasets, size):
         )
 
     # enforce categorical axis with the right order
-    fig.update_xaxes(
-        type='category',
-        categoryorder='array',
-        categoryarray=ordered_sizes,
-        tickangle=45  # tilt labels if needed
-    )
+    # fig.update_xaxes(
+    #     type='category',
+    #     categoryorder='array',
+    #     categoryarray=ordered_sizes,
+    #     tickangle=45  # tilt labels if needed
+    # )
 
     fig.update_layout(
         # title="Iterations vs. Problem Size by Solver (Box-Plot)",
         template="plotly_white",
-        height=400,
-        width=310 * n_solvers,
-        margin=dict(t=60, b=50, l=50, r=50),
+        # height=400,
+        # width=310 * n_solvers,
+        # margin=dict(t=60, b=50, l=50, r=50),
     )
     fig.update_yaxes(matches="y")
     return fig

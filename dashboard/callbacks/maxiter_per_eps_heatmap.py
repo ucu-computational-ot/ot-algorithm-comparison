@@ -140,7 +140,8 @@ def update_maxiter_heatmap_vs_reg(solvers, regs, dims, datasets, size):
                 automargin=True,
                 row=r, col=c,
             )
-            fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
+            fig.update_yaxes(tickfont=dict(size=12), row=r, col=c)
+            # fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
 
         fig.update_xaxes(
             title_text="Regularization ε" if r == n_rows else None,
@@ -165,13 +166,13 @@ def update_maxiter_heatmap_vs_reg(solvers, regs, dims, datasets, size):
         # title="Max-iter hit rate vs regularization (per solver)",
     )
 
-    fig.add_annotation(
-        text="Regularization ε",
-        x=0.5, y=-0.06,
-        xref="paper", yref="paper",
-        xanchor="center", yanchor="top",
-        showarrow=False,
-    )
+    # fig.add_annotation(
+    #     text="Regularization ε",
+    #     x=0.5, y=-0.06,
+    #     xref="paper", yref="paper",
+    #     xanchor="center", yanchor="top",
+    #     showarrow=False,
+    # )
 
     # hide empty trailing subplots
     for k in range(n_sol, n_rows*n_cols):

@@ -1,4 +1,6 @@
 import dash
+from dash import Output, Input, State
+from dash.dependencies import MATCH
 from dash import (
     html,
     dcc,
@@ -6,7 +8,12 @@ from dash import (
 import dash_bootstrap_components as dbc
 
 from components import filters
-from components.graph_card import graph_card_single, graph_card_double
+from components.graph_card import (
+    graph_card_single,
+    graph_card_double,
+    download,
+    graph_with_export,
+)
 from dataset import load_all_df, preprocess
 
 
@@ -25,6 +32,9 @@ dash.register_page(__name__, path="/descriptive", name="Descriptive")
 
 layout = dbc.Container(fluid=True, class_name="p-4", children=[
     html.H2("Descriptive Statistics", className="mb-4"),
+
+    # download,
+    dcc.Download(id="desc-download-pdf"),
 
     # Filters (unchanged)
     dbc.Card(dbc.CardBody(
@@ -55,8 +65,14 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
             graph_card_single("Instability Heatmap", "desc-instability-heatmap"),
             html.Hr(),
 
-            graph_card_single("Max iterations hit rate per solver",
-                              "desc-maxiter-heatmap"),
+            # graph_card_single("Max iterations hit rate per solver",
+            #                   "desc-maxiter-heatmap"),
+
+            graph_with_export(
+                "Max iterations hit reate per solver",
+                "desc-maxiter-heatmap",
+                "export-pdf-desc-maxiter-heatmap",
+            ),
 
             graph_card_single(
                 "Instability (NaN rate) per regularization level (per solver)",
@@ -123,5 +139,96 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
             html.H4("Resource Usage"),
             dcc.Graph(id="desc-resources-violins"),  # uncomment when callback ready
         ]),
+
+        # Tab 6: Summary Tables
+        dcc.Tab(
+            label="Summary Tables",
+            value="tab-summary-tables",
+            children=[
+                # Summary runtime table
+                dbc.Card([
+                    dbc.CardHeader([
+                        "Per-Solver Summary (mean ± std)",
+                        html.Button("Copy", id={"type": "copy-btn", "target": "summary-runtime"},
+                                    className="btn btn-outline-secondary btn-sm"),
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id="desc-summary-solver-distribution-table"),
+                        html.Small(id={"type": "copy-msg", "target": "summary-runtime"},
+                                   className="text-success ms-2")
+                    ])
+                ]),
+
+                # Normalized runtime table
+                dbc.Card([
+                    dbc.CardHeader([
+                        "Normalized Runtime (Dolan–Moré style)",
+                        html.Button("Copy", id={"type": "copy-btn", "target": "normalized-runtime"},
+                                    className="btn btn-outline-secondary btn-sm"),
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id="desc-normalized-runtime-summary-table"),
+                        html.Small(id={"type": "copy-msg", "target": "normalized-runtime"},
+                                   className="text-success ms-2")
+                    ])
+                ]),
+            ]
+        ),
+
+        dcc.Tab(
+            label="Performance Profiles",
+            value="tab-performance-profiles",
+            children=[
+                dbc.Card([
+                    dbc.CardHeader([
+                        "Overall Performance Profile by Solver"
+                    ]),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver")),
+                ]),
+
+                dbc.Card([
+                    dbc.CardHeader([
+                        "Performance Profile by Solver & Problem Size"
+                    ]),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-size")),
+                ]),
+
+                dbc.Card([
+                    dbc.CardHeader([
+                        "Performance Profile by Solver & Distribution"
+                    ]),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-dist")),
+                ]),
+            ],
+        )
     ])
 ])
+
+
+dash.clientside_callback(
+    """
+    function(n, cols, data) {
+        if (!n) { return window.dash_clientside.no_update; }
+        if (!cols || !data) { return "Nothing to copy"; }
+
+        const header = cols.map(c => (c.name ?? c.id)).join('\\t');
+        const rows = (data || []).map(r =>
+            cols.map(c => {
+                let v = r[c.id];
+                return (v === null || v === undefined) ? "" : String(v).replaceAll('\\n',' ');
+            }).join('\\t')
+        );
+        const tsv = [header].concat(rows).join('\\n');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(tsv);
+            return `Copied ${rows.length} rows`;
+        }
+        return "Clipboard not available";
+    }
+    """,
+    Output({"type": "copy-msg", "target": MATCH}, "children"),
+    Input({"type": "copy-btn", "target": MATCH}, "n_clicks"),
+    State({"type": "table", "target": MATCH}, "columns"),
+    State({"type": "table", "target": MATCH}, "data"),
+)

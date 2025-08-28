@@ -138,7 +138,8 @@ def update_nan_heatmap_vs_reg(solvers, regs, dims, datasets, size):
                 automargin=True,
                 row=r, col=c,
             )
-            fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
+            fig.update_yaxes(tickfont=dict(size=12), row=r, col=c)
+            # fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
 
         fig.update_xaxes(
             title_text="Regularization ε" if r == n_rows else None,

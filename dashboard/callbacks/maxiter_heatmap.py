@@ -18,6 +18,10 @@ LABEL_CELL_THRESHOLD = 56
 )
 def update_maxiter_heatmap(solvers, regs, dims, datasets, size):
     df = get_filtered(solvers, regs, dims, datasets, size)
+    return fig_maxiter_heatmap(df)
+
+
+def fig_maxiter_heatmap(df):
     if df.empty or not {"solver","distribution","size","maxiter"} <= set(df.columns):
         fig = go.Figure()
         fig.update_layout(
@@ -137,7 +141,8 @@ def update_maxiter_heatmap(solvers, regs, dims, datasets, size):
                 automargin=True,              # prevent clipping
                 row=r, col=c,
             )
-            fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
+            fig.update_yaxes(tickfont=dict(size=12), row=r, col=c)
+            # fig.update_yaxes(tickangle=30, tickfont=dict(size=12), row=r, col=c)
 
     # dynamic height
     base_per_row = 260
@@ -161,7 +166,8 @@ def update_maxiter_heatmap(solvers, regs, dims, datasets, size):
         xref="paper", yref="paper",
         xanchor="center", yanchor="top",
         showarrow=False,
-        font=dict(family="Times New Roman", size=16, color="black"),
+        # font=dict(family="Times New Roman", size=16, color="black"),
+        font=dict(size=16, color="black"),
     )
 
     # fig.update_layout(plot_bgcolor="rgba(0,0,0,0.25)")  # subtle dark borders

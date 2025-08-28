@@ -3,6 +3,10 @@ import dash
 from dash import html, dcc, clientside_callback, Input, Output
 import dash_bootstrap_components as dbc
 
+import plotly.io as pio
+pio.kaleido.scope.default_format = "pdf"     # optional default
+pio.kaleido.scope.mathjax = None             # speed; set if you actually use MathJax
+
 # Initialize the Dash app with pages
 app = dash.Dash(
     __name__,
@@ -67,7 +71,8 @@ app.layout = dbc.Container(
 )
 
 import callbacks
+import export_pdf
 
 if __name__ == '__main__':
-    debug = os.environ.get('DEBUG', False)
+    debug = os.environ.get('DEBUG', 'False') == 'True'
     app.run(debug=debug, port=8050)

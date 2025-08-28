@@ -165,7 +165,8 @@ def update_nan_heatmap(solvers, regs, dims, datasets, size):
         xref="paper", yref="paper",
         xanchor="center", yanchor="top",
         showarrow=False,
-        font=dict(family="Times New Roman", size=16, color="black"),
+        # font=dict(family="Times New Roman", size=16, color="black"),
+        font=dict(size=16, color="black"),
     )
 
     # hide empty trailing subplots

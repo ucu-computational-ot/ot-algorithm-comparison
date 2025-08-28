@@ -46,7 +46,7 @@ def update_runtime_violonplot(solvers, regs, dims, datasets, size):
     # ---- figure scaffold ----
     fig = make_subplots(
         rows=n_rows, cols=n_cols,
-        shared_yaxes=True,
+        # shared_yaxes=True,
         shared_xaxes=False,
         horizontal_spacing=0.04,
         vertical_spacing=0.10 if n_rows > 1 else 0.08,
@@ -103,7 +103,8 @@ def update_runtime_violonplot(solvers, regs, dims, datasets, size):
                     spanmode="hard",       # consistent bandwidth
 
                     box=dict(visible=True, width=0.4),   # inner box for quartiles
-                    points="all",
+                    points="outliers",
+                    # points="all",
                     pointpos=0.0,                 # center the jitter over the violin
                     jitter=0.15,
                     opacity=0.9,

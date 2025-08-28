@@ -13,7 +13,11 @@ def graph_card_single(
     return html.Div([
         html.H4(title),
         filters.only_converged_filter(convergence_switch_id) if convergence_switch_id else None,
-        html.Div(dcc.Graph(id=graph_id, **kwargs), style={
+        html.Div(dcc.Graph(
+            id=graph_id,
+            # config={"toImageButtonOptions": {"format": "svg"}},
+            **kwargs
+        ), style={
             "width": "100%",
             "overflowX": "scroll",
         }),
@@ -31,3 +35,21 @@ def graph_card_double(title: str, graph_ids: tuple[str, str], **kwargs):
                 "overflowX": "scroll",
                 })
     ])
+
+
+# one download component for the whole page
+download = dcc.Download(id="desc-download-pdf")
+
+
+def graph_with_export(title, graph_id, download_id):
+    return html.Div([
+        html.Div([
+            html.H4(title, className="mb-2"),
+            html.Button(
+                "⬇︎ PDF",
+                id=download_id,
+                className="btn btn-outline-secondary btn-sm",
+            ),
+        ], className="d-flex align-items-center justify-content-between"),
+        dcc.Graph(id=graph_id, config={"displaylogo": False}),
+    ], className="mb-4")
