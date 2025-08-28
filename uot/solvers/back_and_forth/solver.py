@@ -39,6 +39,7 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             tolerance=tol,
         )
 
+        # ----- grid helpers -----
         def _grid_spacings(axes):
             # assumes monotone axes, uniform per axis
             hs = [ax[1] - ax[0] if ax.shape[0] > 1 else 1.0 for ax in axes]
@@ -46,58 +47,100 @@ class BackNForthSqEuclideanSolver(BaseSolver):
 
         hs, dV = _grid_spacings(axes_mu)
 
-        grids = jnp.meshgrid(*axes_mu, indexing="ij")                      # list of d arrays, each (*shape)
-        X = jnp.stack(grids, axis=-1)                                      # (*shape, d)
+        grids = jnp.meshgrid(*axes_mu, indexing="ij")     # list of d arrays, each (*shape)
+        X = jnp.stack(grids, axis=-1)                     # (*shape, d)
 
-        grad_psi = _central_gradient_nd(psi)
-        # grad_psi = _central_gradient_nd(phi)
-        # print(f"{coords[0].shape=} {monge_map.shape=}")
-        # cost = jnp.sum(jnp.sum((coords[0] - monge_map)**2, axis=1) * mu_weights)
-
+        # ----- current monge_map computation (kept as-is) -----
+        grad_psi = _central_gradient_nd(psi)              # (d, *shape)
         if grad_psi.shape[0] == len(axes_mu):
-            grad_psi = jnp.moveaxis(grad_psi, 0, -1)  # (d, n0, n1) → (n0, n1, d)
-
+            grad_psi = jnp.moveaxis(grad_psi, 0, -1)      # -> (*shape, d)
         monge_map = grad_psi
 
         if monge_map.shape != X.shape:
             raise ValueError(f"Monge map shape {monge_map.shape} != grid shape {X.shape}")
-        diff = X - monge_map                                               # (*shape, d)
-        cost = jnp.sum(jnp.sum(diff * diff, axis=-1) * mu_nd)             # scalar
 
-        # Optional: mass-fix after pushforwards
-        # mass_mu = jnp.sum(mu_nd) * dV
-        # mass_nu = jnp.sum(nu_nd) * dV
-        # mass_rho_mu = jnp.sum(rho_mu) * dV
-        # mass_rho_nu = jnp.sum(rho_nu) * dV
-        # rho_mu = rho_mu * (mass_mu / jnp.maximum(1e-30, mass_rho_mu))
-        # rho_nu = rho_nu * (mass_nu / jnp.maximum(1e-30, mass_rho_nu))
+        diff = X - monge_map
+        cost = jnp.sum(jnp.sum(diff * diff, axis=-1) * mu_nd)
 
-        # marginal_error_mu_to_nu = jnp.linalg.norm(rho_mu - nu_nd)
-        # marginal_error_nu_to_mu = jnp.linalg.norm(rho_nu - mu_nd)
+        # marginal L2 (your existing diagnostics)
         marginal_L2_mu_to_nu = jnp.linalg.norm((rho_mu - nu_nd).ravel()) * jnp.sqrt(dV)
         marginal_L2_nu_to_mu = jnp.linalg.norm((rho_nu - mu_nd).ravel()) * jnp.sqrt(dV)
 
-        # --- (A) Push-forward TV via your CIC (no rewrite) --------------------
-        # Your _cic_pushforward_nd implements s = idx + grad * n; passing -psi flips to x - ∇psi.
-        rho_mu_push = _cic_pushforward_nd(mu_nd, -psi)            # same grid as nu_nd
+        extra = self._extra_metrics(
+            mu_nd=mu_nd,
+            nu_nd=nu_nd,
+            axes_mu=axes_mu,
+            X=X,
+            psi=psi,
+            grad_psi_moved=grad_psi,   # (*shape, d)
+            rho_mu=rho_mu,
+            rho_nu=rho_nu,
+            dV=dV,
+        )
 
-        # Optional: equalize total mass (makes TV interpretable if small mass drift)
+        # ----- assemble result -----
+        out = {
+            "monge_map": monge_map,
+            "cost": cost,
+            "u_final": phi,
+            "v_final": psi,
+            "iterations": iters,
+            "error": errs[iters - 1],
+            "marginal_error": jnp.linalg.norm((rho_mu - nu_nd).ravel()),
+            "marginal_error_mu_to_nu": marginal_L2_mu_to_nu,
+            "marginal_error_nu_to_mu": marginal_L2_nu_to_mu,
+        }
+        out.update(extra)
+        return out
+
+    # ------------------------------------------------------------------
+    # Extra diagnostics: push-forward TV and Monge–Ampère residual
+    # ------------------------------------------------------------------
+    def _extra_metrics(
+        self,
+        *,
+        mu_nd: jnp.ndarray,
+        nu_nd: jnp.ndarray,
+        axes_mu,
+        X: jnp.ndarray,
+        psi: jnp.ndarray,
+        grad_psi_moved: jnp.ndarray,   # shape (*shape, d)
+        rho_mu: jnp.ndarray,
+        rho_nu: jnp.ndarray,
+        dV: float,
+    ) -> dict:
+        """
+        Computes:
+          - rho_mu_push (CIC), tv_mu_to_nu
+          - Monge–Ampère residual norms and det(J) diagnostics
+
+        NOTE on convention:
+          We use T(x) = x - ∇psi(x) INSIDE this method for consistency of TV/MA checks.
+          Your `monge_map` variable in `solve` is left as-is (grad_psi).
+        """
+        # Consistent Monge map for metrics
+        T = X - grad_psi_moved                                # (*shape, d)
+
+        # (A) Push-forward TV via your CIC (uses -psi to match T = x - ∇psi)
+        rho_mu_push = _cic_pushforward_nd(mu_nd, -psi)        # same grid as nu_nd
+
+        # mass-fix to compare probabilities
         mass_mu_push = jnp.sum(rho_mu_push) * dV
-        mass_nu      = jnp.sum(nu_nd) * dV
-        rho_mu_push  = rho_mu_push * (mass_nu / jnp.maximum(1e-30, mass_mu_push))
+        mass_nu = jnp.sum(nu_nd) * dV
+        rho_mu_push = rho_mu_push * (mass_nu / jnp.maximum(1e-30, mass_mu_push))
 
         tv_mu_to_nu = 0.5 * jnp.sum(jnp.abs(rho_mu_push - nu_nd)) * dV
 
-        # --- (B) Monge–Ampère residual using Hessian built from your gradient --
-        Hpsi = _hessian_via_fd(psi)                               # (d, d, *shape)
+        # (B) Monge–Ampère residual
+        Hpsi = self._hessian_via_fd(psi)                      # (d, d, *shape)
         d = psi.ndim
-        I = jnp.eye(d, dtype=psi.dtype).reshape(d, d, *([1]*d))
-        J = I - Hpsi                                              # Jacobian of T at x
+        I = jnp.eye(d, dtype=psi.dtype).reshape(d, d, *([1] * d))
+        J = I - Hpsi                                          # Jacobian of T
 
-        detJ = jnp.linalg.det(J.reshape(d, d, -1).transpose(2,0,1)).reshape(psi.shape)
+        detJ = jnp.linalg.det(J.reshape(d, d, -1).transpose(2, 0, 1)).reshape(psi.shape)
 
-        # sample rho_nu at T(x)
-        rho_nu_at_T = _linear_sample_nd(nu_nd, monge_map, axes_mu)
+        # sample rho_nu at mapped points T(x)
+        rho_nu_at_T = self._linear_sample_nd(nu_nd, T, axes_mu)
 
         ma_residual = rho_nu_at_T * detJ - mu_nd
         ma_L1 = jnp.sum(jnp.abs(ma_residual)) * dV
@@ -105,22 +148,12 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         mu_mass = jnp.sum(mu_nd) * dV
         ma_L1_rel = ma_L1 / jnp.maximum(1e-30, mu_mass)
 
-        # (optional) sanity stats on detJ
+        # det(J) sanity stats
         detJ_min = jnp.min(detJ)
         detJ_max = jnp.max(detJ)
         detJ_neg_frac = jnp.mean((detJ < 0).astype(jnp.float32))
 
         return {
-            "monge_map": monge_map,
-            "cost": cost,
-            "u_final": phi,
-            "v_final": psi,
-            "iterations": iters,
-            "error": errs[iters-1],
-            "marginal_error": jnp.linalg.norm((rho_mu - nu_nd).ravel()),
-            "marginal_error_mu_to_nu": marginal_L2_mu_to_nu,
-            "marginal_error_nu_to_mu": marginal_L2_nu_to_mu,
-
             "rho_mu_push": rho_mu_push,
             "tv_mu_to_nu": tv_mu_to_nu,
             "ma_residual_L1": ma_L1,
@@ -131,66 +164,66 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             "detJ_neg_frac": detJ_neg_frac,
         }
 
+    # ---------------- tiny helpers (stay inside the class) ----------------
+    @staticmethod
+    def _hessian_via_fd(psi: jnp.ndarray) -> jnp.ndarray:
+        """
+        Build Hessian by reusing your central-diff gradient:
+          H[i,j,...] = ∂^2 psi / ∂x_i ∂x_j
+        Same [0,1]^d, h_i = 1/n_i convention as _central_gradient_nd.
+        """
+        g = _central_gradient_nd(psi)                         # (d, *shape)
+        H_list = [_central_gradient_nd(g[i]) for i in range(g.shape[0])]
+        H = jnp.stack(H_list, axis=0)                         # (d, d, *shape)
+        return H
 
-def _hessian_via_fd(psi: jnp.ndarray) -> jnp.ndarray:
-    """
-    Build Hessian by reusing your central-diff gradient:
-      H[i,j,...] = ∂^2 psi / ∂x_i ∂x_j
-    Uses the same [0,1]^d, h_i = 1/n_i convention as _central_gradient_nd.
-    """
-    g = _central_gradient_nd(psi)                         # (d, *shape)
-    H_list = [_central_gradient_nd(g[i]) for i in range(g.shape[0])]
-    H = jnp.stack(H_list, axis=0)                         # (d, d, *shape)
-    return H
+    @staticmethod
+    def _linear_sample_nd(arr: jnp.ndarray, positions: jnp.ndarray, axes) -> jnp.ndarray:
+        """
+        Multilinear interpolation of 'arr' at 'positions' (physical coords).
+        positions: (*shape, d) in the same physical units as 'axes'.
+        """
+        d = arr.ndim
+        shape = arr.shape
+        assert positions.shape[-1] == d
 
+        h = jnp.array([(ax[1] - ax[0]) if ax.shape[0] > 1 else 1.0 for ax in axes], dtype=arr.dtype)
+        x0 = jnp.array([ax[0] for ax in axes], dtype=arr.dtype)
 
-def _linear_sample_nd(arr: jnp.ndarray, positions: jnp.ndarray, axes) -> jnp.ndarray:
-    """
-    Multilinear interpolation of 'arr' at 'positions' (physical coords).
-    Assumes uniform axes (as your solver already provides).
-    positions has shape (*shape, d); returns samples with shape (*shape).
-    """
-    d = arr.ndim
-    shape = arr.shape
-    assert positions.shape[-1] == d
+        # physical -> index coords
+        s = (positions - x0) / h                              # (*shape, d)
+        s = jnp.moveaxis(s, -1, 0)                            # (d, *shape)
 
-    h = jnp.array([ (ax[1]-ax[0]) if ax.shape[0] > 1 else 1.0 for ax in axes ], dtype=arr.dtype)
-    x0 = jnp.array([ ax[0] for ax in axes ], dtype=arr.dtype)
+        # clamp so base+1 is valid
+        eps = 1e-6
+        for i in range(d):
+            s_i = jnp.clip(s[i], 0.0, shape[i] - 1.0 - eps)
+            s = s.at[i].set(s_i)
 
-    # physical -> index coordinates
-    s = (positions - x0) / h                               # (*shape, d)
-    s = jnp.moveaxis(s, -1, 0)                             # (d, *shape)
+        base = jnp.floor(s).astype(jnp.int32)                 # (d, *shape)
+        frac = s - base                                       # (d, *shape)
 
-    # clamp so base+1 is valid
-    eps = 1e-6
-    for i in range(d):
-        s_i = jnp.clip(s[i], 0.0, shape[i] - 1.0 - eps)
-        s = s.at[i].set(s_i)
+        arr_flat = arr.reshape(-1)
+        base_flat = base.reshape(d, -1)
+        frac_flat = frac.reshape(d, -1)
 
-    base = jnp.floor(s).astype(jnp.int32)                  # (d, *shape)
-    frac = s - base                                        # (d, *shape)
+        # row-major strides
+        strides = []
+        p = 1
+        for k in range(d - 1, -1, -1):
+            strides.insert(0, p)
+            p *= shape[k]
+        strides = jnp.array(strides, dtype=jnp.int32).reshape(d, 1)  # (d,1)
 
-    arr_flat = arr.reshape(-1)
-    base_flat = base.reshape(d, -1)
-    frac_flat = frac.reshape(d, -1)
+        def corner_value(m, acc):
+            bits = jnp.array([(m >> k) & 1 for k in range(d)], dtype=jnp.int32).reshape(d, 1)
+            corner_idx = base_flat + bits
+            w = jnp.where(bits == 1, frac_flat, 1.0 - frac_flat)
+            w = jnp.prod(w, axis=0)                                # (N,)
+            flat_idx = jnp.sum(corner_idx * strides, axis=0)       # (N,)
+            return acc + w * arr_flat[flat_idx]
 
-    # row-major strides
-    strides = []
-    p = 1
-    for k in range(d-1, -1, -1):
-        strides.insert(0, p)
-        p *= shape[k]
-    strides = jnp.array(strides, dtype=jnp.int32).reshape(d, 1)  # (d,1)
-
-    def corner_value(m, acc):
-        bits = jnp.array([(m >> k) & 1 for k in range(d)], dtype=jnp.int32).reshape(d, 1)
-        corner_idx = base_flat + bits
-        w = jnp.where(bits == 1, frac_flat, 1.0 - frac_flat)
-        w = jnp.prod(w, axis=0)                                # (N,)
-        flat_idx = jnp.sum(corner_idx * strides, axis=0)       # (N,)
-        return acc + w * arr_flat[flat_idx]
-
-    N = base_flat.shape[1]
-    out = jnp.zeros((N,), dtype=arr.dtype)
-    out = lax.fori_loop(0, 1 << d, corner_value, out)
-    return out.reshape(shape)
+        N = base_flat.shape[1]
+        out = jnp.zeros((N,), dtype=arr.dtype)
+        out = lax.fori_loop(0, 1 << d, corner_value, out)
+        return out.reshape(shape)
