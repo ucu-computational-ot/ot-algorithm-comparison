@@ -73,9 +73,8 @@ def _compute_distribution_metrics(transported_image: np.ndarray, target_measure)
         pixels=transported_image.reshape(-1, 3),
         num_channels=3,
         bins_per_channel=32,
-        use_jax=True
+        use_jax=False
     )
-    # ).get_jax() # так так так, ебем в джакс?
     
     return {
         'wasserstein_distance': ct_metrics.compute_wasserstein_distance(
@@ -184,8 +183,8 @@ def _transport_image_monge(
     @jax.vmap
     def transform_pixel(pixel):
         dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
-        source_idx = jnp.argmin(dists)
-        target_idx = monge_map[source_idx]
+        source_idx = jnp.argmin(dists).astype(jnp.int32)
+        target_idx = monge_map[source_idx].astype(jnp.int32)
         return target_palette[target_idx]
     
     return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
