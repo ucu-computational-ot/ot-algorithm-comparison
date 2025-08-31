@@ -12,7 +12,10 @@ from uot.data.measure import GridMeasure
 def compute_wasserstein_distance(source_grid: GridMeasure, target_grid: GridMeasure) -> float:
     src_support, src_weights = source_grid.to_discrete(include_zeros=True)
     tgt_support, tgt_weights = target_grid.to_discrete(include_zeros=True)
-    cost = ot.dist(src_support, tgt_support, metric='euclidean')
+    # converting to numpy to avoid jax tree_map issues on v6.0
+    src_weights = np.asarray(src_weights)
+    tgt_weights = np.asarray(tgt_weights)
+    cost = np.asarray(ot.dist(src_support, tgt_support, metric='euclidean'))
     return ot.emd2(src_weights, tgt_weights, cost)
 
 
