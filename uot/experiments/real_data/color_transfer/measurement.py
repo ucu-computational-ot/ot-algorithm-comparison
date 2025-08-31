@@ -152,7 +152,16 @@ def _transport_image_plan(
         plan, image, source_palette, target_palette
     )
     T_centers = _compute_mapped_centers(plan, target_palette)
-    return _transform_image(image, source_palette, T_centers)
+    H, W, C = image.shape
+    pixels = image.reshape(-1, C)
+    
+    @jax.vmap
+    def transform_pixel(pixel):
+        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
+        idx = jnp.argmin(dists)
+        return T_centers[idx]
+    
+    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
 
 
 @jax.jit
@@ -166,9 +175,17 @@ def _transport_image_monge(
     image, source_palette, target_palette = _convert_to_bfloat16(
         image, source_palette, target_palette
     )
-    return _transform_image_monge(
-        image, source_palette, target_palette, monge_map
-    )
+    H, W, C = image.shape
+    pixels = image.reshape(-1, C)
+    
+    @jax.vmap
+    def transform_pixel(pixel):
+        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
+        source_idx = jnp.argmin(dists)
+        target_idx = monge_map[source_idx]
+        return target_palette[target_idx]
+    
+    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
 
 
 def _convert_to_bfloat16(*arrays):
@@ -182,41 +199,3 @@ def _compute_mapped_centers(plan: jnp.ndarray, target_palette: jnp.ndarray) -> j
         (plan @ target_palette) / plan.sum(axis=1, keepdims=True),
         copy=False
     )
-
-
-def _transform_image(
-    image: jnp.ndarray,
-    source_palette: jnp.ndarray,
-    T_centers: jnp.ndarray
-) -> jnp.ndarray:
-    """Transform image using precomputed centers."""
-    H, W, C = image.shape
-    pixels = image.reshape(-1, C)
-    
-    @jax.vmap
-    def transform_pixel(pixel):
-        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
-        idx = jnp.argmin(dists)
-        return T_centers[idx]
-    
-    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
-
-
-def _transform_image_monge(
-    image: jnp.ndarray,
-    source_palette: jnp.ndarray,
-    target_palette: jnp.ndarray,
-    monge_map: jnp.ndarray
-) -> jnp.ndarray:
-    """Transform image using Monge map."""
-    H, W, C = image.shape
-    pixels = image.reshape(-1, C)
-    
-    @jax.vmap
-    def transform_pixel(pixel):
-        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
-        source_idx = jnp.argmin(dists)
-        target_idx = monge_map[source_idx]
-        return target_palette[target_idx]
-    
-    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
