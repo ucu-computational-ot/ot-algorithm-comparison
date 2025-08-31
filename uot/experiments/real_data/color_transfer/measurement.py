@@ -33,6 +33,7 @@ def measure_color_transfer_metrics(
         Dictionary containing computed metrics and transported image
     """
     metrics = _compute_solution_metrics(solver, marginals, costs, **kwargs)
+    # крч тут ебаная хуйня с типами оно транслирует это в память оперативки используя нумпай
     transported_image = _process_transported_image(prob, marginals, metrics['solution'])
     metrics.update(_compute_distribution_metrics(transported_image, marginals[1]))
     metrics.update(_compute_image_quality_metrics(transported_image, prob))
@@ -49,7 +50,7 @@ def _compute_solution_metrics(solver, marginals, costs, **kwargs) -> Dict:
     start_time = time.perf_counter()
     solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
     _wait_jax_finish(solution)
-    _require(solution, {'transport_plan', 'u_final', 'v_final', 'cost'})
+    # _require(solution, {'transport_plan', 'u_final', 'v_final', 'cost'})
     
     return {
         "time": (time.perf_counter() - start_time),
@@ -62,7 +63,8 @@ def _process_transported_image(prob, marginals, solution) -> np.ndarray:
     """Compute and process transported image."""
     transported_image = compute_transported_image(prob, marginals, solution)
     _wait_jax_finish(transported_image)
-    return np.clip(np.asarray(transported_image), 0, 1)
+    # а вот какого хуя тут нумпай а не джакс?
+    return jnp.clip(jnp.asarray(transported_image), 0, 1)
 
 
 def _compute_distribution_metrics(transported_image: np.ndarray, target_measure) -> Dict:
@@ -71,8 +73,9 @@ def _compute_distribution_metrics(transported_image: np.ndarray, target_measure)
         pixels=transported_image.reshape(-1, 3),
         num_channels=3,
         bins_per_channel=32,
-        use_jax=False
+        use_jax=True
     )
+    # ).get_jax() # так так так, ебем в джакс?
     
     return {
         'wasserstein_distance': ct_metrics.compute_wasserstein_distance(
