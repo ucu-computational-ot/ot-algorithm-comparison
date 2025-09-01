@@ -22,17 +22,35 @@ LIMIT_TO_FILES = [
     if fn.strip() and fn.strip().lower() != "none"
 ]
 
+# SOLVERS_MAP = {
+#     "gradient": "SGD",
+#     "gradient-log": "Log-Domain Gradient Ascent (ADAM optimizer)",
+#     "gradient-plain": "Vanilla Gradient Ascent",
+#     "lbfgs": "LBFGS",
+#     "lp": "Simplex",
+#     "sinkhorn": "Vanilla Sinkhorn",
+#     "sinkhorn-log": "Log-Domain Sinkhorn",
+#     "sinkhorn-normed": "Sinkhorn (normalized cost matrix)",
+#     "sinkhorn-normed-log": "Log-Domain Sinkhorn (normalized cost matrix)",
+# }
+
 SOLVERS_MAP = {
     "gradient": "SGD",
-    "gradient-log": "Log-Domain Gradient Ascent (ADAM optimizer)",
-    "gradient-plain": "Vanilla Gradient Ascent",
+    "gradient-log": "Adam (log)",
+    "gradient-plain": "Vanilla Grad.",
     "lbfgs": "LBFGS",
     "lp": "Simplex",
-    "sinkhorn": "Vanilla Sinkhorn",
-    "sinkhorn-log": "Log-Domain Sinkhorn",
-    "sinkhorn-normed": "Sinkhorn (normalized cost matrix)",
-    "sinkhorn-normed-log": "Log-Domain Sinkhorn (normalized cost matrix)",
+    "sinkhorn": "Sinkhorn",
+    "sinkhorn-log": "Log Sinkhorn",
+    "sinkhorn-normed": "Sinkhorn (norm. cost)",
+    "sinkhorn-normed-log": "Log Sinkhorn (norm. cost)",
+    "back-and-forth": "Back&Forth",
 }
+
+LEGEND_ORDER = [
+    "Simplex", "Back&Forth", "Log Sinkhorn (norm. cost)", "Log Sinkhorn",
+    "Sinkhorn (norm. cost)", "Sinkhorn", "LBFGS", "Adam (log)", "SGD", "Vanilla Grad."
+]
 
 DISTRIBUTIONS_MAP = {
     "cauchy": "Cauchy",

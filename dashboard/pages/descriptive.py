@@ -183,21 +183,21 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
                     dbc.CardHeader([
                         "Overall Performance Profile by Solver"
                     ]),
-                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver")),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver", mathjax=True)),
                 ]),
 
                 dbc.Card([
                     dbc.CardHeader([
                         "Performance Profile by Solver & Problem Size"
                     ]),
-                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-size")),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-size", mathjax=True)),
                 ]),
 
                 dbc.Card([
                     dbc.CardHeader([
                         "Performance Profile by Solver & Distribution"
                     ]),
-                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-dist")),
+                    dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-dist", mathjax=True)),
                 ]),
             ],
         )
