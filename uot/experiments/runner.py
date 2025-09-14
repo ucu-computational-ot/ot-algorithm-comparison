@@ -70,6 +70,7 @@ def run_pipeline(
                 problems=current_iterators,
                 solver=cfg.solver,
                 progress_callback=progress_callback if pbar else None,
+                use_cost_matrix=cfg.use_cost_matrix,
                 **param_kwargs,
             )
 

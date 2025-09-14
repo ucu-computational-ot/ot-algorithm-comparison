@@ -31,6 +31,7 @@ solvers:
   lp:
     solver: uot.solvers.linear_programming.LinearProgrammingTwoMarginalSolver
     jit: true
+    use-cost-matrix: True
 
 experiment: 
   name: Time and GPU usage test

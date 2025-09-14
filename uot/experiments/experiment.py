@@ -25,12 +25,13 @@ class Experiment:
         problems: Iterable[MarginalProblem],
         solver: BaseSolver,
         progress_callback: Callable[[int], None] | None = None,
+        use_cost_matrix: bool = True,
         **solver_kwargs,
     ) -> pd.DataFrame:
         results = []
         for i, problem in enumerate(problems):
             marginals = problem.get_marginals()
-            costs = problem.get_costs()
+            costs: list[ArrayLike] = problem.get_costs() if use_cost_matrix else []
             logger.info(f"Starting {solver.__name__} with {solver_kwargs} on {problem}")
             try:
                 metrics = self.solve_fn(

@@ -9,3 +9,4 @@ class SolverConfig:
     solver: BaseSolver
     param_grid: list[dict[str, Any]] = field(default_factory=list)
     is_jit: bool = False
+    use_cost_matrix: bool = True
