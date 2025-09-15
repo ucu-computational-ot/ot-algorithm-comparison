@@ -7,7 +7,9 @@ from uot.utils.instantiate_solver import instantiate_solver
 
 def _wait_jax_finish(result: dict[str, Any]) -> dict[str, Any]:
     """Block until all JAX arrays in `result` are ready."""
-    return jax.tree_util.tree_map(
+    # tree_map was removed and need to use tree.map?
+    # ну ебать его в рот, я хуй знает как оно там в джаксе
+    return jax.tree.map(
         lambda x: x.block_until_ready() if isinstance(x, jax.Array) else x,
         result
     )
@@ -27,6 +29,15 @@ def measure_time(prob, solver, marginals, costs, **kwargs):
     _wait_jax_finish(solution)
     # for metrics we return time in ms units
     metrics = {"time": (time.perf_counter() - start_time) * 1000}
+    return metrics
+
+def measure_time_and_output(prob, solver, marginals, costs, **kwargs):
+    instance = solver()
+    start_time = time.perf_counter()
+    solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
+    _wait_jax_finish(solution)
+    metrics = {"time": (time.perf_counter() - start_time) * 1000}
+    metrics.update(solution)
     return metrics
 
 

@@ -28,11 +28,11 @@ def load_matrix_as_color_grid(pixels: ArrayLike, num_channels: int, bins_per_cha
         multipliers = np.array([bins_per_channel ** i for i in reversed(range(num_channels))])
         flat_bins = (bins @ multipliers).astype(np.int32)
 
-        weights_1d = jnp.ones(flat_bins.shape[0], dtype=jnp.float32)
+        weights_1d = jnp.ones(flat_bins.shape[0], dtype=jnp.float64)
         flat_hist = segment_sum(weights_1d, flat_bins, bins_per_channel ** num_channels)
         weights_nd = flat_hist.reshape([bins_per_channel] * num_channels)
     else:
-        weights_nd = np.zeros([bins_per_channel] * num_channels, dtype=np.float32)
+        weights_nd = np.zeros([bins_per_channel] * num_channels, dtype=np.float64)
         for idx in bins:
             weights_nd[tuple(idx)] += 1
 
@@ -59,7 +59,7 @@ def load_image_as_color_grid(
         data = data[:, :, None]
 
     num_channels = data.shape[2]
-    pixels = data.reshape(-1, num_channels).astype(lib.float32) / 255.0
+    pixels = data.reshape(-1, num_channels).astype(lib.float64) / 255.0
 
     return load_matrix_as_color_grid(
         pixels=pixels,
