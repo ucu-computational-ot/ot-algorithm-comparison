@@ -29,11 +29,11 @@ class ColorTransferExperiment(Experiment):
         self.drop_columns = drop_columns
         logger.debug(f"Initialized ColorTransferExperiment with output directory: {self.output_dir}")
 
-    def run_on_problems(self, problems, solver, progress_callback = None, **solver_kwargs) -> pd.DataFrame:
+    def run_on_problems(self, problems, solver, progress_callback=None, use_cost_matrix: bool = True, **solver_kwargs) -> pd.DataFrame:
         results = pd.DataFrame()
         for prob in problems:
             marginals = prob.get_marginals()
-            costs = prob.get_costs()
+            costs = prob.get_costs() if use_cost_matrix else []
             logger.info(f"Running experiment {solver.__name__} with {solver_kwargs} on problem: {prob}")
             try:
                 metrics = self.solve_fn(prob, solver, marginals, costs, **solver_kwargs)
