@@ -183,7 +183,6 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         detJ_neg_frac = jnp.mean((detJ < 0).astype(jnp.float32))
 
         return {
-            "rho_mu_push": rho_mu_push,
             "tv_mu_to_nu": tv_mu_to_nu,
             "ma_residual_L1": ma_L1,
             "ma_residual_L1_rel": ma_L1_rel,
