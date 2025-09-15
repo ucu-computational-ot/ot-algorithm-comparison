@@ -62,7 +62,7 @@ def backnforth_sqeuclidean_nd(
         rho_diff = target - rho
         recov = dct_neumann_poisson(rho_diff)
         new_phi = phi + sigma * recov
-        grad_sq = cell_vol * jnp.vdot(rho_diff * recov).real
+        grad_sq = cell_vol * jnp.vdot(rho_diff, recov).real
         return new_phi, recov, grad_sq
 
     # Dual objective (quadratic cost):  ½∫|x|² (μ+ν) - ∫ν φ - ∫μ ψ
