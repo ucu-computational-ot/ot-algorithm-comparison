@@ -1,8 +1,8 @@
 import jax
+from jax import lax
 from jax import numpy as jnp
 
 
-# ---------------------- helpers for envelope building ----------------------
 def _build_envelope(varphi_row, coords):
     """
     Build upper envelope of lines: L_i(x) = x * coords[i] - varphi_row[i],
@@ -59,6 +59,12 @@ def _build_envelope(varphi_row, coords):
             return (prev_b - b) / (m - prev_m)
         new_bp = jax.lax.cond(s == 0, lambda: 0.0, compute_bp)
         breakpoints = breakpoints.at[s - 1].set(new_bp)
+        # breakpoints = lax.cond(
+        #     s > 0,
+        #     lambda bp: bp.at[s-1].set(new_bp),
+        #     lambda bp: bp,
+        #     breakpoints,
+        #     )
 
         size = s + 1
         return {'hull_m': hull_m, 'hull_b': hull_b, 'breakpoints': breakpoints, 'size': size}, None
@@ -121,16 +127,21 @@ def c_transform_quadratic_fast(phi, coords_list):
     phi: array shape (n1, ..., nd)
     coords_list: list of 1D coordinate arrays per axis
     """
-    phi_c = phi
+    # 1) Build 0.5*||x||^2 on the grid
+    half_sq = 0.0
     for axis, coords in enumerate(coords_list):
-        # varphi(y) = 0.5 * y^2 - phi(y) along axis
-        sq = 0.5 * (coords ** 2)
-        shape = [1] * phi_c.ndim
+        shape = [1]*phi.ndim
         shape[axis] = coords.shape[0]
-        sq_reshaped = sq.reshape(shape)
-        varphi = sq_reshaped - phi_c
-        # fast conjugate along axis
-        varphi_star = fast_legendre_conjugate_along_axis(varphi, coords, axis)
-        # update
-        phi_c = sq_reshaped - varphi_star
-    return phi_c
+        half_sq = half_sq + (0.5 * coords**2).reshape(shape)
+
+    # 2) Work with varphi = 0.5||x||^2 - phi  (fixed throughout!)
+    varphi = half_sq - phi
+    H = -varphi
+
+    # 3) Take partial conjugates successively; this yields varphi^*
+    for axis, coords in enumerate(coords_list):
+        H = fast_legendre_conjugate_along_axis(-H, coords, axis)
+
+    # 4) Convert back to psi = 0.5||y||^2 - varphi^*
+    psi = half_sq - H
+    return psi
