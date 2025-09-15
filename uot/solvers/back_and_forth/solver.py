@@ -151,7 +151,7 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         T = X - grad_psi_moved                                # (*shape, d)
 
         # (A) Push-forward TV via your CIC (uses -psi to match T = x - ∇psi)
-        rho_mu_push = _forward_pushforward_nd(mu_nd, -psi)        # same grid as nu_nd
+        rho_mu_push, _ = _forward_pushforward_nd(mu_nd, -psi)        # same grid as nu_nd
 
         # mass-fix to compare probabilities
         mass_mu_push = jnp.sum(rho_mu_push) * dV
