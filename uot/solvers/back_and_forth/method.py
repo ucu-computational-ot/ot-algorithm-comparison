@@ -144,7 +144,7 @@ def backnforth_sqeuclidean_nd(
 
         last_gradient_seminorms['I'] = grad_sq_psi
         dual_values = dual_values.at[i].set(D_value)
-        return (i+1, phi, psi, D_value, sigma, errors, dual_values)
+        return (i+1, phi, psi, D_value, sigma, last_gradient_seminorms, errors, dual_values)
 
     def cond(state):
         i = state[0]
