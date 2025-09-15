@@ -60,7 +60,7 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             mu=mu_nd,
             nu=nu_nd,
             coordinates=axes_mu,
-            stepsize=stepsize,
+            stepsize=stepsize / jnp.maximum(mu_nd.max(), nu_nd.max()),
             maxiterations=maxiter,
             tolerance=tol,
             progressbar=False,
