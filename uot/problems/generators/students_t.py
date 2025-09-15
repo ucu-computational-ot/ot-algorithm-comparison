@@ -32,6 +32,7 @@ class StudentTGenerator(ProblemGenerator):
         cost_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
         seed: int = 42,
         measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         self._name = name
@@ -47,6 +48,7 @@ class StudentTGenerator(ProblemGenerator):
         self._wishart_df = dim + 1
         self._wishart_scale = np.eye(dim)
         self._measure_mode = measure_mode
+        self.cell_discretization = cell_discretization
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build the evaluation grid once

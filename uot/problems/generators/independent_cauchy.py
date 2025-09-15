@@ -31,6 +31,7 @@ class IndependentCauchyGenerator(ProblemGenerator):
         cost_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
         seed: int = 42,
         measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         self._name = name
@@ -42,6 +43,7 @@ class IndependentCauchyGenerator(ProblemGenerator):
         self._rng = np.random.default_rng(seed)
         self._measure_mode = measure_mode
         self._use_jax = False
+        self.cell_discretization = cell_discretization
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build the evaluation grid once

@@ -36,6 +36,7 @@ class GeneralizedHyperbolicMixtureGenerator(ProblemGenerator):
         beta_coef: float = 0.9,
         delta_bounds: tuple[float, float] = (0.1, 2.0),
         measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         self._name = name
@@ -52,6 +53,7 @@ class GeneralizedHyperbolicMixtureGenerator(ProblemGenerator):
         self._beta_coef = beta_coef
         self._delta_bounds = delta_bounds
         self._measure_mode = measure_mode
+        self.cell_discretization = cell_discretization
 
     def _sample_mixture_weights_and_pdfs(self, points: np.ndarray) -> np.ndarray:
         """Sample GH mixture parameters and return normalized pdf values on points."""

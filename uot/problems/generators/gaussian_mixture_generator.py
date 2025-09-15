@@ -41,6 +41,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
         wishart_df: int | None = None,
         wishart_scale: np.ndarray | None = None,
         measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         # TODO: arbitrary dim?
@@ -64,6 +65,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
             self._key = jax.random.PRNGKey(seed)
         else:
             self._rng = np.random.default_rng(seed)
+        self.cell_discretization = cell_discretization
 
     def _sample_weights_jax(
         self,
@@ -105,7 +107,9 @@ class GaussianMixtureGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         axes = get_axes(self._dim, self._borders,
-                        self._n_points, use_jax=self._use_jax)
+                        self._n_points,
+                        cell_discretization=self.cell_discretization,
+                        use_jax=self._use_jax)
         self._points = generate_nd_grid(axes, use_jax=self._use_jax)
 
         mean_bounds = (

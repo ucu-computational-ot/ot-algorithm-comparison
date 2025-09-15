@@ -22,6 +22,7 @@ class CauchyGenerator(ProblemGenerator):
         use_jax: bool = False,
         seed: int = 42,
         measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         # TODO: arbitrary dim?
@@ -37,6 +38,7 @@ class CauchyGenerator(ProblemGenerator):
         self._use_jax = use_jax
         self._rng = default_rng(seed)
         self._measure_mode = measure_mode
+        self.cell_discretization = cell_discretization
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         pdfs_num = 2 * self._num_datasets
