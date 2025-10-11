@@ -38,6 +38,7 @@ def update_pareto_scatter(solvers, regs, dims, datasets, size):
     dff[runtime_col] = pd.to_numeric(dff[runtime_col], errors="coerce")
     dff["cost_rerr"] = pd.to_numeric(dff["cost_rerr"], errors="coerce")
 
+
     # keep valid, strictly positive for log axes
     dff = dff.dropna(subset=[runtime_col, "cost_rerr"])
     dff = dff[(dff[runtime_col] > 0) & (dff["cost_rerr"] > 0)]
@@ -70,33 +71,45 @@ def update_pareto_scatter(solvers, regs, dims, datasets, size):
 
     # color points by solver
     solver_order = list(dict.fromkeys(dff["solver"].tolist()))
+    regs = sorted(list(df['reg'].unique()))
+    MARKER_MAP = {
+        reg: symbol for reg, symbol in zip(
+            sorted(df['reg'].unique()),
+            ['circle', 'square', 'diamond', 'cross', 'star', 'x', 'hexagram',
+             'triangle-up', 'circle-cross', 'square-cross']
+        )}
     for s in solver_order:
-        dd = dff[dff["solver"] == s]
-        color = SOLVERS_COLOR_MAP.get(s, None)
-        fig.add_trace(
-            go.Scatter(
-                x=dd[runtime_col],
-                y=dd["cost_rerr"],
-                mode="markers",
-                name=s,
-                marker=dict(size=7, opacity=0.6, color=color),
-                hovertemplate=(
-                    f"solver: {s}<br>"
-                    f"runtime: %{ 'x' } s<br>"
-                    "cost error: %{y:.3e}<br>"
-                    + ("size: %{customdata[0]}<br>" if "size" in dd.columns else "")
-                    + ("reg: %{customdata[1]}<br>" if "reg" in dd.columns else "")
-                    + ("iters: %{customdata[2]}<br>" if "iterations" in dd.columns else "")
-                    + "<extra></extra>"
-                ),
-                # pass a few useful columns in customdata if they exist
-                customdata=np.stack([
-                    dd["size"] if "size" in dd.columns else pd.Series([None]*len(dd)),
-                    dd["reg"] if "reg" in dd.columns else pd.Series([None]*len(dd)),
-                    dd["iterations"] if "iterations" in dd.columns else pd.Series([None]*len(dd)),
-                ], axis=-1) if any(c in dd.columns for c in ["size", "reg", "iterations"]) else None,
+        for reg in regs:
+            dd = dff[(dff["solver"] == s) & (dff['reg'] == reg)]
+            symbol = MARKER_MAP[reg]
+            color = SOLVERS_COLOR_MAP.get(s, None)
+            fig.add_trace(
+                go.Scatter(
+                    x=dd[runtime_col],
+                    y=dd["cost_rerr"],
+                    mode="markers",
+                    name=f"{s}, reg={reg}",
+                    marker=dict(size=6, opacity=0.6, color=color,
+                                symbol=symbol,
+                                line=dict(width=1, color='Black')),
+                    hovertemplate=(
+                        f"solver: {s}<br>"
+                        f"reg: {reg}<br>"
+                        "runtime: %{x} s<br>"
+                        "cost error: %{y:.3e}<br>"
+                        + ("size: %{customdata[0]}<br>" if "size" in dd.columns else "")
+                        # + ("reg: %{customdata[1]}<br>" if "reg" in dd.columns else "")
+                        + ("iters: %{customdata[2]}<br>" if "iterations" in dd.columns else "")
+                        + "<extra></extra>"
+                    ),
+                    # pass a few useful columns in customdata if they exist
+                    customdata=np.stack([
+                        dd["size"] if "size" in dd.columns else pd.Series([None]*len(dd)),
+                        dd["reg"] if "reg" in dd.columns else pd.Series([None]*len(dd)),
+                        dd["iterations"] if "iterations" in dd.columns else pd.Series([None]*len(dd)),
+                    ], axis=-1) if any(c in dd.columns for c in ["size", "reg", "iterations"]) else None,
+                )
             )
-        )
 
     # overlay Pareto frontier as a polyline (sorted by runtime)
     if pareto.size >= 2:
@@ -128,7 +141,8 @@ def update_pareto_scatter(solvers, regs, dims, datasets, size):
     fig.update_layout(
         # title="Pareto scatter: runtime vs cost error (lower-left is better)",
         xaxis=dict(title="Runtime (s)", type="log"),
-        yaxis=dict(title="Cost relative error vs LP baseline", type="log"),
+        yaxis=dict(title="Cost relative error", type="log"),
+        # yaxis=dict(title="Cost relative error vs LP baseline", type="log"),
         template="plotly_white",
         margin=dict(l=80, r=20, t=60, b=60),
         legend=dict(title="Solver"),

@@ -1,6 +1,5 @@
 import dash
 from dash import Output
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -9,16 +8,16 @@ from utils.data import get_filtered, SOLVERS_COLOR_MAP
 
 
 @dash.callback(
-    Output("desc-accuracy-vs-size", "figure"),
+    Output("desc-error-vs-size", "figure"),
     *FILTER_INPUTS,
 )
 def update_accuracy_vs_size(solvers, regs, dims, datasets, size):
     df = get_filtered(solvers, regs, dims, datasets, size, converged=True)
-    required = {"solver", "size", "cost_rerr"}
+    required = {"solver", "size", "error"}
     if df.empty or not required.issubset(df.columns):
         fig = go.Figure()
         fig.update_layout(
-            title="Accuracy vs. Size",
+            title="Error vs. Size",
             annotations=[dict(text="No data for current filters",
                               x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False)]
         )
@@ -26,14 +25,14 @@ def update_accuracy_vs_size(solvers, regs, dims, datasets, size):
 
     df = df.copy()
     df["size"] = pd.to_numeric(df["size"], errors="coerce")
-    df["cost_rerr"] = pd.to_numeric(df["cost_rerr"], errors="coerce")
+    df["error"] = pd.to_numeric(df["error"], errors="coerce")
 
     size_values = [str(size) for size in df["size"].unique()]
 
     # aggregate: median error per (solver,size)
     summary = (
         df.groupby(["solver", "reg", "size"], dropna=False)
-          .agg(cost_rerr=("cost_rerr", "median"))
+          .agg(mean_error=("error", "mean"))
           .reset_index()
     )
 
@@ -56,7 +55,7 @@ def update_accuracy_vs_size(solvers, regs, dims, datasets, size):
             fig.add_trace(
                 go.Scatter(
                     x=d["size"],
-                    y=d["cost_rerr"],
+                    y=d["mean_error"],
                     mode="lines+markers",
                     name=f"{sol}, reg={reg}",
                     fillcolor=color,
@@ -68,7 +67,7 @@ def update_accuracy_vs_size(solvers, regs, dims, datasets, size):
                         f"solver: {sol}<br>"
                         f"reg: {reg}<br>"
                         "size: %{x}<br>"
-                        "cost rel. error: %{y:.3e}<extra></extra>"
+                        "error: %{y:.3e}<extra></extra>"
                     ),
                 )
             )
@@ -82,7 +81,7 @@ def update_accuracy_vs_size(solvers, regs, dims, datasets, size):
     fig.update_layout(
         # title="Accuracy vs. Size (cost error vs LP baseline)",
         xaxis=dict(title="Problem size", type="log"),
-        yaxis=dict(title="Median cost relative error", type="log"),
+        yaxis=dict(title="Mean Error", type="log"),
         margin=dict(l=70, r=20, t=60, b=60),
         height=500,
         template="plotly_white",

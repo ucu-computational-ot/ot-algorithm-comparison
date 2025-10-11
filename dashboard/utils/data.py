@@ -2,7 +2,7 @@ from dataset import load_all_df, preprocess, filter_converged
 import plotly.express as px
 
 df_master = load_all_df()
-preprocess(df_master)
+df_master = preprocess(df_master)
 
 
 def get_filtered(solvers, regs, dims, distributions, sizes, converged=False):

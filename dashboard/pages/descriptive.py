@@ -18,7 +18,10 @@ from dataset import load_all_df, preprocess
 
 
 df_master = load_all_df()
-preprocess(df_master)
+df_master = preprocess(df_master)
+
+print("df master")
+print(f"{df_master['cost_rerr']=}")
 
 # sorted lists
 solvers = sorted(df_master["solver"].unique())
@@ -104,6 +107,12 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
                 convergence_switch_id="desc-scaling-scatter-only-converged",
             ),
             html.Hr(),
+
+            dbc.Card([
+                dbc.CardBody([
+                    html.Div(id="desc-size-growth-table-wrapper"),
+                ])
+            ])
         ]),
 
         # Tab 4: Error
@@ -122,6 +131,11 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
 
             html.Hr(),
             graph_card_single("Accuracy vs. Size (cost error vs LP baseline)", "desc-accuracy-vs-size"),
+
+            graph_card_single("Error vs. Problem Size", "desc-error-vs-size"),
+
+            graph_card_single("Cost RERR vs. Regularization by Solver", "desc-accuracy-vs-reg"),
+
             # html.H4("Cost Error"),
             # dcc.Graph(id="desc-cost-error-vs-runtime"),
             graph_card_single("Cost RERR vs. Problem Size by Solver (Box-Plot)", "desc-cost-rerr-vs-problem-size"),
@@ -200,7 +214,37 @@ layout = dbc.Container(fluid=True, class_name="p-4", children=[
                     dbc.CardBody(dcc.Graph(id="desc-perfprof-solver-dist", mathjax=True)),
                 ]),
             ],
-        )
+        ),
+
+        dcc.Tab(
+            label="Epsilon Effect",
+            value="tab-epsilon-effect",
+            children=[
+                graph_card_single(
+                    title=r"Runtime vs Regularization $\varepsilon$ ε — Median with IQR band",
+                    graph_id="desc-reg-runtime",
+                    convergence_switch_id="desc-reg-runtime-only-converged",
+                    mathjax=True
+                ),
+
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div(id="desc-reg-growth-table-wrapper"),
+                        # html.Small(id={"type": "copy-msg", "target": "normalized-runtime"},
+                        #            className="text-success ms-2")
+                    ])
+                ])
+
+            ],
+        ),
+
+        # dcc.Tab(
+        #     label="Dimensionality",
+        #     value="tab-dimensionality",
+        #     children=[
+        #
+        #     ],
+        # ),
     ])
 ])
 

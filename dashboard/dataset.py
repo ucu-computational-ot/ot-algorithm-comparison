@@ -22,20 +22,11 @@ LIMIT_TO_FILES = [
     if fn.strip() and fn.strip().lower() != "none"
 ]
 
-# SOLVERS_MAP = {
-#     "gradient": "SGD",
-#     "gradient-log": "Log-Domain Gradient Ascent (ADAM optimizer)",
-#     "gradient-plain": "Vanilla Gradient Ascent",
-#     "lbfgs": "LBFGS",
-#     "lp": "Simplex",
-#     "sinkhorn": "Vanilla Sinkhorn",
-#     "sinkhorn-log": "Log-Domain Sinkhorn",
-#     "sinkhorn-normed": "Sinkhorn (normalized cost matrix)",
-#     "sinkhorn-normed-log": "Log-Domain Sinkhorn (normalized cost matrix)",
-# }
+INSTANCE_KEYS = ["distribution", "size", "dim", "reg"]
 
 SOLVERS_MAP = {
     "gradient": "SGD",
+    "sgd": "SGD",
     "gradient-log": "Adam (log)",
     "gradient-plain": "Vanilla Grad.",
     "lbfgs": "LBFGS",
@@ -159,6 +150,7 @@ def preprocess(dataframe: pd.DataFrame):
     }
     dataframe.fillna(value=replacements, inplace=True)
     dataframe['reg'] = dataframe['reg'].astype(float)
+    dataframe['cost'] = dataframe['cost'].astype(float)
     dataframe['size'] = dataframe['dataset'].str.extract(r'(\d+)p').astype(int)
     dataframe['dim'] = dataframe['dataset'].str.extract(r'(\d)D-').astype(int)
     dataframe.rename(columns={
@@ -168,6 +160,82 @@ def preprocess(dataframe: pd.DataFrame):
     dataframe['runtime'] = dataframe['time_counter'].copy()
     dataframe['distribution'] = dataframe['dataset'].str.extract(r'\dD-(.+)-\d+p')
     dataframe['distribution'] = dataframe['distribution'].map(lambda x: DISTRIBUTIONS_MAP.get(x, x))
+
+    dataframe = add_run_idx(dataframe)
+    dataframe = add_cost_rerr(dataframe)
+    dataframe = fill_maxiter_for_simplex(dataframe)
+
+    return dataframe
+
+
+def add_run_idx(dataframe: pd.DataFrame):
+    grp_keys = INSTANCE_KEYS + ["solver"]
+    # grp_keys = ['dataset', 'solver']
+    dataframe["run_idx"] = dataframe.groupby(grp_keys, dropna=False).cumcount()
+    return dataframe
+
+
+def add_cost_rerr(df: pd.DataFrame):
+    REF_METHOD = SOLVERS_MAP['lp']
+    REF_METHOD_TOLERANCE = 1e-6
+    instance_keys = ['dataset', 'run_idx']
+    ref_costs = df[df['solver'] == REF_METHOD][instance_keys + ['cost', 'error']]
+    ref_costs = ref_costs.rename(columns={
+        'cost': 'precise_cost',
+        'error': 'ref_error'
+    })
+    ref_costs['ref_converged'] = ref_costs['ref_error'] <= REF_METHOD_TOLERANCE
+    # ref_costs.drop(columns=['ref_error'], inplace=True)
+    df = df.merge(ref_costs, on=instance_keys, how='left')
+
+    def compute_cost_error(row):
+        if pd.isna(row['cost_rerr']) and not pd.isna(row['precise_cost']):
+            if row['solver'] != REF_METHOD:
+                ref = row['precise_cost']
+                if not row['ref_converged']:
+                    return np.nan
+                if ref == 0:
+                    return np.nan
+                return abs(row['cost'] - ref) / abs(ref)
+            else:
+                return 0
+        return row['cost_rerr']
+
+    df['cost_rerr'] = df.apply(compute_cost_error, axis=1)
+    return df
+
+
+def fill_maxiter_for_simplex(df: pd.DataFrame):
+    """
+    Specifically for simplex method we cannot export the number of iterations
+    the method performed. Due to this we set the number of iterations
+    to 0 or 1e5 depending on the marginal error it has achieved.
+    That is quite reasonable, since not optimal solution will definitely result
+    in higher marginal error.
+
+    Set iterations and maxiter for Simplex solver runs, based on marginal error.
+    If marginal error < tolerance: iterations = 0, maxiter = 1e5
+    Otherwise: iterations = 1e5, maxiter = 1e5
+    """
+    REF_METHOD = SOLVERS_MAP['lp']  # "Simplex"
+    TOL = 1e-6
+    MAXVAL = int(1e5)
+
+    mask = df['solver'] == REF_METHOD
+    # Coerce error values for comparison
+    errors = pd.to_numeric(df.loc[mask, "error"], errors="coerce").fillna(np.inf)
+
+    # Default fill: non-converged
+    df.loc[mask, "iterations"] = MAXVAL
+    df.loc[mask, "maxiter"] = MAXVAL
+
+    # For converged ones:
+    converged = (errors < TOL)
+    sel_idx = df.index[mask][converged]
+    df.loc[sel_idx, "iterations"] = 0    # true Simplex converged (unknown, so set zero)
+    df.loc[sel_idx, "maxiter"] = MAXVAL  # used just for uniformity
+
+    return df
 
 
 def select_dimension(df: pd.DataFrame, dim: int) -> pd.DataFrame:

@@ -29,3 +29,10 @@ from .cost_vs_runtime_scatter import *
 from .summary_per_solver_distribution_table import *
 from .normalized_runtime_summary_table import *
 from .perfomance_profile import *
+
+from .runtime_per_reg_scatterline import *
+from .runtime_growth_per_reg_table import *
+from .runtime_size_growth_table import *
+
+from .accuracy_vs_regularization import *
+from .error_vs_size import *

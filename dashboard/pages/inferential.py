@@ -14,7 +14,7 @@ dash.register_page(__name__, path='/inferential', name='Inferential')
 
 # Load & preprocess once
 df = load_all_df()
-preprocess(df)
+df = preprocess(df)
 
 # Shared filter controls
 filter_controls = html.Div([
