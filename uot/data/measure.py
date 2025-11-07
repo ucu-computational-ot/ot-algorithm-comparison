@@ -34,8 +34,11 @@ class DiscreteMeasure(BaseMeasure):
             name=self.name,
         )
 
-    def to_discrete(self):
-        return self._points, self._weights
+    def to_discrete(self, include_zeros: bool = True):
+        if include_zeros:
+            return self._points, self._weights
+        mask = self._weights > 0
+        return self._points[mask], self._weights[mask]
 
 
 class GridMeasure:
