@@ -21,24 +21,24 @@ def measure_color_transfer_metrics(
 ) -> Dict[str, Union[float, np.ndarray]]:
     """
     Measure color transfer metrics for a given problem and solver.
-    
+
     Args:
         prob: Color transfer problem instance
         solver: Solver class to use
         marginals: Tuple of source and target measures
         costs: Tuple of cost matrices
         **kwargs: Additional arguments for solver
-        
+
     Returns:
         Dictionary containing computed metrics and transported image
     """
     metrics = _compute_solution_metrics(solver, marginals, costs, **kwargs)
-    # крч тут ебаная хуйня с типами оно транслирует это в память оперативки используя нумпай
     transported_image = _process_transported_image(prob, marginals, metrics['solution'])
     metrics.update(_compute_distribution_metrics(transported_image, marginals[1]))
     metrics.update(_compute_image_quality_metrics(transported_image, prob))
     metrics['transported_image'] = transported_image
-    metrics.pop('solution', None)
+    metrics.update(metrics.pop('solution', {}))
+    # metrics.pop('solution', None)
     return metrics
 
 
@@ -46,12 +46,12 @@ def _compute_solution_metrics(solver, marginals, costs, **kwargs) -> Dict:
     """Compute solution and basic metrics."""
     solver_init_kwargs = kwargs or {}
     instance = instantiate_solver(solver_cls=solver, init_kwargs=solver_init_kwargs)
-    
+
     start_time = time.perf_counter()
     solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
     _wait_jax_finish(solution)
     # _require(solution, {'transport_plan', 'u_final', 'v_final', 'cost'})
-    
+
     return {
         "time": (time.perf_counter() - start_time),
         "cost": solution['cost'],
@@ -63,21 +63,22 @@ def _process_transported_image(prob, marginals, solution) -> np.ndarray:
     """Compute and process transported image."""
     transported_image = compute_transported_image(prob, marginals, solution)
     _wait_jax_finish(transported_image)
-    # а вот какого хуя тут нумпай а не джакс?
     return jnp.clip(jnp.asarray(transported_image), 0, 1)
 
 
 def _compute_distribution_metrics(transported_image: np.ndarray, target_measure) -> Dict:
     """Compute distribution-based metrics."""
+    bins_per_channel = target_measure.axes[0].shape[0]
+
     transferred_grid = load_matrix_as_color_grid(
         pixels=transported_image.reshape(-1, 3),
         num_channels=3,
-        bins_per_channel=32,
+        bins_per_channel=bins_per_channel,
         use_jax=False
     )
-    
+
     return {
-        'wasserstein_distance': ct_metrics.compute_wasserstein_distance(
+        'sinkhorn_divergence': ct_metrics.compute_sinhorn_divergence(
             transferred_grid, target_measure
         ),
         'kl_divergence': ct_metrics.compute_kl_divergence(
@@ -93,13 +94,13 @@ def _compute_image_quality_metrics(
     """Compute image quality and spatial metrics."""
     source_image = np.clip(np.asarray(prob.source_image), 0, 1)
     target_image = np.clip(np.asarray(prob.target_image), 0, 1)
-    
+
     c1 = ct_metrics.compute_colorfulness(transported_image)
     c2 = ct_metrics.compute_colorfulness(target_image)
-    
+
     return {
         'ssim': ct_metrics.compute_ssim_metric(transported_image, source_image),
-        'delta_e': ct_metrics.compute_delta_e(transported_image, target_image),
+        # 'delta_e': ct_metrics.compute_delta_e(transported_image, target_image),
         'colorfulness_diff': abs(c1 - c2),
         'gradient_correlation': ct_metrics.compute_gradient_magnitude_correlation(
             transported_image, source_image
@@ -123,7 +124,7 @@ def compute_transported_image(
         marginals[0].to_discrete()[0],
         marginals[1].to_discrete()[0]
     )
-    
+
     if 'transport_plan' in solution:
         return _transport_image_plan(
             plan=solution['transport_plan'],
@@ -132,12 +133,7 @@ def compute_transported_image(
             target_palette=target_palette
         )
     elif 'monge_map' in solution:
-        return _transport_image_monge(
-            monge_map=solution['monge_map'],
-            image=prob.source_image,
-            source_palette=source_palette,
-            target_palette=target_palette
-        )
+        return map_pixels_by_palette_monge(prob.source_image, solution['monge_map'])
     else:
         raise ValueError("Solution must contain either 'transport_plan' or 'monge_map'")
 
@@ -150,44 +146,35 @@ def _transport_image_plan(
     target_palette: jnp.ndarray,
 ) -> jnp.ndarray:
     """Transform image using transport plan."""
-    plan, image, source_palette, target_palette = _convert_to_bfloat16(
-        plan, image, source_palette, target_palette
-    )
+    # plan, image, source_palette, target_palette = _convert_to_bfloat16(
+    #     plan, image, source_palette, target_palette
+    # )
     T_centers = _compute_mapped_centers(plan, target_palette)
     H, W, C = image.shape
     pixels = image.reshape(-1, C)
-    
+
     @jax.vmap
     def transform_pixel(pixel):
         dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
         idx = jnp.argmin(dists)
         return T_centers[idx]
-    
-    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
 
+    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
 
 @jax.jit
-def _transport_image_monge(
-    monge_map: jnp.ndarray,
-    image: jnp.ndarray,
-    source_palette: jnp.ndarray,
-    target_palette: jnp.ndarray,
-) -> jnp.ndarray:
-    """Transform image using Monge map."""
-    image, source_palette, target_palette = _convert_to_bfloat16(
-        image, source_palette, target_palette
-    )
-    H, W, C = image.shape
-    pixels = image.reshape(-1, C)
-    
-    @jax.vmap
-    def transform_pixel(pixel):
-        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
-        source_idx = jnp.argmin(dists).astype(jnp.int32)
-        target_idx = monge_map[source_idx].astype(jnp.int32)
-        return target_palette[target_idx]
-    
-    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
+def map_pixels_by_palette_monge(image, monge_map):
+    """
+    image: (H, W, 3), values in [0,1]
+    monge_map: (B, B, B, 3), each bin center is mapped to a color
+    returns: (H, W, 3) image after color mapping
+    """
+    B = monge_map.shape[0]
+    H, W, _ = image.shape
+    pix = jnp.clip(image.reshape(-1, 3), 0.0, 1.0)
+    idx = jnp.clip(jnp.round(pix * (B - 1)), 0, B - 1).astype(jnp.int32)
+    mapped = monge_map[idx[:, 0], idx[:, 1], idx[:, 2]]
+    mapped = jnp.clip(mapped / B, 0.0, 1.0)
+    return mapped.reshape(H, W, 3)
 
 
 def _convert_to_bfloat16(*arrays):
