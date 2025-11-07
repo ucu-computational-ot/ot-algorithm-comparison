@@ -1,0 +1,24 @@
+generators:
+  _exponential_defaults: &exponential_defaults
+    generator: uot.problems.generators.IndependentExponentialGenerator
+    dim:       3
+    num_datasets: 31
+    borders:   [-1, 1]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    measure_mode: grid
+    seed:      55
+
+
+
+  3D-exponential-16p:
+    <<: *exponential_defaults
+    n_points: 16
+
+  3D-exponential-24p:
+    <<: *exponential_defaults
+    n_points: 24
+
+  3D-exponential-32p:
+    <<: *exponential_defaults
+    n_points: 32
+

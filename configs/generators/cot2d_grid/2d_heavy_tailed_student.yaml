@@ -1,0 +1,95 @@
+generators:
+  # ─── Student-t defaults ─────────────────────────────────────────────────────
+  _students_t_default: &students_default
+    generator: uot.problems.generators.StudentTGenerator
+    dim:       2
+    num_datasets: 31
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    borders:   [-1, 1]
+    measure_mode: grid
+    seed:      55
+
+
+
+
+
+  2D-students-2df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 2
+
+  2D-students-2df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 2
+
+  2D-students-2df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 2
+
+  2D-students-2df-160p:
+    <<: *students_default
+    n_points: 160
+    nu: 2
+
+  2D-students-2df-192p:
+    <<: *students_default
+    n_points: 192
+    nu: 2
+
+
+
+  2D-students-4df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 4
+
+  2D-students-4df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 4
+
+  2D-students-4df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 4
+
+  2D-students-4df-160p:
+    <<: *students_default
+    n_points: 160
+    nu: 4
+
+  2D-students-4df-192p:
+    <<: *students_default
+    n_points: 192
+    nu: 4
+
+
+
+  2D-students-6df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 6
+
+  2D-students-6df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 6
+
+  2D-students-6df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 6
+
+  2D-students-6df-160p:
+    <<: *students_default
+    n_points: 160
+    nu: 6
+
+  2D-students-6df-192p:
+    <<: *students_default
+    n_points: 192
+    nu: 6
+
+

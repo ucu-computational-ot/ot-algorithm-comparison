@@ -1,0 +1,65 @@
+generators:
+  # ─── Student-t defaults ─────────────────────────────────────────────────────
+  _students_t_default: &students_default
+    generator: uot.problems.generators.StudentTGenerator
+    dim:       3
+    num_datasets: 31
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    borders:   [-1, 1]
+    measure_mode: grid
+    seed:      55
+
+
+
+
+
+  3D-students-2df-16p:
+    <<: *students_default
+    n_points: 16
+    nu: 2
+
+  3D-students-2df-24p:
+    <<: *students_default
+    n_points: 24
+    nu: 2
+
+  3D-students-2df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 2
+
+
+
+  3D-students-4df-16p:
+    <<: *students_default
+    n_points: 16
+    nu: 4
+
+  3D-students-4df-24p:
+    <<: *students_default
+    n_points: 24
+    nu: 4
+
+  3D-students-4df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 4
+
+
+
+  3D-students-6df-16p:
+    <<: *students_default
+    n_points: 16
+    nu: 6
+
+  3D-students-6df-24p:
+    <<: *students_default
+    n_points: 24
+    nu: 6
+
+  3D-students-6df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 6
+
+

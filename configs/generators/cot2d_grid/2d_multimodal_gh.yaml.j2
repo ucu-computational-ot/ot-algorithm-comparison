@@ -1,0 +1,24 @@
+generators:  
+  _gen_hyperb_mixture_default: &gen_hyperb_default
+    generator: uot.problems.generators.GeneralizedHyperbolicMixtureGenerator
+    dim:       2
+    num_datasets: 31
+    borders:   [-1, 1]
+    lambda_bounds: [-2.0, 2.0]
+    alpha_bounds:  [1.0, 5.0]
+    beta_coef:      0.9
+    delta_bounds:  [0.05, 0.3]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    measure_mode: grid
+    seed:      55
+
+{% set points_set = [32, 64, 128, 160, 192] %}
+{% set components_set = [2, 4, 6]%}
+{% for c in components_set %}
+{% for p in points_set %}
+  2D-gen-hyperb-mixture-{{c}}c-{{p}}p:
+    <<: *gen_hyperb_default
+    n_points:       {{p}}
+    num_components: {{c}}
+{% endfor %}
+{% endfor %}

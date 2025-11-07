@@ -1,0 +1,26 @@
+generators:
+  _gauss_default: &gauss_default
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 3
+    num_datasets: 31
+    borders: [-1, 1]
+    num_components: 1
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    measure_mode: grid
+    seed: 55
+
+
+
+  3D-gaussian-1c-16p:
+    <<: *gauss_default
+    n_points: 16
+
+  3D-gaussian-1c-24p:
+    <<: *gauss_default
+    n_points: 24
+
+  3D-gaussian-1c-32p:
+    <<: *gauss_default
+    n_points: 32
+

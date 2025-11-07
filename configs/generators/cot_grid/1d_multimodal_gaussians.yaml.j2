@@ -1,0 +1,22 @@
+generators:
+  _gauss_default: &gauss_default
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 1
+    num_datasets: 30
+    borders: [-1, 1]
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    measure_mode: grid
+    cell_discretization: vertex-centered
+    use_jax: false
+    seed: 55
+
+{% set points_set = [32, 64, 128, 256, 512, 1024, 2048] %}
+{% set components_set = [2, 4, 6] %}
+{% for components in components_set %}
+{% for points in points_set %}
+  1D-gaussian-{{components}}c-{{points}}p:
+    <<: *gauss_default
+    n_points: {{points}}
+    num_components: {{components}}
+{% endfor %}
+{% endfor %}

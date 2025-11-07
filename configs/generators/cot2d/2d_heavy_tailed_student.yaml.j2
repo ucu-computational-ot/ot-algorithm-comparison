@@ -1,0 +1,22 @@
+generators:
+  # ─── Student-t defaults ─────────────────────────────────────────────────────
+  _students_t_default: &students_default
+    generator: uot.problems.generators.StudentTGenerator
+    dim:       2
+    num_datasets: 31
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    borders:   [-1, 1]
+    measure_mode: discrete
+    seed:      55
+    cell_discretization: vertex-centered
+
+{% set points_set = [32, 64, 128, 160, 192] %}
+{% set df_set = [2, 4, 6] %}
+{% for nu in df_set %}
+{% for p in points_set %}
+  2D-students-{{nu}}df-{{p}}p:
+    <<: *students_default
+    n_points: {{p}}
+    nu: {{nu}}
+{% endfor %}
+{% endfor %}

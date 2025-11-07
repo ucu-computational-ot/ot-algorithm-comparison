@@ -1,0 +1,81 @@
+generators:
+  _gauss_default: &gauss_default
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_datasets: 30
+    borders: [-1, 1]
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    measure_mode: discrete
+    seed: 55
+    cell_discretization: vertex-centered
+
+
+
+
+
+  2D-gaussian-2c-32p:
+    <<: *gauss_default
+    n_points: 32
+    num_components: 2
+
+  2D-gaussian-2c-64p:
+    <<: *gauss_default
+    n_points: 64
+    num_components: 2
+
+  2D-gaussian-2c-128p:
+    <<: *gauss_default
+    n_points: 128
+    num_components: 2
+
+  2D-gaussian-2c-160p:
+    <<: *gauss_default
+    n_points: 160
+    num_components: 2
+
+
+
+  2D-gaussian-4c-32p:
+    <<: *gauss_default
+    n_points: 32
+    num_components: 4
+
+  2D-gaussian-4c-64p:
+    <<: *gauss_default
+    n_points: 64
+    num_components: 4
+
+  2D-gaussian-4c-128p:
+    <<: *gauss_default
+    n_points: 128
+    num_components: 4
+
+  2D-gaussian-4c-160p:
+    <<: *gauss_default
+    n_points: 160
+    num_components: 4
+
+
+
+  2D-gaussian-6c-32p:
+    <<: *gauss_default
+    n_points: 32
+    num_components: 6
+
+  2D-gaussian-6c-64p:
+    <<: *gauss_default
+    n_points: 64
+    num_components: 6
+
+  2D-gaussian-6c-128p:
+    <<: *gauss_default
+    n_points: 128
+    num_components: 6
+
+  2D-gaussian-6c-160p:
+    <<: *gauss_default
+    n_points: 160
+    num_components: 6
+
+

@@ -1,0 +1,17 @@
+generators:
+  _cauchy_defaults: &cauchy_defaults
+    generator: uot.problems.generators.IndependentCauchyGenerator
+    dim:       3
+    num_datasets: 31
+    borders:   [-1, 1]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    # discrete | grid
+    measure_mode: grid
+    seed:      55
+
+{% set points_set = [16, 24, 32] %}
+{% for p in points_set %}
+  3D-cauchy-{{p}}p:
+    <<: *cauchy_defaults
+    n_points: {{p}}
+{% endfor %}
