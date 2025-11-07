@@ -1,0 +1,3 @@
+from .convexity import compute_convexity_and_condition
+from .finite_diff import hessian_via_fd, compute_jacobian_nd
+from .interpolation import linear_sample_nd
