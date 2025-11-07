@@ -61,3 +61,11 @@ color_transfer_results/
 # pixi environments
 .pixi
 *.egg-info
+
+# Data folders
+adobe5k/
+logs/
+outputs/
+
+# GPU tracker files
+.gpu-tracker*
