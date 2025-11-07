@@ -16,9 +16,11 @@ import jax
 import jax.numpy as jnp
 
 
-MEAN_FROM_BORDERS_COEF = 0.5
+# MEAN_FROM_BORDERS_COEF = 0.5
+MEAN_FROM_BORDERS_COEF = 0.2
 VARIANCE_LOWER_BOUND_COEF = 0.001
-VARIANCE_UPPER_BOUND_COEF = 0.5
+# VARIANCE_UPPER_BOUND_COEF = 0.5
+VARIANCE_UPPER_BOUND_COEF = 0.01
 
 
 class GaussianMixtureGenerator(ProblemGenerator):
@@ -97,10 +99,19 @@ class GaussianMixtureGenerator(ProblemGenerator):
             K=self._num_components,
             d=self._dim,
             mean_bounds=mean_bounds,
-            wishart_df=self._wishart_df,
-            wishart_scale=self._wishart_scale,
+            # wishart_df=self._wishart_df,
+            wishart_df=self._dim + 20,
+            # wishart_scale=self._wishart_scale,
+            wishart_scale=np.eye(self._dim) / (self._dim + 1),
             rng=self._rng,
         )
+        covs_arr = covs_arr * (VARIANCE_UPPER_BOUND_COEF / covs_arr.max())
+        # print(f"{covs_arr=}")
+        # covs_arr = np.array([[[0.05, 0.0], [0.0, 0.05]]])
+        # covs_arr = np.clip(covs_arr, VARIANCE_LOWER_BOUND_COEF, VARIANCE_UPPER_BOUND_COEF)
+        # print(f"{means_arr=}")
+        # print(f"{covs_arr=}")
+        # print(f"{weights=}")
         pdf = build_gmm_pdf_scipy(means_arr, covs_arr, weights)
         w = pdf(np.asarray(self._points))
         return w / np.sum(w)
@@ -110,16 +121,21 @@ class GaussianMixtureGenerator(ProblemGenerator):
                         self._n_points,
                         cell_discretization=self.cell_discretization,
                         use_jax=self._use_jax)
+        # print("AXES SUPPORT")
+        # print(axes)
         self._points = generate_nd_grid(axes, use_jax=self._use_jax)
 
         mean_bounds = (
-            self._borders[0] * MEAN_FROM_BORDERS_COEF,
-            self._borders[1] * MEAN_FROM_BORDERS_COEF
+            self._borders[0] + (self._borders[1] - self._borders[0]) * MEAN_FROM_BORDERS_COEF,
+            self._borders[1] - (self._borders[1] - self._borders[0]) * MEAN_FROM_BORDERS_COEF
         )
         variance_bounds = (
             abs(self._borders[1]) * VARIANCE_LOWER_BOUND_COEF,
             abs(self._borders[1]) * VARIANCE_UPPER_BOUND_COEF
         )
+
+        # print(f"{mean_bounds=}")
+        # print(f"{variance_bounds=}")
 
         sampler = (
             self._sample_weights_jax
@@ -130,6 +146,9 @@ class GaussianMixtureGenerator(ProblemGenerator):
         for _ in range(self._num_datasets):
             w_mu = sampler(mean_bounds, variance_bounds)
             w_nu = sampler(mean_bounds, variance_bounds)
+
+            # print(f"{w_mu.sum()=}")
+            # print(f"{w_nu.sum()=}")
 
             # mu = DiscreteMeasure(points=self._points, weights=w_mu)
             # nu = DiscreteMeasure(points=self._points, weights=w_nu)
