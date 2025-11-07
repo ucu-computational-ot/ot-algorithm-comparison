@@ -82,9 +82,6 @@ def run_pipeline(
 
             df_res["name"] = cfg.name
 
-            for k, v in param_kwargs.items():
-                df_res[k] = v
-
             current_iterators = deepcopy(all_iterators)
 
             results_list.append(df_res)
