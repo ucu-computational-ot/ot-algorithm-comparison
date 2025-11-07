@@ -1,0 +1,24 @@
+param-grids:
+  lbfgs:
+    - reg: 1
+      maxiter: 100000
+      tol: 0.000001
+    - reg: 0.1
+      maxiter: 100000
+      tol: 0.000001
+    - reg: 0.01
+      maxiter: 100000
+      tol: 0.000001
+    - reg: 0.001
+      maxiter: 100000
+      tol: 0.000001
+
+solvers:
+  lbfgs:
+    solver: uot.solvers.lbfgs.LBFGSTwoMarginalSolver
+    jit: true
+    param-grid: lbfgs
+
+experiment:
+  name: L-BFGS Two-Marginal OT Test
+  function: uot.experiments.measurement.measure_with_gpu_tracker

@@ -1,0 +1,28 @@
+param-grids:
+  gradient:
+    - reg: 1
+      maxiter: 1000000
+      learning_rate: 0.001
+      tol: 0.000001
+    - reg: 0.1
+      maxiter: 1000000
+      learning_rate: 0.001
+      tol: 0.000001
+    - reg: 0.01
+      maxiter: 1000000
+      learning_rate: 0.001
+      tol: 0.000001
+    - reg: 0.001
+      maxiter: 1000000
+      learning_rate: 0.001
+      tol: 0.000001
+
+solvers:
+  adam:
+    solver: uot.solvers.gradient_ascent.AdamGradientAscentSolver
+    jit: true
+    param-grid: gradient
+
+experiment:
+  name: Gradient Ascent Test
+  function: uot.experiments.measurement.measure_with_gpu_tracker
