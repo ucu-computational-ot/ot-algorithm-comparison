@@ -59,6 +59,7 @@ def update_scaling_scatter(
                 )
 
     fig.update_xaxes(
+        title='Grid Resolution',
         type="log",
         tickmode="array",
         tickvals=sorted(agg["size"].unique()),
@@ -66,7 +67,7 @@ def update_scaling_scatter(
         ticks="outside",
         tickangle=45
     )
-    fig.update_yaxes(type="log", ticks="outside")
+    fig.update_yaxes(title='Median Runtime (s)', type="log", ticks="outside")
 
     fig.update_layout(
         template="plotly_white",

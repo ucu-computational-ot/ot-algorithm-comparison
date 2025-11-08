@@ -9,7 +9,7 @@ dash.register_page(__name__, path="/", name="Home", title="Home")
 
 # --- Data prep ----------------------------------
 df = load_all_df()
-preprocess(df)
+df = preprocess(df)
 
 # Build a coverage table: for each distribution, list available solvers and regs
 coverage_df = (

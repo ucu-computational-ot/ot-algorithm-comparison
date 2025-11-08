@@ -36,10 +36,11 @@ SOLVERS_MAP = {
     "sinkhorn-normed": "Sinkhorn (norm. cost)",
     "sinkhorn-normed-log": "Log Sinkhorn (norm. cost)",
     "back-and-forth": "Back&Forth",
+    "pdlp": "PDLP",
 }
 
 LEGEND_ORDER = [
-    "Simplex", "Back&Forth", "Log Sinkhorn (norm. cost)", "Log Sinkhorn",
+    "Simplex", "PDLP", "Back&Forth", "Log Sinkhorn (norm. cost)", "Log Sinkhorn",
     "Sinkhorn (norm. cost)", "Sinkhorn", "LBFGS", "Adam (log)", "SGD", "Vanilla Grad."
 ]
 
@@ -142,6 +143,9 @@ def load_all_df():
 
 
 def preprocess(dataframe: pd.DataFrame):
+    # NOTE: we drop sinkhorn-ott from consideration
+    dataframe = dataframe.copy()
+    dataframe = dataframe[~dataframe['name'].str.contains('sinkhorn-ott')]
     replacements = {
         "iterations": "none",
         "reg": 0,
