@@ -61,3 +61,5 @@ color_transfer_results/
 # pixi environments
 .pixi
 *.egg-info
+
+.env
