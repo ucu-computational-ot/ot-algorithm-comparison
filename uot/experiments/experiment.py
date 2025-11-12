@@ -36,10 +36,12 @@ class Experiment:
             costs=costs,
             **solver_kwargs,
         )
-        lr = _best_lr(
-            lrs=jnp.array(lrs),
-            losses=jnp.array(losses),
-        )
+        # just set the lr that gives the best dual value
+        lr = lrs[jnp.argmax(jnp.array(losses))]
+        # lr = _best_lr(
+        #     lrs=jnp.array(lrs),
+        #     losses=jnp.array(losses),
+        # )
         return lr
 
     def run_on_problems(

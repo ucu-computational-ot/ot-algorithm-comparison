@@ -14,7 +14,7 @@ from uot.experiments.real_data.color_transfer.measurement import measure_color_t
 
 
 from uot.data.dataset_loader import load_matrix_as_color_grid
-from uot.solvers.back_and_forth.pushforward import _forward_pushforward_nd
+from uot.solvers.back_and_forth.forward_pushforward import cic_pushforward_nd
 from mpl_toolkits.mplot3d import Axes3D  # For 3D plots
 
 
@@ -127,7 +127,7 @@ class ColorTransferExperiment(Experiment):
 
                 # Compute and save pushforward measures as 2D projections
                 # Assuming axs_source and axs_target are still in scope; if not, recompute from marginals[0] and marginals[1]
-                rho_mu_nd, _ = _forward_pushforward_nd(mu_source_nd, -metrics.get('v_final'))
+                rho_mu_nd, _ = cic_pushforward_nd(mu_source_nd, -metrics.get('v_final'))
                 print(f"{type(rho_mu_nd)=}")
                 print(f"{rho_mu_nd.shape=}")
                 plot_2d_projections(axs_target, rho_mu_nd, title_prefix='Pushforward Source', file_prefix='pushforward_source')
@@ -153,7 +153,7 @@ class ColorTransferExperiment(Experiment):
                 plot_2d_projections(axs_source, transported_grid_measure_nd, title_prefix='Measure from Transported Image', file_prefix='transported_measure')
 
                 # compute pushforward of nu
-                rho_nu_nd, _ = _forward_pushforward_nd(mu_target_nd, -metrics.get('u_final'))
+                rho_nu_nd, _ = cic_pushforward_nd(mu_target_nd, -metrics.get('u_final'))
                 print(f"{type(rho_nu_nd)=}")
                 print(f"{rho_nu_nd.shape=}")
                 plot_2d_projections(axs_source, rho_nu_nd, title_prefix='Pushforward Target', file_prefix='pushforward_target')
