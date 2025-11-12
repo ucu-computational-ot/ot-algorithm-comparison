@@ -3,7 +3,7 @@ from collections.abc import Iterator, Callable
 import numpy as np
 from scipy.stats import genhyperbolic
 
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
@@ -93,14 +93,26 @@ class GeneralizedHyperbolicMixtureGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build grid once
-        axes = get_axes(self._dim, self._borders, self._n_points, use_jax=False)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=False,
+        )
         points = generate_nd_grid(axes, use_jax=False)
+        cell_volume = compute_cell_volume(axes, use_jax=False)
+
+        def _prepare(weights: np.ndarray) -> np.ndarray:
+            if self.cell_discretization == "cell-centered":
+                weights = weights * cell_volume
+            return weights / weights.sum()
 
         for _ in range(self._num_datasets):
             # sample for mu
-            w_mu = self._sample_mixture_weights_and_pdfs(points)
+            w_mu = _prepare(self._sample_mixture_weights_and_pdfs(points))
             # sample independently for nu
-            w_nu = self._sample_mixture_weights_and_pdfs(points)
+            w_nu = _prepare(self._sample_mixture_weights_and_pdfs(points))
 
             # mu_measure = DiscreteMeasure(points=points, weights=w_mu)
             # nu_measure = DiscreteMeasure(points=points, weights=w_nu)

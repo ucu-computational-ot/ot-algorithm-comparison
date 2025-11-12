@@ -1,7 +1,7 @@
 import numpy as np
 from uot.utils.types import ArrayLike
 from uot.problems.problem_generator import ProblemGenerator
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import (
     get_gmm_pdf as get_gmm_pdf_jax,
     build_gmm_pdf_scipy,
@@ -117,13 +117,17 @@ class GaussianMixtureGenerator(ProblemGenerator):
         return w / np.sum(w)
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
-        axes = get_axes(self._dim, self._borders,
-                        self._n_points,
-                        cell_discretization=self.cell_discretization,
-                        use_jax=self._use_jax)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=self._use_jax,
+        )
         # print("AXES SUPPORT")
         # print(axes)
         self._points = generate_nd_grid(axes, use_jax=self._use_jax)
+        cell_volume = compute_cell_volume(axes, use_jax=self._use_jax)
 
         mean_bounds = (
             self._borders[0] + (self._borders[1] - self._borders[0]) * MEAN_FROM_BORDERS_COEF,
@@ -146,6 +150,13 @@ class GaussianMixtureGenerator(ProblemGenerator):
         for _ in range(self._num_datasets):
             w_mu = sampler(mean_bounds, variance_bounds)
             w_nu = sampler(mean_bounds, variance_bounds)
+
+            if self.cell_discretization == "cell-centered":
+                w_mu = w_mu * cell_volume
+                w_nu = w_nu * cell_volume
+
+            w_mu = w_mu / w_mu.sum()
+            w_nu = w_nu / w_nu.sum()
 
             # print(f"{w_mu.sum()=}")
             # print(f"{w_nu.sum()=}")

@@ -3,7 +3,7 @@ from collections.abc import Iterator, Callable
 import numpy as np
 from scipy.stats import cauchy
 
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
@@ -47,8 +47,20 @@ class IndependentCauchyGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build the evaluation grid once
-        axes = get_axes(self._dim, self._borders, self._n_points, use_jax=False)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=False,
+        )
         points = generate_nd_grid(axes, use_jax=False)
+        cell_volume = compute_cell_volume(axes, use_jax=False)
+
+        def _prepare(weights: np.ndarray) -> np.ndarray:
+            if self.cell_discretization == "cell-centered":
+                weights = weights * cell_volume
+            return weights / weights.sum()
 
         mean_bounds = (
             self._borders[0] * MEAN_FROM_BORDERS_COEF,
@@ -67,7 +79,7 @@ class IndependentCauchyGenerator(ProblemGenerator):
                 cauchy(loc=locs_mu[i], scale=scales_mu[i]).pdf(points[:, i])
                 for i in range(self._dim)
             ], axis=0)
-            w_mu = pdf_mu / pdf_mu.sum()
+            w_mu = _prepare(pdf_mu)
 
             # --- sample loc & scale for nu marginal ---
             locs_nu = self._rng.uniform(mean_bounds[0], mean_bounds[1], size=self._dim)
@@ -76,7 +88,7 @@ class IndependentCauchyGenerator(ProblemGenerator):
                 cauchy(loc=locs_nu[i], scale=scales_nu[i]).pdf(points[:, i])
                 for i in range(self._dim)
             ], axis=0)
-            w_nu = pdf_nu / pdf_nu.sum()
+            w_nu = _prepare(pdf_nu)
 
             # mu_measure = DiscreteMeasure(points=points, weights=w_mu)
             # nu_measure = DiscreteMeasure(points=points, weights=w_nu)
