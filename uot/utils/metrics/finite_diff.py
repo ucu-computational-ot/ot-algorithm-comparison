@@ -1,5 +1,7 @@
+import jax
 import jax.numpy as jnp
 from uot.utils.central_gradient_nd import _central_gradient_nd
+from typing import Sequence
 
 
 def hessian_via_fd(psi: jnp.ndarray) -> jnp.ndarray:

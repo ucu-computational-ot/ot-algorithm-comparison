@@ -30,3 +30,34 @@ def generate_nd_grid(axes: list[ArrayLike], use_jax: bool = True) -> ArrayLike:
     stacked = xp.stack(mesh, axis=-1)  # shape (m_0, m_1, …, m_{n-1}, n)
     points = stacked.reshape(-1, len(grid_axes))
     return points
+
+
+def compute_axis_spacings(axes: list[ArrayLike], use_jax: bool = True) -> list[ArrayLike]:
+    """
+    Return per-axis spacings assuming uniform grids (cell-centered or vertex-centered).
+    For singleton axes, fall back to spacing 1.0 to avoid division-by-zero downstream.
+    """
+    xp = jnp if use_jax else np
+    spacings: list[ArrayLike] = []
+    for i, axis in enumerate(axes):
+        arr = xp.asarray(axis)
+        if arr.ndim != 1:
+            raise ValueError(f"Axis {i} must be 1-D, got shape {arr.shape}")
+        if arr.size <= 1:
+            spacing = xp.asarray(1.0) if use_jax else 1.0
+        else:
+            spacing = arr[1] - arr[0]
+        spacings.append(spacing)
+    return spacings
+
+
+def compute_cell_volume(axes: list[ArrayLike], use_jax: bool = True) -> float:
+    """
+    Compute the hyper-rectangular cell volume implied by the provided axes.
+    Useful when approximating integrals via cell-centered sampling.
+    """
+    spacings = compute_axis_spacings(axes, use_jax=use_jax)
+    volume = 1.0
+    for spacing in spacings:
+        volume *= float(spacing)
+    return volume

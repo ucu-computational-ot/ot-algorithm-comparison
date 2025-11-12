@@ -1,7 +1,7 @@
 from jax import lax
 from jax import numpy as jnp
 
-from .pushforward import _central_gradient_nd
+from .forward_pushforward import _central_gradient_nd
 
 # Reuse your _central_gradient_nd as given in the prompt.
 
@@ -33,7 +33,7 @@ def interp_vector_field_at_positions_nd(V: jnp.ndarray,
       - s: (d, n1, n2, ..., nd)   fractional index positions at which to sample V
     Returns:
       - out: (d, n1, n2, ..., nd)  V evaluated at s via multilinear interpolation
-    Boundary behavior matches _forward_pushforward_nd: clip s to [0, n_k-1],
+    Boundary behavior matches cic_pushforward_nd: clip s to [0, n_k-1],
     clip base to [0, n_k-2], then 2^d-corner weights.
     """
     d = V.shape[0]

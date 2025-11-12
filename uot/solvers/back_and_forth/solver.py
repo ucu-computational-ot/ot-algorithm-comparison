@@ -1,8 +1,7 @@
 from __future__ import annotations
-from collections.abc import Sequence
-from typing import Literal, Optional, Dict, Any, Tuple
+from collections.abc import Sequence, Callable
+from typing import Literal, Dict
 
-import jax
 from jax import lax
 import jax.numpy as jnp
 
@@ -10,9 +9,13 @@ from uot.data.measure import GridMeasure
 from uot.utils.types import ArrayLike
 from uot.solvers.base_solver import BaseSolver
 from uot.utils.central_gradient_nd import _central_gradient_nd
+from uot.utils.import_helpers import import_object
+
+from uot.utils.metrics.pushforward_map_metrics import extra_grid_metrics
 
 from .method import backnforth_sqeuclidean_nd
-from .pushforward import _forward_pushforward_nd
+from .forward_pushforward import cic_pushforward_nd
+from .pushforward import adaptive_pushforward_nd
 from .monge_map import monge_map_from_psi_nd
 
 
@@ -30,18 +33,35 @@ class BackNForthSqEuclideanSolver(BaseSolver):
     Marginals must use cell-centered discretization for stability.
     """
 
-    def __init__(self):
+    _PUSHFORWARD_ALIASES: Dict[str, Callable] = {
+        "adaptive": adaptive_pushforward_nd,
+        "adaptive_pushforward_nd": adaptive_pushforward_nd,
+        "cic": cic_pushforward_nd,
+        "cic_pushforward_nd": cic_pushforward_nd,
+        "forward": cic_pushforward_nd,
+        "forward_pushforward": cic_pushforward_nd,
+        "_forward_pushforward_nd": cic_pushforward_nd,
+    }
+
+    def __init__(self,
+                 pushforward_fn=adaptive_pushforward_nd,
+                 ):
+        resolved_fn, resolved_name = self._resolve_pushforward_fn(pushforward_fn)
+        self._pushforward_fn = resolved_fn
+        self._pushforward_fn_name = resolved_name
         return super().__init__()
 
     def solve(
         self,
         marginals: Sequence[GridMeasure],
         costs: Sequence[ArrayLike],         # kept for BaseSolver signature compatability
+        *args,
         maxiter: int = 1_000,
         tol: float = 1e-6,
         stepsize: float = 1,
         error_metric: ErrorMetric = 'h1_psi',
         stepsize_lower_bound: float = 0.01,
+        **kwargs,
     ) -> dict:
         if len(marginals) != 2:
             raise ValueError("Back-and-Forth solver accepts only two marginals.")
@@ -59,7 +79,6 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         hs, dV = _grid_spacings(axes_mu)
         self._hs = hs
 
-        # start = time.perf_counter()
         (
             iters,
             phi,
@@ -79,8 +98,8 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             progressbar=False,
             stepsize_lower_bound=stepsize_lower_bound,
             error_metric=error_metric,
+            pushforward_fn=self._pushforward_fn,
         )
-        # print(f"Time to solve: {time.perf_counter() - start} seconds")
 
         d = mu_nd.ndim
         shape = mu_nd.shape
@@ -98,25 +117,15 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         if monge_map.shape != X.shape:
             raise ValueError(f"Monge map shape {monge_map.shape} != grid shape {X.shape}")
 
-        diff = X - monge_map
+        # Convert Monge map from index coordinates back to physical grid coordinates
+        spacing_vec = jnp.asarray(hs, dtype=monge_map.dtype)
+        origin_vec = jnp.asarray([ax[0] for ax in axes_mu], dtype=monge_map.dtype)
+        broadcast_shape = (1,) * d + (d,)
+        monge_map_physical = origin_vec.reshape(broadcast_shape) + monge_map * spacing_vec.reshape(broadcast_shape)
+
+        diff = X - monge_map_physical
         cost = jnp.sum(jnp.sum(diff * diff, axis=-1) * mu_nd)
 
-        # marginal L2 (your existing diagnostics)
-        # marginal_L2_mu_to_nu = jnp.linalg.norm((rho_mu - nu_nd).ravel())
-        # marginal_L2_nu_to_mu = jnp.linalg.norm((rho_nu - mu_nd).ravel())
-
-        # extra = self._extra_metrics(
-        #     mu_nd=mu_nd,
-        #     nu_nd=nu_nd,
-        #     axes_mu=axes_mu,
-        #     X=X,
-        #     psi=-psi,
-        #     T=monge_map,
-        #     # grad_psi_moved=grad_psi,   # (*shape, d)
-        #     # rho_mu=rho_mu,
-        #     # rho_nu=rho_nu,
-        #     # dV=dV,
-        # )
 
         # ----- assemble result -----
         out = {
@@ -127,15 +136,71 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             "iterations": iters,
             "error": errors[iters - 1],
             "marginal_error_L2": jnp.linalg.norm((rho_mu - nu_nd).ravel()),
-            # "marginal_error_mu_to_nu": marginal_L2_mu_to_nu,
-            # "marginal_error_nu_to_mu": marginal_L2_nu_to_mu,
         }
-        # fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-        # axs[0,0].imshow(mu_nd, origin='lower')
-        # axs[0,1].imshow(nu_nd, origin='lower')
-        # axs[1,0].imshow(rho_nu, origin='lower')
-        # axs[1,1].imshow(rho_mu, origin='lower')
-        # fig.savefig('bfm-measures-pushforwards.png')
-        # plt.close(fig)
-        # out.update(extra)
         return out
+
+    @classmethod
+    def _resolve_pushforward_fn(cls, pushforward_fn):
+        """
+        Accept callables, shorthand aliases or dotted import paths.
+        """
+        if callable(pushforward_fn):
+            return pushforward_fn, getattr(pushforward_fn, "__name__", str(pushforward_fn))
+
+        if isinstance(pushforward_fn, str):
+            key = pushforward_fn.lower()
+            if key in cls._PUSHFORWARD_ALIASES:
+                fn = cls._PUSHFORWARD_ALIASES[key]
+                return fn, getattr(fn, "__name__", key)
+            fn = import_object(pushforward_fn)
+            if callable(fn):
+                return fn, getattr(fn, "__name__", pushforward_fn)
+            raise TypeError(f"Resolved object '{pushforward_fn}' is not callable.")
+
+        raise TypeError(
+            "pushforward_fn must be a callable or an importable string reference, "
+            f"got {type(pushforward_fn)}"
+        )
+
+    @staticmethod
+    def _monge_map_index_to_physical(monge_map, axes):
+        spatial_shape = tuple(len(ax) for ax in axes)
+        d = len(spatial_shape)
+        arr = jnp.asarray(monge_map)
+        if arr.ndim == len(spatial_shape):
+            arr = arr[..., None]
+        if arr.shape[0] == d and arr.ndim == len(spatial_shape) + 1:
+            arr = jnp.moveaxis(arr, 0, -1)
+        elif arr.shape[-1] != d:
+            arr = arr.reshape(spatial_shape + (d,))
+
+        spacings = jnp.array(
+            [float(ax[1] - ax[0]) if ax.shape[0] > 1 else 1.0 for ax in axes],
+            dtype=arr.dtype,
+        )
+        origins = jnp.array([float(ax[0]) for ax in axes], dtype=arr.dtype)
+        reshape = (1,) * len(spatial_shape) + (d,)
+        return origins.reshape(reshape) + arr * spacings.reshape(reshape)
+
+    def _extra_metrics(
+        self,
+        *,
+        mu_nd,
+        nu_nd,
+        axes_mu,
+        X,
+        psi,
+        T,
+    ) -> Dict[str, float]:
+        psi_arr = jnp.asarray(psi).reshape(mu_nd.shape)
+        pushforward_mu, _ = self._pushforward_fn(mu_nd, psi_arr)
+        T_phys = self._monge_map_index_to_physical(T, axes_mu)
+        metrics = extra_grid_metrics(
+            mu_nd=mu_nd,
+            nu_nd=nu_nd,
+            axes_mu=axes_mu,
+            X=X,
+            T=T_phys,
+            pushforward_mu=pushforward_mu,
+        )
+        return {key: float(val) for key, val in metrics.items()}

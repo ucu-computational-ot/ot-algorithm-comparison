@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import jax
 import jax.numpy as jnp
 
-def compute_convexity_and_condition(T: jnp.ndarray, grid_spacings: Sequence[float], tol=1e-10, eps=1e-12) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+def compute_convexity_and_condition(T: jnp.ndarray, grid_spacings: Sequence[float], tol=1e-10, eps=1e-12) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     T: array of shape (n1, n2, ..., nd, d) representing Monge map
     grid_spacings: tuple of length d giving spacing h_k along each axis

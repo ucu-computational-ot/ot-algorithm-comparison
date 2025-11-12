@@ -1,17 +1,31 @@
 param-grids:
-  bfm:
-    - maxiter: 400
-      tol: 0.000001
-      error_metric: "h1_psi_relative"
-      stepsize: 8
+  bfm-cic:
+    - maxiter: 1000
+      tol: !!float 1e-3
+      stepsize: 4
       stepsize_lower_bound: 0.01
-      
+      error_metric: "h1_psi_relative"
+      pushforward_fn: "cic"
+
+  bfm-adaptive:
+    - maxiter: 500
+      tol: !!float 1e-3
+      stepsize: 4
+      stepsize_lower_bound: 0.01
+      error_metric: "h1_psi_relative"
+      pushforward_fn: "adaptive"
 
 solvers:
-  back-and-forth:
+  back-and-forth-adaptive:
     solver: uot.solvers.back_and_forth.BackNForthSqEuclideanSolver
     jit: true
-    param-grid: bfm
+    param-grid: bfm-adaptive
+    use-cost-matrix: False
+    
+  back-and-forth-cic:
+    solver: uot.solvers.back_and_forth.BackNForthSqEuclideanSolver
+    jit: true
+    param-grid: bfm-cic
     use-cost-matrix: False
 
 experiment:
