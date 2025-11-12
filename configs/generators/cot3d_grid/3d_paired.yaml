@@ -1,9 +1,10 @@
 generators:
   _domain_defaults: &domain_defaults
     dim:        3
-    borders:    [-1, 1]
+    borders:    [0, 1]
     cost_fn:    uot.utils.costs.cost_euclid_squared
     measure_mode: grid
+    cell_discretization: cell-centered
 
   
 
@@ -13,7 +14,7 @@ generators:
   
   3D-cauchy-vs-gaussian-16p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentCauchyGenerator
       params:
@@ -32,7 +33,7 @@ generators:
   
   3D-cauchy-vs-gaussian-24p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentCauchyGenerator
       params:
@@ -51,7 +52,7 @@ generators:
   
   3D-cauchy-vs-gaussian-32p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentCauchyGenerator
       params:
@@ -75,7 +76,7 @@ generators:
   
   3D-exp-vs-gaussian-16p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:
@@ -94,7 +95,7 @@ generators:
   
   3D-exp-vs-gaussian-24p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:
@@ -113,7 +114,7 @@ generators:
   
   3D-exp-vs-gaussian-32p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:
@@ -137,7 +138,7 @@ generators:
   
   3D-exp-vs-cauchy-16p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:
@@ -154,7 +155,7 @@ generators:
   
   3D-exp-vs-cauchy-24p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:
@@ -171,7 +172,7 @@ generators:
   
   3D-exp-vs-cauchy-32p:
     generator: uot.problems.generators.PairedGenerator
-    num_datasets: 31
+    num_datasets: 30
     gen_a_cfg:
       class: uot.problems.generators.IndependentExponentialGenerator
       params:

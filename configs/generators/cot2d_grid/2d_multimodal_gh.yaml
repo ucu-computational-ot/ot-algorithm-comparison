@@ -2,7 +2,7 @@ generators:
   _gen_hyperb_mixture_default: &gen_hyperb_default
     generator: uot.problems.generators.GeneralizedHyperbolicMixtureGenerator
     dim:       2
-    num_datasets: 31
+    num_datasets: 30
     borders:   [-1, 1]
     lambda_bounds: [-2.0, 2.0]
     alpha_bounds:  [1.0, 5.0]
@@ -10,6 +10,7 @@ generators:
     delta_bounds:  [0.05, 0.3]
     cost_fn:   uot.utils.costs.cost_euclid_squared
     measure_mode: grid
+    cell_discretization: cell-centered
     seed:      55
 
 

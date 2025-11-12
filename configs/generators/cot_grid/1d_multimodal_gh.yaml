@@ -2,9 +2,10 @@ generators:
   _gen_hyperb_mixture_default: &gen_hyperb_default
     generator: uot.problems.generators.GeneralizedHyperbolicMixtureGenerator
     dim:       1
-    num_datasets: 31
-    borders:   [-1, 1]
+    num_datasets: 30
+    borders:   [0, 1]
     measure_mode: grid
+    cell_discretization: cell-centered
     lambda_bounds: [-2.0, 2.0]
     alpha_bounds:  [1.0, 5.0]
     beta_coef:      0.9
