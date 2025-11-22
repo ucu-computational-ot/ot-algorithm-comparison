@@ -20,13 +20,18 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         reg: float = 1e-3,
         maxiter: int = 1000,
         tol: float = 1e-6,
+        normalize_cost: bool = True,
+        *args,
+        **kwargs,
     ) -> dict:
         if len(marginals) != 2:
             raise ValueError("Sinkhorn solver accepts only two marginals.")
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
-        # with the normalized cost sinkhorn performs MUCH faster
-        C = costs[0] / costs[0].max()
+        cost_original = costs[0]
+        cost_scale = jnp.max(jnp.abs(cost_original))
+        C = cost_original / cost_scale if normalize_cost else cost_original
+        reg = reg * cost_scale if normalize_cost else reg
         mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
 
         P, cost, phi, psi, n_steps, err = sinkhorn_jax(
@@ -37,9 +42,11 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
             tol=tol,
             epsilon=reg,
         )
+        if normalize_cost:
+            cost = cost * cost_scale if normalize_cost else cost
         return {
             "transport_plan": P,
-            "cost": jnp.sum(P * costs[0]),
+            "cost": cost,
             # "u_final": u,
             # "v_final": v,
             "iterations": n_steps,
@@ -47,8 +54,23 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         }
 
 
-@partial(jax.jit, static_argnums=(3, 4))
-def sinkhorn_jax(mu, nu, C, maxiter: int, tol: float, epsilon: float = 1e-3):
+def rowcol_min_center(C):
+    a = jnp.min(C, axis=1)
+    C1 = C - a[:, None]
+    b = jnp.min(C1, axis=0)
+    C2 = C1 - b[None, :]
+    return C2, a, b
+
+
+@partial(jax.jit, static_argnames=("maxiter", "tol"))
+def sinkhorn_jax(
+    mu,
+    nu,
+    C,
+    maxiter: int,
+    tol: float,
+    epsilon: float = 1e-3,
+    ):
     """
     JAX‑jitted Sinkhorn with while_loop stopping on tolerance.
     maxiter and tol are static (compile‑time) arguments.
@@ -72,6 +94,12 @@ def sinkhorn_jax(mu, nu, C, maxiter: int, tol: float, epsilon: float = 1e-3):
             jnp.linalg.norm(P.sum(axis=1) - mu),
             jnp.linalg.norm(P.sum(axis=0) - nu),
         )
+    # compute residuals WITHOUT forming P
+    # def compute_error(ln_u, ln_v):
+    #     row = jnp.exp(ln_u + logsumexp(ln_K + ln_v[None,:], axis=1))
+    #     col = jnp.exp(ln_v + logsumexp(ln_K.T + ln_u[None,:], axis=1))
+    #     return jnp.maximum(jnp.linalg.norm(row - mu), jnp.linalg.norm(col - nu))
+
 
     def body_fn(carry):
         ln_u, ln_v, i, err = carry

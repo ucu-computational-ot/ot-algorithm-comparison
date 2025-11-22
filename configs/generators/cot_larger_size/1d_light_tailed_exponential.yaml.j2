@@ -1,0 +1,16 @@
+generators:
+  _exponential_defaults: &exponential_defaults
+    generator: uot.problems.generators.IndependentExponentialGenerator
+    dim:       1
+    num_datasets: 31
+    measure_mode: discrete
+    borders:   [-1, 1]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    seed:      55
+
+{% set points_set = [4096, 8192, 16384] %}
+{% for p in points_set %}
+  1D-exponential-{{p}}p:
+    <<: *exponential_defaults
+    n_points: {{p}}
+{% endfor %}

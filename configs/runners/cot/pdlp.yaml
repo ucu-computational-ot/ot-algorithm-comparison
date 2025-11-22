@@ -1,0 +1,39 @@
+param-grids:
+  pdlp:
+    - reg: 200.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 100.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 60.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 20.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 10.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 1.0
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 0.1
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 0.01
+      maxiter: 1_000_000
+      tol: 0.000001
+    - reg: 0.001
+      maxiter: 1_000_000
+      tol: 0.000001
+
+solvers:
+  pdlp:
+    solver: uot.solvers.pdlp.PDLPSolver
+    jit: true
+    param-grid: pdlp
+
+experiment:
+  name: Gradient Ascent Test
+  function: uot.experiments.measurement.measure_with_gpu_tracker

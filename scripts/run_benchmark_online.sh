@@ -37,7 +37,7 @@ python -m uot.experiments.synthetic.benchmark \
   --config "$RUN_CFG" \
   --generators-config "$GEN_CFG" \
   --folds "$FOLDS" \
-  --export "$RESULT_DIR/$(basename "$RUN_CFG" .yaml)_$(basename "$GEN_CFG" .yaml)_$(date +'%d-%H-%M').csv"
+  --export "$RESULT_DIR/$(basename "$RUN_CFG" .yaml)_$(basename "$GEN_CFG" .yaml)_$(date +'%Y-%m-%d-%H-%M').csv"
 
 if type conda >/dev/null 2>&1; then
   conda deactivate

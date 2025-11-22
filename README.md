@@ -1,7 +1,9 @@
 # Utils for OT Methods Benchmark
 
-- See [docs/index.md](docs/index.md) for full documentation.
+- See [docs/index.md](docs/index.md) for full documentation on main pipeline.
 - See [docs/slurm.md](docs/slurm.md) for examples related to slurm.
+- See [docs/color_transfer.md](docs/color_transfer.md) for detailed explanation of the color transfer experiment.
+- See [docs/mnist.md](docs/mnist.md) for detailed explanation of the MNIST Classification experiment.
 
 ## Installing Pixi
 
@@ -92,6 +94,71 @@ $ pixi run benchmark --config configs/runners/gaussians.yaml --folds 1 --export 
 ```
 
 With `export` one can secify where to put csv-report of experiment
+
+## Color Transfer
+
+To run a Color Transfer experiment, first create config file like:
+
+```yaml
+param-grids:
+  epsilons:
+    - reg: 1
+    - reg: 0.01
+
+solvers:
+  sinkhorn:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+    param-grid: epsilons
+    jit: true
+
+bin-number: 16
+batch-size: 100000
+pair-number: 3
+images-dir: ./datasets/images
+output-dir: ./outputs/color_transfer
+rng-seed: 42
+
+drop-columns:
+  - transport_plan
+  - u_final
+  - v_final
+
+experiment: 
+  name: Time and test
+  function: uot.experiments.measurement.measure_time_and_output
+```
+For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md).
+
+The corresponding pixi command example:
+```
+pixi run color-transfer --config ./configs/color_transfer/example.yaml
+```
+
+There is also a feature to create a dashboard for visual comparison of the input images and results - the corresponding command is:
+```
+pixi run color-transfer-visualization --origin_folder <path_to_input_images> --results_folder <path_to_resulting_images>
+```
+
+## MNIST Classification
+
+The MNIST classification experiment is performed in two steps.
+
+- Distance matrix calculation.
+- Classification itself.
+
+For detailed config examples for each of them, please refer to [docs/mnist.md](docs/mnist.md).
+
+The corresponding pixi commands:
+
+- Step 1:
+```
+pixi run mnist_distances --config ./configs/mnist_dist_example.yaml
+```
+
+- Step 2:
+```
+pixi run mnist_classification --config ./configs/mnist_classification_example.yaml
+```
 
 ## Linting
 

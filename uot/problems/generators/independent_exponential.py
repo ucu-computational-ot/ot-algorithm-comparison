@@ -3,7 +3,7 @@ from collections.abc import Iterator, Callable
 import numpy as np
 from scipy.stats import expon
 
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
@@ -84,15 +84,30 @@ class IndependentExponentialGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build grid once
-        axes = get_axes(self._dim, self._borders, self._n_points, use_jax=False)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=False,
+        )
         points = generate_nd_grid(axes, use_jax=False)
+        cell_volume = compute_cell_volume(axes, use_jax=False)
+
+        def _prepare(weights: np.ndarray) -> np.ndarray:
+            if self.cell_discretization == "cell-centered":
+                weights = weights * cell_volume
+            total = weights.sum()
+            if total == 0:
+                total = np.finfo(float).eps
+            return weights / total
 
         for _ in range(self._num_datasets):
             # independently sample weights for mu and nu
-            w_mu = self._sample_exponential_weights(points)
+            w_mu = _prepare(self._sample_exponential_weights(points))
             if np.any(np.isnan(w_mu)):
                 logger.warning("w_mu contains nan")
-            w_nu = self._sample_exponential_weights(points)
+            w_nu = _prepare(self._sample_exponential_weights(points))
             if np.any(np.isnan(w_nu)):
                 logger.warning("w_nu contains nan") 
 

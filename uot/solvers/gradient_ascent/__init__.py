@@ -1,4 +1,5 @@
-from .gradient_ascent import GradientAscentTwoMarginalSolver
+from .gradient_ascent import GradientAscentMultiMarginalSGD
 from .gradient_plain import GradientAscentPlainLogSolver
-from .gradient_log import LogDomainGradientAscentSolver
+from .adam import AdamGradientAscentSolver
 from .saga import SAGASolver
+from .amsgrad import AMSGradSolver

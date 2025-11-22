@@ -11,6 +11,15 @@ solvers:
 
 bin-number: 16
 batch-size: 100000
-pair-number: 2
+pair-number: 3
 images-dir: ./datasets/images
-output-dir: ./outputs/color_transfer
+rng-seed: 55
+
+drop-columns:
+  - transport_plan
+  - u_final
+  - v_final
+
+experiment: 
+  name: Time and GPU usage test
+  output-dir: ./outputs/color_transfer

@@ -1,0 +1,79 @@
+generators:
+  _domain_defaults: &domain_defaults
+    dim:        2
+    borders:    [-1, 1]
+    cost_fn:    uot.utils.costs.cost_euclid_squared
+    measure_mode: discrete
+    cell_discretization: vertex-centered
+
+  {% set points_set = [32, 64, 128, 160, 192] %}
+
+  # ——————————————————————————————————————
+  # Cauchy vs Gaussians
+  # ——————————————————————————————————————
+  {% for points in points_set %}
+  2D-cauchy-vs-gaussian-{{points}}p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 31
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{points}}
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{points}}
+        seed: 55
+        use_jax: false
+        num_components: 1
+
+  {% endfor %}
+
+  # ——————————————————————————————————————
+  # Exponential vs Gaussian
+  # ——————————————————————————————————————
+  {% for p in points_set %}
+  2D-exp-vs-gaussian-{{p}}p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 31
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{p}}
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{p}}
+        seed: 55
+        num_components: 1
+        use_jax: false
+
+  {% endfor %}
+
+  # ——————————————————————————————————————
+  # Exponential vs Cauchy
+  # ——————————————————————————————————————
+  {% for p in points_set %}
+  2D-exp-vs-cauchy-{{p}}p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 31
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{p}}
+        seed: 55
+    gen_b_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: {{p}}
+        seed: 55
+
+  {% endfor %}

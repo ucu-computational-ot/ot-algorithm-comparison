@@ -10,3 +10,4 @@ solvers:
     param-grid: epsilons
   
 batch-size: 5000
+output-dir: ./outputs/mnist/costs

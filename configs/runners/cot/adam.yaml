@@ -1,0 +1,70 @@
+param-grids:
+  gradient-constant-schedule:
+    - reg: 1
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: constant
+    - reg: 0.1
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: constant
+    - reg: 0.01
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: constant
+    - reg: 0.001
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: constant
+
+  gradient-cosine-schedule:
+    - reg: 1
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: cosine
+      schedule_kwargs:
+        total_steps: 500_000
+        final_lr: 8e-5
+    - reg: 0.1
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: cosine
+      schedule_kwargs:
+        total_steps: 500_000
+        final_lr: 8e-5
+    - reg: 0.01
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: cosine
+      schedule_kwargs:
+        total_steps: 500_000
+        final_lr: 8e-5
+    - reg: 0.001
+      maxiter: 500_000
+      learning_rate: auto
+      tol: !!float 1e-6
+      schedule: cosine
+      schedule_kwargs:
+        total_steps: 500_000
+        final_lr: 8e-5
+
+solvers:
+  adam_constant_schedule:
+    solver: uot.solvers.gradient_ascent.AdamGradientAscentSolver
+    jit: true
+    param-grid: gradient-constant-schedule
+  adam_cosine_schedule:
+    solver: uot.solvers.gradient_ascent.AdamGradientAscentSolver
+    jit: true
+    param-grid: gradient-cosine-schedule
+
+experiment:
+  name: Gradient Ascent Test
+  function: uot.experiments.measurement.measure_with_gpu_tracker
