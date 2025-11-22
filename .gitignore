@@ -62,6 +62,7 @@ color_transfer_results/
 .pixi
 *.egg-info
 
+.env
 # Data folders
 adobe5k/
 logs/
