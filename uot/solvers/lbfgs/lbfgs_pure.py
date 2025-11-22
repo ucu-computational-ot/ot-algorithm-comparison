@@ -56,7 +56,7 @@ def lbfgs(
             solver_result.state.error)
 
 
-class LBFGSSolver(BaseSolver):
+class LBFGSPureSolver(BaseSolver):
     def __init__(self):
         super().__init__()
 

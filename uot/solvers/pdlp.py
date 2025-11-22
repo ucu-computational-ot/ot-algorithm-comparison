@@ -31,10 +31,14 @@ class PDLPSolver(BaseSolver):
             raise ValueError("PDLP solver accepts only two marginals.")
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
-        mu, nu = marginals[0], marginals[1]
+        # mu, nu = marginals[0], marginals[1]
+        mu, nu = (
+            marginals[0].to_discrete(include_zeros=True)[1],
+            marginals[1].to_discrete(include_zeros=True)[1],
+        )
         coupling, u, v, i_final, final_err = _solve_pdlp(
-            a=mu.to_discrete()[1],
-            b=nu.to_discrete()[1],
+            a=mu,
+            b=nu,
             cost=costs[0],
             epsilon=reg,
             precision=tol,
@@ -44,6 +48,7 @@ class PDLPSolver(BaseSolver):
             "transport_plan": coupling,
             "u_final": u,
             "v_final": v,
+            "cost": jnp.sum(costs[0] * coupling),
             "iterations": i_final,
             "error": final_err,
         }

@@ -1,0 +1,35 @@
+generators:
+  _gauss_default: &gauss_default
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    dim: 2
+    num_datasets: 31
+    borders: [-1, 1]
+    num_components: 1
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    measure_mode: discrete
+    seed: 55
+    cell_discretization: vertex-centered
+
+
+
+  2D-gaussian-1c-32p:
+    <<: *gauss_default
+    n_points: 32
+
+  2D-gaussian-1c-64p:
+    <<: *gauss_default
+    n_points: 64
+
+  2D-gaussian-1c-128p:
+    <<: *gauss_default
+    n_points: 128
+
+  2D-gaussian-1c-160p:
+    <<: *gauss_default
+    n_points: 160
+
+  2D-gaussian-1c-192p:
+    <<: *gauss_default
+    n_points: 192
+

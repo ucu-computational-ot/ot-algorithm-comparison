@@ -1,12 +1,13 @@
 import numpy as np
 from uot.utils.types import ArrayLike
 from uot.problems.problem_generator import ProblemGenerator
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import (
     get_gmm_pdf as get_gmm_pdf_jax,
     build_gmm_pdf_scipy,
     sample_gmm_params_wishart
 )
+from uot.utils.build_measure import _build_measure
 from uot.utils.generator_helpers import get_axes
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.data.measure import DiscreteMeasure
@@ -15,9 +16,11 @@ import jax
 import jax.numpy as jnp
 
 
-MEAN_FROM_BORDERS_COEF = 0.5
+# MEAN_FROM_BORDERS_COEF = 0.5
+MEAN_FROM_BORDERS_COEF = 0.2
 VARIANCE_LOWER_BOUND_COEF = 0.001
-VARIANCE_UPPER_BOUND_COEF = 0.5
+# VARIANCE_UPPER_BOUND_COEF = 0.5
+VARIANCE_UPPER_BOUND_COEF = 0.01
 
 
 class GaussianMixtureGenerator(ProblemGenerator):
@@ -39,6 +42,8 @@ class GaussianMixtureGenerator(ProblemGenerator):
         seed: int = 42,
         wishart_df: int | None = None,
         wishart_scale: np.ndarray | None = None,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         # TODO: arbitrary dim?
@@ -52,6 +57,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
         self._borders = borders
         self._cost_fn = cost_fn
         self._use_jax = use_jax
+        self._measure_mode = measure_mode
         # Wishart parameters for NumPy path
         # default df is dim+1 if not provided, scale defaults to identity
         self._wishart_df = wishart_df if wishart_df is not None else dim + 1
@@ -61,6 +67,7 @@ class GaussianMixtureGenerator(ProblemGenerator):
             self._key = jax.random.PRNGKey(seed)
         else:
             self._rng = np.random.default_rng(seed)
+        self.cell_discretization = cell_discretization
 
     def _sample_weights_jax(
         self,
@@ -92,27 +99,47 @@ class GaussianMixtureGenerator(ProblemGenerator):
             K=self._num_components,
             d=self._dim,
             mean_bounds=mean_bounds,
-            wishart_df=self._wishart_df,
-            wishart_scale=self._wishart_scale,
+            # wishart_df=self._wishart_df,
+            wishart_df=self._dim + 20,
+            # wishart_scale=self._wishart_scale,
+            wishart_scale=np.eye(self._dim) / (self._dim + 1),
             rng=self._rng,
         )
+        covs_arr = covs_arr * (VARIANCE_UPPER_BOUND_COEF / covs_arr.max())
+        # print(f"{covs_arr=}")
+        # covs_arr = np.array([[[0.05, 0.0], [0.0, 0.05]]])
+        # covs_arr = np.clip(covs_arr, VARIANCE_LOWER_BOUND_COEF, VARIANCE_UPPER_BOUND_COEF)
+        # print(f"{means_arr=}")
+        # print(f"{covs_arr=}")
+        # print(f"{weights=}")
         pdf = build_gmm_pdf_scipy(means_arr, covs_arr, weights)
         w = pdf(np.asarray(self._points))
         return w / np.sum(w)
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
-        axes = get_axes(self._dim, self._borders,
-                        self._n_points, use_jax=self._use_jax)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=self._use_jax,
+        )
+        # print("AXES SUPPORT")
+        # print(axes)
         self._points = generate_nd_grid(axes, use_jax=self._use_jax)
+        cell_volume = compute_cell_volume(axes, use_jax=self._use_jax)
 
         mean_bounds = (
-            self._borders[0] * MEAN_FROM_BORDERS_COEF,
-            self._borders[1] * MEAN_FROM_BORDERS_COEF
+            self._borders[0] + (self._borders[1] - self._borders[0]) * MEAN_FROM_BORDERS_COEF,
+            self._borders[1] - (self._borders[1] - self._borders[0]) * MEAN_FROM_BORDERS_COEF
         )
         variance_bounds = (
             abs(self._borders[1]) * VARIANCE_LOWER_BOUND_COEF,
             abs(self._borders[1]) * VARIANCE_UPPER_BOUND_COEF
         )
+
+        # print(f"{mean_bounds=}")
+        # print(f"{variance_bounds=}")
 
         sampler = (
             self._sample_weights_jax
@@ -124,8 +151,20 @@ class GaussianMixtureGenerator(ProblemGenerator):
             w_mu = sampler(mean_bounds, variance_bounds)
             w_nu = sampler(mean_bounds, variance_bounds)
 
-            mu = DiscreteMeasure(points=self._points, weights=w_mu)
-            nu = DiscreteMeasure(points=self._points, weights=w_nu)
+            if self.cell_discretization == "cell-centered":
+                w_mu = w_mu * cell_volume
+                w_nu = w_nu * cell_volume
+
+            w_mu = w_mu / w_mu.sum()
+            w_nu = w_nu / w_nu.sum()
+
+            # print(f"{w_mu.sum()=}")
+            # print(f"{w_nu.sum()=}")
+
+            # mu = DiscreteMeasure(points=self._points, weights=w_mu)
+            # nu = DiscreteMeasure(points=self._points, weights=w_nu)
+            mu = _build_measure(self._points, w_mu, axes, self._measure_mode, self._use_jax)
+            nu = _build_measure(self._points, w_nu, axes, self._measure_mode, self._use_jax)
 
             yield TwoMarginalProblem(
                 name=self._name,

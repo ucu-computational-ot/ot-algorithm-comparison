@@ -1,0 +1,94 @@
+generators:
+  1D-exp-64p:
+    generator: uot.problems.generators.ExponentialGenerator
+    dim: 1
+    num_datasets: 3
+    n_points: 64
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    seed: 58
+    borders: (-10, 10)
+  
+  1D-cauchy-64p:
+    generator: uot.problems.generators.CauchyGenerator
+    dim: 1
+    n_points: 64
+    num_datasets: 3
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: false
+    borders: (-10, -10)
+    seed: 42
+
+  1D-gaussian-64p:
+    generator: uot.problems.generators.GaussianMixtureGenerator
+    num_components: 1
+    dim: 1
+    num_datasets: 6
+    n_points: 64
+    borders: (-6, 6)
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    use_jax: False
+    seed: 42
+
+  1D-cauchy-vs-gmm-64p:
+    generator: uot.problems.generators.PairedGenerator
+    __subgenerator_defaults: &subgenerator_defaults
+      dim: 1
+      n_points: 64
+      borders: [-3, 3]
+      cost_fn: uot.utils.costs.cost_euclid_squared
+      use_jax: false
+    num_datasets: 4
+    gen_a_cfg:
+      class: uot.problems.generators.CauchyGenerator
+      params:
+        <<: *subgenerator_defaults
+        seed: 42
+    gen_b_cfg:
+      class: uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *subgenerator_defaults
+        seed: 24
+        num_components: 3
+
+  2D-students-t-16p:
+    generator: uot.problems.generators.StudentTGenerator
+    dim: 2
+    nu: 4
+    n_points: 16
+    num_datasets: 2
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    borders: (-10, 10)
+    seed: 42
+
+  2D-gen-hyperb-mixture-1c-16p:
+    generator: uot.problems.generators.GeneralizedHyperbolicMixtureGenerator
+    dim: 2
+    n_points: 16
+    num_components: 1
+    num_datasets: 2
+    borders: (-10, 10)
+    lambda_bounds: [-1.0, 2]
+    alpha_bounds: [0.5, 5.0]
+    beta_coef: 0.9
+    delta_bounds: [0.1, 2.0]
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    seed: 42
+  
+  2D-indep-cauchy-16p:
+    generator: uot.problems.generators.IndependentCauchyGenerator
+    dim: 2
+    n_points: 16
+    num_datasets: 2
+    borders: [-10, 10]
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    seed: 42
+  
+  2D-indep-exp-16p:
+    generator: uot.problems.generators.IndependentExponentialGenerator
+    dim: 2
+    n_points: 16
+    num_datasets: 2
+    borders: [-10, 10]
+    cost_fn: uot.utils.costs.cost_euclid_squared
+    seed: 42

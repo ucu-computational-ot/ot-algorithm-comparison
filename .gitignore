@@ -63,3 +63,10 @@ color_transfer_results/
 *.egg-info
 
 .env
+# Data folders
+adobe5k/
+logs/
+outputs/
+
+# GPU tracker files
+.gpu-tracker*

@@ -1,0 +1,31 @@
+param-grids:
+  sinkhorn:
+    - reg: !!float 1e-4
+      maxiter: 1_000_000
+    - reg: !!float 1e-5
+      maxiter: 1_000_000
+    - reg: !!float 1e-6
+      maxiter: 1_000_000
+    - reg: !!float 1e-7
+      maxiter: 1_000_000
+    # the regularization below takes too long to converge
+    # - reg: !!float 1e-8
+    #   maxiter: 1_000_000
+    # - reg: !!float 1e-9
+    #   maxiter: 1_000_000
+
+solvers:
+  # sinkhorn-normed:
+  #   solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
+  #   jit: true
+  #   param-grid: sinkhorn
+
+  sinkhorn-log:
+    solver: uot.solvers.sinkhorn.SinkhornTwoMarginalLogJaxSolver
+    jit: true
+    param-grid: sinkhorn
+
+
+experiment:
+  name: Sinkhorn Solvers OT Test
+  function: uot.experiments.measurement.measure_with_gpu_tracker

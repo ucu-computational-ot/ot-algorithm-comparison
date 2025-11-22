@@ -6,14 +6,25 @@ from skimage.filters import sobel
 from scipy.stats import pearsonr
 import cv2
 
+from uot.solvers.sinkhorn import sinkhorn_divergence_with_solver
+
 from uot.data.measure import GridMeasure
 
+SINKHORN_DIVERGENCE_REG = 1e-5
+SINKHORN_DIVERGENCE_MAXITER = 1e6
+SINKHORN_DIVERGENCE_TOL = 1e-7
+SINKHORN_DIVERGENCE_BATCHSIZE = 4096
 
-def compute_wasserstein_distance(source_grid: GridMeasure, target_grid: GridMeasure) -> float:
-    src_support, src_weights = source_grid.to_discrete(include_zeros=True)
-    tgt_support, tgt_weights = target_grid.to_discrete(include_zeros=True)
-    cost = ot.dist(src_support, tgt_support, metric='euclidean')
-    return ot.emd2(src_weights, tgt_weights, cost)
+def compute_sinhorn_divergence(source_grid: GridMeasure, target_grid: GridMeasure, batch_size: int = 1000, epsilon: float = 0.001) -> float:
+    S = sinkhorn_divergence_with_solver(
+        source_grid, target_grid,
+        reg=SINKHORN_DIVERGENCE_REG,
+        maxiter=SINKHORN_DIVERGENCE_MAXITER,
+        tol=SINKHORN_DIVERGENCE_TOL,
+        batch_size=SINKHORN_DIVERGENCE_BATCHSIZE,
+    )
+
+    return S['sinkhorn_divergence_w2_like']
 
 
 def compute_kl_divergence(source_grid: GridMeasure, target_grid: GridMeasure) -> float:

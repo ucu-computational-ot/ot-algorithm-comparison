@@ -15,23 +15,20 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 import argparse
 
-np.random.seed(42)
 
-
-def get_solver_files(solvers: list[SolverConfig])-> list[str]:
+def get_solver_files(solvers: list[SolverConfig], costs_dir: str)-> list[str]:
     """
     Extract solver file names from the list of SolverConfig objects.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     distance_files = []
-
     for solver in solvers:
         for params in solver.param_grid:
 
             name = solver.name
             param_str = "_".join([f"{k}_{v}" for k, v in params.items()])
             filename = f"{name}_{param_str}.csv"
-            file_path = os.path.join(script_dir, "costs", filename)
+            file_path = os.path.join(costs_dir, filename)
 
             if not os.path.exists(file_path):
                 logger.warning(f"Distance file {file_path} does not exist. Skipping.")
@@ -43,13 +40,13 @@ def get_solver_files(solvers: list[SolverConfig])-> list[str]:
 
 
 
-def load_pairwise_distances(solvers: list[SolverConfig])-> dict:
+def load_pairwise_distances(solvers: list[SolverConfig], costs_dir: str)-> dict:
     """
     Load pre-computed pairwise distance matrices from CSV files.
     """
     pairwise_distances = {}
 
-    solver_paths = get_solver_files(solvers)
+    solver_paths = get_solver_files(solvers, costs_dir)
     for solver, params, file_path in solver_paths:
         
         if solver.name not in pairwise_distances:
@@ -68,16 +65,16 @@ def create_kernel_matrix(distance_matrix: np.ndarray)-> np.ndarray:
     return kernel_matrix
 
 
-def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike, solver: SolverConfig)-> float:
+def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike, rng_seed: int)-> float:
     """Calculate classification results using proper cross-validation with precomputed kernel"""
     X_sub = X[indices]
     y_sub = y[indices]
 
     sub_distance_matrix = distance[np.ix_(indices, indices)]
 
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=rng_seed)
     scores = []
-    
+
     for train_idx, test_idx in cv.split(X_sub, y_sub):
         y_train, y_test = y_sub[train_idx], y_sub[test_idx]
 
@@ -111,19 +108,27 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     X, y, _ = load_mnist_data()
-    X, y = X[:250], y[:250]
 
     with open(args.config) as file:
-        config = yaml.safe_load(file) 
+        config = yaml.safe_load(file)
+    
+    rng_seed = config.get('rng-seed', 42)
 
     solver_configs = load_solvers(config=config)
 
-    pairwise_distances = load_pairwise_distances(solver_configs)
+    try: 
+        costs_dir = config['costs-dir']
+        export_folder = config['output-dir']
+    except KeyError as e:
+        logger.error(f"Missing key in configuration file: {e.args[0]}")
+        raise ValueError(f"Configuration file must contain '{e.args[0]}' key.")
+
+    pairwise_distances = load_pairwise_distances(solver_configs, costs_dir)
     
     results = []
     for sample_size in config['sample-sizes']:
 
-        X_indices = np.random.RandomState(42).choice(len(X), size=min(int(sample_size), len(X)), replace=False)
+        X_indices = np.random.RandomState(rng_seed).choice(len(X), size=min(int(sample_size), len(X)), replace=False)
 
         for solver in solver_configs:
             if solver.name not in pairwise_distances:
@@ -134,7 +139,7 @@ if __name__ == "__main__":
 
                 logger.info(f"Running {solver.name} with parameters {param_kwargs} on sample size {sample_size}")
 
-                accuracy = calculate_results(X, y, distance_matrix, X_indices, solver)
+                accuracy = calculate_results(X, y, distance_matrix, X_indices, rng_seed)
 
                 result = {
                     'solver': solver.name,
@@ -144,9 +149,6 @@ if __name__ == "__main__":
 
                 result.update(param_kwargs)
                 results.append(result)
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    export_folder = os.path.join(script_dir, "results")
 
     if not os.path.exists(export_folder):
         os.makedirs(export_folder, exist_ok=True)

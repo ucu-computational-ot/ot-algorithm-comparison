@@ -1,0 +1,33 @@
+generators:
+  _exponential_defaults: &exponential_defaults
+    generator: uot.problems.generators.IndependentExponentialGenerator
+    dim:       2
+    num_datasets: 31
+    borders:   [-1, 1]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    measure_mode: discrete
+    seed:      55
+    cell_discretization: vertex-centered
+
+
+
+  2D-exponential-32p:
+    <<: *exponential_defaults
+    n_points: 32
+
+  2D-exponential-64p:
+    <<: *exponential_defaults
+    n_points: 64
+
+  2D-exponential-128p:
+    <<: *exponential_defaults
+    n_points: 128
+
+  2D-exponential-160p:
+    <<: *exponential_defaults
+    n_points: 160
+
+  2D-exponential-192p:
+    <<: *exponential_defaults
+    n_points: 192
+

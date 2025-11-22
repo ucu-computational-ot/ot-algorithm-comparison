@@ -18,6 +18,7 @@ def load_solvers(config: dict) -> list[SolverConfig]:
         solver_class = solver_config['solver']
         params_grid_name = solver_config.get('param-grid', {})
         is_jit = solver_config['jit']
+        use_cost_matrix = solver_config.get('use-cost-matrix', True)
 
         solver = import_object(solver_class)
 
@@ -25,7 +26,8 @@ def load_solvers(config: dict) -> list[SolverConfig]:
             name=solver_name,
             solver=solver,
             param_grid=params[params_grid_name] if params_grid_name else [{}],
-            is_jit=is_jit
+            is_jit=is_jit,
+            use_cost_matrix=use_cost_matrix,
         )
 
         loaded_solvers_configs.append(solver_config)

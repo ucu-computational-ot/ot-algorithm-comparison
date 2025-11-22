@@ -1,0 +1,84 @@
+generators:  
+  _gen_hyperb_mixture_default: &gen_hyperb_default
+    generator: uot.problems.generators.GeneralizedHyperbolicMixtureGenerator
+    dim:       2
+    num_datasets: 30
+    borders:   [-1, 1]
+    lambda_bounds: [-2.0, 2.0]
+    alpha_bounds:  [1.0, 5.0]
+    beta_coef:      0.9
+    delta_bounds:  [0.05, 0.3]
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    measure_mode: discrete
+    seed:      55
+    cell_discretization: vertex-centered
+
+
+
+
+
+  2D-gen-hyperb-mixture-2c-32p:
+    <<: *gen_hyperb_default
+    n_points:       32
+    num_components: 2
+
+  2D-gen-hyperb-mixture-2c-64p:
+    <<: *gen_hyperb_default
+    n_points:       64
+    num_components: 2
+
+  2D-gen-hyperb-mixture-2c-128p:
+    <<: *gen_hyperb_default
+    n_points:       128
+    num_components: 2
+
+  2D-gen-hyperb-mixture-2c-160p:
+    <<: *gen_hyperb_default
+    n_points:       160
+    num_components: 2
+
+
+
+  2D-gen-hyperb-mixture-4c-32p:
+    <<: *gen_hyperb_default
+    n_points:       32
+    num_components: 4
+
+  2D-gen-hyperb-mixture-4c-64p:
+    <<: *gen_hyperb_default
+    n_points:       64
+    num_components: 4
+
+  2D-gen-hyperb-mixture-4c-128p:
+    <<: *gen_hyperb_default
+    n_points:       128
+    num_components: 4
+
+  2D-gen-hyperb-mixture-4c-160p:
+    <<: *gen_hyperb_default
+    n_points:       160
+    num_components: 4
+
+
+
+  2D-gen-hyperb-mixture-6c-32p:
+    <<: *gen_hyperb_default
+    n_points:       32
+    num_components: 6
+
+  2D-gen-hyperb-mixture-6c-64p:
+    <<: *gen_hyperb_default
+    n_points:       64
+    num_components: 6
+
+  2D-gen-hyperb-mixture-6c-128p:
+    <<: *gen_hyperb_default
+    n_points:       128
+    num_components: 6
+
+  2D-gen-hyperb-mixture-6c-160p:
+    <<: *gen_hyperb_default
+    n_points:       160
+    num_components: 6
+
+

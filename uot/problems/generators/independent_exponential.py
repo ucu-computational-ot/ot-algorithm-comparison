@@ -3,11 +3,12 @@ from collections.abc import Iterator, Callable
 import numpy as np
 from scipy.stats import expon
 
-from uot.utils.generate_nd_grid import generate_nd_grid
+from uot.utils.generate_nd_grid import generate_nd_grid, compute_cell_volume
 from uot.utils.generator_helpers import get_axes
 from uot.data.measure import DiscreteMeasure
 from uot.problems.two_marginal import TwoMarginalProblem
 from uot.problems.problem_generator import ProblemGenerator
+from uot.utils.build_measure import _build_measure
 
 from uot.utils.logging import setup_logger
 
@@ -32,6 +33,8 @@ class IndependentExponentialGenerator(ProblemGenerator):
         borders: tuple[float, float],
         cost_fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
         seed: int = 42,
+        measure_mode: str = "grid",  # NEW: 'grid' | 'discrete' | 'auto'
+        cell_discretization: str = "cell-centered" # NEW: 'cell-centered' | 'vertex-centered'
     ):
         super().__init__()
         self._name = name
@@ -39,8 +42,11 @@ class IndependentExponentialGenerator(ProblemGenerator):
         self._n_points = n_points
         self._num_datasets = num_datasets
         self._borders = borders
+        self._use_jax = False
         self._cost_fn = cost_fn
         self._rng = np.random.default_rng(seed)
+        self._measure_mode = measure_mode
+        self.cell_discretization = cell_discretization
 
     def _sample_exponential_weights(self, points: np.ndarray) -> np.ndarray:
         """
@@ -78,20 +84,37 @@ class IndependentExponentialGenerator(ProblemGenerator):
 
     def generate(self) -> Iterator[TwoMarginalProblem]:
         # build grid once
-        axes = get_axes(self._dim, self._borders, self._n_points, use_jax=False)
+        axes = get_axes(
+            self._dim,
+            self._borders,
+            self._n_points,
+            cell_discretization=self.cell_discretization,
+            use_jax=False,
+        )
         points = generate_nd_grid(axes, use_jax=False)
+        cell_volume = compute_cell_volume(axes, use_jax=False)
+
+        def _prepare(weights: np.ndarray) -> np.ndarray:
+            if self.cell_discretization == "cell-centered":
+                weights = weights * cell_volume
+            total = weights.sum()
+            if total == 0:
+                total = np.finfo(float).eps
+            return weights / total
 
         for _ in range(self._num_datasets):
             # independently sample weights for mu and nu
-            w_mu = self._sample_exponential_weights(points)
+            w_mu = _prepare(self._sample_exponential_weights(points))
             if np.any(np.isnan(w_mu)):
                 logger.warning("w_mu contains nan")
-            w_nu = self._sample_exponential_weights(points)
+            w_nu = _prepare(self._sample_exponential_weights(points))
             if np.any(np.isnan(w_nu)):
                 logger.warning("w_nu contains nan") 
 
-            mu_measure = DiscreteMeasure(points=points, weights=w_mu)
-            nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            # mu_measure = DiscreteMeasure(points=points, weights=w_mu)
+            # nu_measure = DiscreteMeasure(points=points, weights=w_nu)
+            mu_measure = _build_measure(points, w_mu, axes, self._measure_mode, self._use_jax)
+            nu_measure = _build_measure(points, w_nu, axes, self._measure_mode, self._use_jax)
 
             yield TwoMarginalProblem(
                 name=self._name,

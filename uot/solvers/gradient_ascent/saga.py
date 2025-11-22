@@ -119,7 +119,10 @@ class SAGASolver(BaseSolver):
         *args,
         **kwargs,
     ):
-        mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
+        (mu, nu) = (
+            marginals[0].to_discrete(include_zeros=False)[1],
+            marginals[1].to_discrete(include_zeros=False)[1]
+            )
         C = costs[0]
         key = jax.random.PRNGKey(self._seed)
         P, phi, psi, cost, error, iters = _saga(

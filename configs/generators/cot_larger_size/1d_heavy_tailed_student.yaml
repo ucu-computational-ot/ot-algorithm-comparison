@@ -1,0 +1,125 @@
+generators:
+  # ─── Student-t defaults ─────────────────────────────────────────────────────
+  _students_t_default: &students_default
+    generator: uot.problems.generators.StudentTGenerator
+    dim:       1
+    num_datasets: 31
+    measure_mode: discrete
+    cost_fn:   uot.utils.costs.cost_euclid_squared
+    borders:   [-1, 1]
+    seed:      55
+
+
+
+
+
+  1D-students-2df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 2
+
+  1D-students-2df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 2
+
+  1D-students-2df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 2
+
+  1D-students-2df-256p:
+    <<: *students_default
+    n_points: 256
+    nu: 2
+
+  1D-students-2df-512p:
+    <<: *students_default
+    n_points: 512
+    nu: 2
+
+  1D-students-2df-1024p:
+    <<: *students_default
+    n_points: 1024
+    nu: 2
+
+  1D-students-2df-2048p:
+    <<: *students_default
+    n_points: 2048
+    nu: 2
+
+
+
+  1D-students-4df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 4
+
+  1D-students-4df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 4
+
+  1D-students-4df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 4
+
+  1D-students-4df-256p:
+    <<: *students_default
+    n_points: 256
+    nu: 4
+
+  1D-students-4df-512p:
+    <<: *students_default
+    n_points: 512
+    nu: 4
+
+  1D-students-4df-1024p:
+    <<: *students_default
+    n_points: 1024
+    nu: 4
+
+  1D-students-4df-2048p:
+    <<: *students_default
+    n_points: 2048
+    nu: 4
+
+
+
+  1D-students-6df-32p:
+    <<: *students_default
+    n_points: 32
+    nu: 6
+
+  1D-students-6df-64p:
+    <<: *students_default
+    n_points: 64
+    nu: 6
+
+  1D-students-6df-128p:
+    <<: *students_default
+    n_points: 128
+    nu: 6
+
+  1D-students-6df-256p:
+    <<: *students_default
+    n_points: 256
+    nu: 6
+
+  1D-students-6df-512p:
+    <<: *students_default
+    n_points: 512
+    nu: 6
+
+  1D-students-6df-1024p:
+    <<: *students_default
+    n_points: 1024
+    nu: 6
+
+  1D-students-6df-2048p:
+    <<: *students_default
+    n_points: 2048
+    nu: 6
+
+

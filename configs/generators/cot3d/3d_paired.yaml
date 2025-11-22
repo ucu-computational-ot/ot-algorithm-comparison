@@ -1,0 +1,188 @@
+generators:
+  _domain_defaults: &domain_defaults
+    dim:        3
+    borders:    [-1, 1]
+    cost_fn:    uot.utils.costs.cost_euclid_squared
+    measure_mode: discrete
+
+  
+
+  # ——————————————————————————————————————
+  # Cauchy vs Gaussians
+  # ——————————————————————————————————————
+  
+  3D-cauchy-vs-gaussian-16p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+        use_jax: false
+        num_components: 1
+
+  
+  3D-cauchy-vs-gaussian-24p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+        use_jax: false
+        num_components: 1
+
+  
+  3D-cauchy-vs-gaussian-32p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+        use_jax: false
+        num_components: 1
+
+  
+
+  # ——————————————————————————————————————
+  # Exponential vs Gaussian
+  # ——————————————————————————————————————
+  
+  3D-exp-vs-gaussian-16p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+        num_components: 1
+        use_jax: false
+
+  
+  3D-exp-vs-gaussian-24p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+        num_components: 1
+        use_jax: false
+
+  
+  3D-exp-vs-gaussian-32p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+    gen_b_cfg:
+      class:  uot.problems.generators.GaussianMixtureGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+        num_components: 1
+        use_jax: false
+
+  
+
+  # ——————————————————————————————————————
+  # Exponential vs Cauchy
+  # ——————————————————————————————————————
+  
+  3D-exp-vs-cauchy-16p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+    gen_b_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 16
+        seed: 55
+
+  
+  3D-exp-vs-cauchy-24p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+    gen_b_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 24
+        seed: 55
+
+  
+  3D-exp-vs-cauchy-32p:
+    generator: uot.problems.generators.PairedGenerator
+    num_datasets: 30
+    gen_a_cfg:
+      class: uot.problems.generators.IndependentExponentialGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+    gen_b_cfg:
+      class: uot.problems.generators.IndependentCauchyGenerator
+      params:
+        <<: *domain_defaults
+        n_points: 32
+        seed: 55
+
+  
