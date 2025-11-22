@@ -6,7 +6,7 @@ from jax import numpy as jnp
 from jax.scipy.fft import dctn, idctn
 from functools import partial
 from uot.solvers.back_and_forth.c_transform import c_transform_quadratic_fast
-from uot.solvers.back_and_forth.pushforward import _forward_pushforward_nd
+from uot.solvers.back_and_forth.forward_pushforward import cic_pushforward_nd
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -112,7 +112,7 @@ def backnforth_sqeuclidean_nd(
     maxiterations: int,
     tolerance: float,
     progressbar: bool = False,
-    pushforward_fn=_forward_pushforward_nd, # allow swapping deposition schemes
+    pushforward_fn=cic_pushforward_nd, # allow swapping deposition schemes
     stepsize_lower_bound: float = 0.01,
     error_metric: str = 'tv_phi'
 ):

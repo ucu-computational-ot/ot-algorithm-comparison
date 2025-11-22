@@ -9,7 +9,7 @@ import numpy as np
 from .bfm import backnforth_sqeuclidean_nd
 from uot.solvers.back_and_forth.method import backnforth_sqeuclidean_nd as bfm_uot
 from uot.solvers.back_and_forth.monge_map import monge_map_from_psi_nd
-from uot.solvers.back_and_forth.pushforward import _central_gradient_nd
+from uot.solvers.back_and_forth.forward_pushforward import _central_gradient_nd
 
 
 def _grid_from_axes(axes):
