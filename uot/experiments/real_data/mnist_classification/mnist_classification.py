@@ -15,10 +15,12 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 import argparse
 
-np.random.seed(42)
-
 
 def get_solver_files(solvers: list[SolverConfig], costs_dir: str)-> list[str]:
+    """
+    Extract solver file names from the list of SolverConfig objects.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     distance_files = []
     for solver in solvers:
         for params in solver.param_grid:
@@ -63,16 +65,16 @@ def create_kernel_matrix(distance_matrix: np.ndarray)-> np.ndarray:
     return kernel_matrix
 
 
-def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike)-> float:
+def calculate_results(X: ArrayLike, y: ArrayLike, distance: ArrayLike, indices: ArrayLike, rng_seed: int)-> float:
     """Calculate classification results using proper cross-validation with precomputed kernel"""
     X_sub = X[indices]
     y_sub = y[indices]
 
     sub_distance_matrix = distance[np.ix_(indices, indices)]
 
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=rng_seed)
     scores = []
-    
+
     for train_idx, test_idx in cv.split(X_sub, y_sub):
         y_train, y_test = y_sub[train_idx], y_sub[test_idx]
 
@@ -108,7 +110,9 @@ if __name__ == "__main__":
     X, y, _ = load_mnist_data()
 
     with open(args.config) as file:
-        config = yaml.safe_load(file) 
+        config = yaml.safe_load(file)
+    
+    rng_seed = config.get('rng-seed', 42)
 
     solver_configs = load_solvers(config=config)
 
@@ -124,7 +128,7 @@ if __name__ == "__main__":
     results = []
     for sample_size in config['sample-sizes']:
 
-        X_indices = np.random.RandomState(42).choice(len(X), size=min(int(sample_size), len(X)), replace=False)
+        X_indices = np.random.RandomState(rng_seed).choice(len(X), size=min(int(sample_size), len(X)), replace=False)
 
         for solver in solver_configs:
             if solver.name not in pairwise_distances:
@@ -135,7 +139,7 @@ if __name__ == "__main__":
 
                 logger.info(f"Running {solver.name} with parameters {param_kwargs} on sample size {sample_size}")
 
-                accuracy = calculate_results(X, y, distance_matrix, X_indices)
+                accuracy = calculate_results(X, y, distance_matrix, X_indices, rng_seed)
 
                 result = {
                     'solver': solver.name,
