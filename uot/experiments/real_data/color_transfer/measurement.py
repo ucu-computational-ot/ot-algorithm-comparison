@@ -406,14 +406,12 @@ def _transport_image_plan(
         T_centers = (1.0 - displacement_alpha) * jnp.asarray(source_palette) + displacement_alpha * T_centers
     H, W, C = image.shape
     pixels = image.reshape(-1, C)
-
-    @jax.vmap
-    def transform_pixel(pixel):
-        dists = jnp.sum((source_palette - pixel[None, :])**2, axis=1)
-        idx = jnp.argmin(dists)
-        return T_centers[idx]
-
-    return transform_pixel(pixels).reshape(H, W, C).astype(jnp.float32)
+    mapped = _map_pixels_via_palette_nearest(
+        pixels,
+        source_palette,
+        T_centers,
+    )
+    return mapped.reshape(H, W, C).astype(jnp.float32)
 
 @jax.jit
 def map_pixels_by_palette_monge(image, monge_map):
@@ -546,6 +544,21 @@ def _map_pixels_from_grid_map(image, grid_map):
     idx = jnp.clip(jnp.round(pix * (B - 1)), 0, B - 1).astype(jnp.int32)
     mapped = grid[idx[:, 0], idx[:, 1], idx[:, 2]]
     return jnp.clip(mapped, 0.0, 1.0).reshape(H, W, 3)
+
+
+def _map_pixels_via_palette_nearest(pixels, source_palette, target_palette, batch_size=16384):
+    src = jnp.asarray(source_palette)
+    tgt = jnp.asarray(target_palette)
+    pix = jnp.asarray(pixels)
+    N = pix.shape[0]
+    outputs = []
+    for start in range(0, N, batch_size):
+        stop = min(start + batch_size, N)
+        chunk = pix[start:stop]
+        dists = jnp.sum((src[None, :, :] - chunk[:, None, :]) ** 2, axis=2)
+        idx = jnp.argmin(dists, axis=1)
+        outputs.append(tgt[idx])
+    return jnp.concatenate(outputs, axis=0)
 
 
 def _maybe_soft_extend_map(map_array, mask, enabled, axes=None):
