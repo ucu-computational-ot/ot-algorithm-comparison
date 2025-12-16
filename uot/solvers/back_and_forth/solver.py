@@ -16,7 +16,11 @@ from uot.utils.metrics.pushforward_map_metrics import extra_grid_metrics
 from .method import backnforth_sqeuclidean_nd
 from .forward_pushforward import cic_pushforward_nd
 from .pushforward import adaptive_pushforward_nd
-from .monge_map import monge_map_from_psi_nd
+from .monge_map import (
+    monge_map_from_psi_nd,
+    monge_map_cic_from_psi_nd,
+    monge_map_adaptive_from_psi_nd,
+)
 
 
 ErrorMetric = Literal[
@@ -111,7 +115,12 @@ class BackNForthSqEuclideanSolver(BaseSolver):
         grad_psi = _central_gradient_nd(-psi)              # (d, *shape)
         if grad_psi.shape[0] == len(axes_mu):
             grad_psi = jnp.moveaxis(grad_psi, 0, -1)      # -> (*shape, d)
-        monge_map = monge_map_from_psi_nd(psi=-psi)
+        monge_map_fn = monge_map_from_psi_nd
+        if self._pushforward_fn is adaptive_pushforward_nd:
+            monge_map_fn = monge_map_adaptive_from_psi_nd
+        elif self._pushforward_fn is cic_pushforward_nd:
+            monge_map_fn = monge_map_cic_from_psi_nd
+        monge_map = monge_map_fn(psi=-psi)
         monge_map = jnp.moveaxis(monge_map, 0, -1)
 
         if monge_map.shape != X.shape:
@@ -136,6 +145,7 @@ class BackNForthSqEuclideanSolver(BaseSolver):
             "iterations": iters,
             "error": errors[iters - 1],
             "marginal_error_L2": jnp.linalg.norm((rho_mu - nu_nd).ravel()),
+            "pushforward_fn_name": self._pushforward_fn_name,
         }
         return out
 

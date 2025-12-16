@@ -3,7 +3,6 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from skimage.color import rgb2lab
 from skimage.filters import sobel
-from scipy.stats import pearsonr
 import cv2
 
 from uot.solvers.sinkhorn import sinkhorn_divergence_with_solver
@@ -72,10 +71,23 @@ def compute_gradient_magnitude_correlation(img1: np.ndarray, img2: np.ndarray) -
     grad1 = sobel(gray1)
     grad2 = sobel(gray2)
 
-    if np.allclose(grad1, grad1[0]) or np.allclose(grad2, grad2[0]):
-        return 0.0
+    return _safe_pearson_corr(grad1, grad2)
 
-    return pearsonr(grad1.ravel(), grad2.ravel())[0]
+
+def _safe_pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
+    """Pearson correlation with guard rails against zero-variance vectors."""
+    x = np.asarray(a, dtype=np.float64).ravel()
+    y = np.asarray(b, dtype=np.float64).ravel()
+    if x.size == 0 or y.size == 0:
+        return 0.0
+    xm = x - np.mean(x)
+    ym = y - np.mean(y)
+    var_x = np.dot(xm, xm)
+    var_y = np.dot(ym, ym)
+    if var_x <= 1e-16 or var_y <= 1e-16:
+        return 0.0
+    corr = np.dot(xm, ym) / np.sqrt(var_x * var_y)
+    return float(np.clip(corr, -1.0, 1.0))
 
 def compute_laplacian_variance(img: np.ndarray) -> float:
     """Compute variance of Laplacian to assess sharpness (higher = sharper)."""

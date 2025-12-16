@@ -14,18 +14,81 @@ from uot.experiments.real_data.color_transfer.color_transfer_problem import Colo
 
 from uot.utils.logging import logger
 
+def _coerce_bin_numbers(bin_value):
+    if isinstance(bin_value, int):
+        return [bin_value]
+    if isinstance(bin_value, (list, tuple)):
+        if not bin_value:
+            raise ValueError("bin-number must not be empty")
+        for val in bin_value:
+            if not isinstance(val, int):
+                raise TypeError("bin-number entries must be integers")
+        return list(bin_value)
+    raise TypeError("bin-number must be an integer or a list of integers")
+
+def _coerce_soft_extension_list(option_value):
+    def _to_bool(entry):
+        if isinstance(entry, bool):
+            return entry
+        if isinstance(entry, str):
+            lowered = entry.strip().lower()
+            if lowered in {"yes", "true", "1"}:
+                return True
+            if lowered in {"no", "false", "0"}:
+                return False
+        raise TypeError("soft-extension entries must be booleans or yes/no strings")
+
+    if option_value is None:
+        return None
+    if isinstance(option_value, (list, tuple)):
+        if not option_value:
+            raise ValueError("soft-extension list must not be empty")
+        return [_to_bool(v) for v in option_value]
+    return [_to_bool(option_value)]
+
+
+def _coerce_displacement_alphas(option_value):
+    def _to_float(entry):
+        try:
+            value = float(entry)
+        except (TypeError, ValueError):
+            raise TypeError("displacement-interpolation entries must be numeric") from None
+        if not 0.0 <= value <= 1.0:
+            raise ValueError("displacement-interpolation values must lie in [0, 1]")
+        return value
+
+    if option_value is None:
+        return [1.0]
+    if isinstance(option_value, (list, tuple)):
+        if not option_value:
+            raise ValueError("displacement-interpolation list must not be empty")
+        return [_to_float(v) for v in option_value]
+    return [_to_float(option_value)]
+
 def load_config_info(config: dict)-> tuple:
     """Get miscellaneous info from the config"""
+    bin_numbers = _coerce_bin_numbers(config['bin-number'])
+    soft_extension = (
+        _coerce_soft_extension_list(config['soft-extension'])
+        if 'soft-extension' in config else None
+    )
+    displacement_alphas = _coerce_displacement_alphas(config.get('displacement-interpolation', [1.0]))
     return (
-        config['bin-number'], 
+        bin_numbers,
         config['batch-size'],
         config['pair-number'],
         config['images-dir'],
         config['rng-seed'],
-        config.get('drop-columns', [])
+        config.get('drop-columns', []),
+        soft_extension,
+        displacement_alphas,
     )
 
-def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> list[TwoMarginalProblem]:
+def get_image_problems(
+    data: dict[str, ImageData],
+    image_pairs: set[tuple],
+    bins_per_channel: int,
+) -> list[TwoMarginalProblem]:
     """Get the image pairs as problems for the experiment"""
     return [
         ColorTransferProblem(
@@ -35,15 +98,7 @@ def get_image_problems(data: dict[str, ImageData], image_pairs: set[tuple]) -> l
             cost_fn=cost_euclid,
             source_image=data[source_name].get_image(),
             target_image=data[target_name].get_image(),
-        )
-        for source_name, target_name in image_pairs
-    ]
-    return [
-        TwoMarginalProblem(
-            name=f"{source_name} -> {target_name}",
-            mu=data[source_name].get_grid(),
-            nu=data[target_name].get_grid(),
-            cost_fn=cost_euclid
+            bins_per_channel=bins_per_channel,
         )
         for source_name, target_name in image_pairs
     ]

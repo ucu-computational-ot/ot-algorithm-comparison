@@ -1,24 +1,104 @@
 param-grids:
-  epsilons:
-    - reg: 1
-    - reg: 0.01
+  sinkhorn:
+    # - reg: 10
+    #   maxiter: 100000
+    #   tol: 0.000001
+    # - reg: 1
+    #   maxiter: 100000
+    #   tol: 0.000001
+    # - reg: 0.01
+    #   maxiter: 100000
+    #   tol: 0.000001
+    - reg: !!float 1e-2
+      maxiter: 100000
+      tol: !!float 1e-6
+    # - reg: 0.0001
+    #   maxiter: 100000
+    #   tol: 0.000001
+  # --- ADAM ---
+  adam:
+    - reg: !!float 1e-2
+      maxiter: 500000
+      learning_rate: !!float 5e-3
+      tol: !!float 1e-6
+      schedule: cosine
+      schedule_kwargs:
+        total_steps: 500000
+        final_lr: !!float 8e-5
+  # --- SGD ---
+  sgd:
+    - reg: !!float 1e-2
+      maxiter: 500000
+      tol: !!float 1e-6
+      learning_rate: !!float 3e-3
+      momentum: 0.9
+  # --- BACK AND FORTH METHOD PARAM GRID ---
+  bfm-cic:
+    - maxiter: 1000
+      tol: !!float 1e-6
+      error_metric: "h1_psi_relative"
+      stepsize: 1
+      stepsize_lower_bound: 0.01
+      pushforward_fn: "cic"
+  bfm-adaptive:
+    - maxiter: 1000
+      tol: !!float 1e-6
+      zzerror_metric: "h1_psi_relative"
+      stepsize: 1
+      stepsize_lower_bound: 0.01
+      pushforward_fn: "adaptive"
+
 
 solvers:
   sinkhorn:
     solver: uot.solvers.sinkhorn.SinkhornTwoMarginalSolver
-    param-grid: epsilons
+    param-grid: sinkhorn
     jit: true
+  simplex:
+    solver: uot.solvers.linear_programming.LinearProgrammingTwoMarginalSolver
+    jit: true
+  # adam:
+  #   solver: uot.solvers.gradient_ascent.AdamGradientAscentSolver
+  #   param-grid: adam
+  #   jit: true
+  # sgd:
+  #   solver: uot.solvers.gradient_ascent.GradientAscentMultiMarginalSGD
+  #   param-grid: sgd
+  #   jit: true
+  back-and-forth-cic:
+    solver: uot.solvers.back_and_forth.BackNForthSqEuclideanSolver
+    param-grid: bfm-cic
+    jit: true
+    use-cost-matrix: False
+  # back-and-forth-adaptive:
+  #   solver: uot.solvers.back_and_forth.BackNForthSqEuclideanSolver
+  #   param-grid: bfm-adaptive
+  #   jit: true
+  #   use-cost-matrix: False
 
-bin-number: 16
+bin-number:
+  - 6
+  # - 64
+# soft-extension:
+  #- no
+  # - yes
+displacement-interpolation:
+  - 0.0
+  - 0.5
+  - 1.0
 batch-size: 100000
 pair-number: 3
-images-dir: ./datasets/images
+# images-dir: ./adobe5k/rawz
+# images-dir: ./test_images
+images-dir: ./colour_transfer_images
 rng-seed: 55
 
 drop-columns:
   - transport_plan
+  - monge_map
   - u_final
   - v_final
+  - potentials
 
 experiment: 
   name: Time and GPU usage test

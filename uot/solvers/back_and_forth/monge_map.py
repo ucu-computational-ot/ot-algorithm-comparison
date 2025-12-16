@@ -2,6 +2,12 @@ from jax import lax
 from jax import numpy as jnp
 
 from .forward_pushforward import _central_gradient_nd
+from .pushforward import (
+    _binary_corners,
+    _multilinear_interpolate_cell_center,
+    _adjacent_max,
+)
+import math
 
 # Reuse your _central_gradient_nd as given in the prompt.
 
@@ -156,3 +162,142 @@ def unit_to_index(U: jnp.ndarray) -> jnp.ndarray:
     shape = U.shape[1:]
     n_vec = jnp.array(shape, dtype=jnp.float32).reshape((d,) + (1,) * len(shape))
     return U * n_vec
+
+
+def monge_map_cic_from_psi_nd(psi: jnp.ndarray) -> jnp.ndarray:
+    """
+    Build a Monge map in index coordinates using the same displacement rule
+    as cic_pushforward_nd.
+    """
+    shape = psi.shape
+    d = psi.ndim
+    n_vec = jnp.array(shape, dtype=jnp.float32).reshape((d,) + (1,) * d)
+
+    grad = _central_gradient_nd(psi)
+    idx = jnp.indices(shape, dtype=jnp.float32)
+    s_raw = idx + 0.5 + grad * n_vec
+    clipped = []
+    for ax in range(d):
+        clipped.append(jnp.clip(s_raw[ax], 0.0, shape[ax] - 1.0))
+    return jnp.stack(clipped, axis=0)
+
+
+def monge_map_adaptive_from_psi_nd(psi: jnp.ndarray) -> jnp.ndarray:
+    """
+    Build a Monge map (in index coordinates) that mirrors adaptive_pushforward_nd.
+    For each cell we re-evaluate the adaptive sampling procedure and average
+    the sample locations to obtain a representative map value.
+    """
+    shape = psi.shape
+    d = psi.ndim
+    dtype = psi.dtype
+    corners = _binary_corners(d)
+
+    vertex_shape = tuple(n + 1 for n in shape)
+    coords = jnp.indices(vertex_shape, dtype=dtype)
+    reshape_pattern = (d,) + (1,) * d
+    n_vec_vertex = jnp.array(shape, dtype=dtype).reshape(reshape_pattern)
+    unit_coords = coords / n_vec_vertex
+
+    vertex_components = []
+    for ax in range(d):
+        step = 1.0 / shape[ax]
+        shifted_plus = unit_coords.at[ax].set(unit_coords[ax] + step)
+        shifted_minus = unit_coords.at[ax].set(unit_coords[ax] - step)
+        f_plus = _multilinear_interpolate_cell_center(psi, shifted_plus, corners)
+        f_minus = _multilinear_interpolate_cell_center(psi, shifted_minus, corners)
+        grad = (f_plus - f_minus) / (2.0 * step)
+        coord_axis = unit_coords[ax]
+        target_coord = jnp.clip(coord_axis + grad, 0.0, 1.0)
+        vertex_components.append(target_coord)
+    vertex_map = jnp.stack(vertex_components, axis=0)  # (d, *vertex_shape)
+
+    def reduce_other_axes(arr, excluded_axis):
+        out = arr
+        for axis in range(arr.ndim):
+            if axis == excluded_axis:
+                continue
+            out = _adjacent_max(out, axis=axis)
+        return out
+
+    stretch_components = [
+        reduce_other_axes(jnp.abs(jnp.diff(vertex_map[ax], axis=ax)), ax)
+        for ax in range(d)
+    ]
+
+    slice_sizes = (2,) * d
+    total_cells = math.prod(shape)
+    n_vec_float = jnp.array(shape, dtype=dtype)
+
+    def unravel(index):
+        idx = index
+        coords_rev = []
+        for size in reversed(shape):
+            size_val = jnp.int32(size)
+            coords_rev.append(lax.rem(idx, size_val))
+            idx = lax.div(idx, size_val)
+        return tuple(reversed(coords_rev))
+
+    def extract_cell_vertices(idx_tuple):
+        starts = list(idx_tuple)
+        vertices = []
+        for ax in range(d):
+            block = lax.dynamic_slice(vertex_map[ax], starts, slice_sizes)
+            vertices.append(block.reshape(-1))
+        return jnp.stack(vertices, axis=1)  # (num_corners, d)
+
+    def evaluate_cell_map(cell_vertices, bary):
+        bary = jnp.clip(bary, 0.0, 1.0)
+        weights = jnp.prod(
+            jnp.where(corners == 1, bary, 1.0 - bary),
+            axis=1,
+        )
+        return jnp.sum(weights[:, None] * cell_vertices, axis=0)
+
+    def sample_indices(sample_idx, counts_tuple):
+        idx = sample_idx
+        coords_list = []
+        for count in counts_tuple:
+            coords_list.append(lax.rem(idx, count))
+            idx = lax.div(idx, count)
+        return jnp.stack(coords_list, axis=0)
+
+    def cell_body(cell_flat_idx, T):
+        idx_tuple = unravel(jnp.int32(cell_flat_idx))
+        cell_vertices = extract_cell_vertices(idx_tuple)
+
+        counts_list = []
+        for ax in range(d):
+            stretch_val = stretch_components[ax][idx_tuple]
+            est = jnp.ceil(stretch_val * shape[ax]).astype(jnp.int32)
+            counts_list.append(jnp.maximum(1, est))
+        counts_tuple = tuple(counts_list)
+        counts_array = jnp.stack(counts_tuple)
+        sample_total = jnp.maximum(jnp.prod(counts_array), 1)
+        counts_float = counts_array.astype(dtype)
+
+        def cond_fn(state):
+            return state[0] < sample_total
+
+        def body_fn(state):
+            s_idx, acc = state
+            local_indices = sample_indices(s_idx, counts_tuple)
+            bary = (local_indices.astype(dtype) + 0.5) / counts_float
+            point = evaluate_cell_map(cell_vertices, bary)
+            return (s_idx + 1, acc + point)
+
+        _, sum_points = lax.while_loop(
+            cond_fn,
+            body_fn,
+            (jnp.int32(0), jnp.zeros((d,), dtype=dtype)),
+        )
+        mean_point = sum_points / sample_total.astype(dtype)
+        map_value = mean_point * n_vec_float - 0.5
+        clipped = []
+        for ax in range(d):
+            clipped.append(jnp.clip(map_value[ax], 0.0, shape[ax] - 1.0))
+        map_vec = jnp.stack(clipped, axis=0)
+        return T.at[(slice(None),) + idx_tuple].set(map_vec)
+
+    T0 = jnp.zeros((d,) + shape, dtype=dtype)
+    return lax.fori_loop(0, total_cells, cell_body, T0)

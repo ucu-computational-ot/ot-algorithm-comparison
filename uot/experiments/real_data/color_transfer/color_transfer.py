@@ -7,6 +7,7 @@ import argparse
 import yaml
 import datetime
 import logging
+import pandas as pd
 
 from uot.utils.yaml_helpers import load_solvers, load_experiment
 from uot.experiments.runner import run_pipeline
@@ -42,15 +43,21 @@ if __name__ == "__main__":
         config = yaml.safe_load(file)
 
     logger.debug('Loading configuration...')
-    bin_num, batch_size, pair_num, images_dir, rng_seed, drop_columns = load_config_info(config)
+    (
+        bin_numbers,
+        batch_size,
+        pair_num,
+        images_dir,
+        rng_seed,
+        drop_columns,
+        soft_extension_options,
+        displacement_alphas,
+    ) = load_config_info(config)
     output_dir = config['experiment'].get('output-dir', 'output/color_transfer')
 
     logger.debug('Loading solvers...')
     solver_configs = load_solvers(config=config)
     ImageData.set_image_dir(images_dir)
-
-    logger.info('Sampling and loading images pairs...')
-    data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     base_dir = os.path.join(output_dir, f"color_transfer_{timestamp}")
@@ -61,13 +68,23 @@ if __name__ == "__main__":
         output_dir=base_dir,
         drop_columns=drop_columns,
     )
-    results = run_pipeline(
-        experiment=experiment,
-        solvers=solver_configs,
-        iterators=[get_image_problems(data, image_pairs)],
-        folds=1,
-        progress=True
-    )
+    experiment.set_soft_extension_modes(soft_extension_options)
+    experiment.set_displacement_alphas(displacement_alphas)
+    all_results = []
+    for bin_num in bin_numbers:
+        logger.info(f'Sampling and loading image pairs for bin-number={bin_num}...')
+        data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
+
+        bin_results = run_pipeline(
+            experiment=experiment,
+            solvers=solver_configs,
+            iterators=[get_image_problems(data, image_pairs, bins_per_channel=bin_num)],
+            folds=1,
+            progress=True
+        )
+        all_results.append(bin_results)
+
+    results = pd.concat(all_results, ignore_index=True, sort=False) if all_results else pd.DataFrame()
 
     csv_path = os.path.join(base_dir, "color_transfer_results.csv")
     results.to_csv(csv_path, index=False)
