@@ -7,16 +7,25 @@ import cv2
 
 from uot.solvers.sinkhorn import sinkhorn_divergence_with_solver
 
-from uot.data.measure import GridMeasure
+from uot.data.measure import GridMeasure, DiscreteMeasure
 
 SINKHORN_DIVERGENCE_REG = 5e-4
 SINKHORN_DIVERGENCE_MAXITER = 50000
 SINKHORN_DIVERGENCE_TOL = 1e-5
 SINKHORN_DIVERGENCE_BATCHSIZE = 8192
 
+def _to_sparse_measure(measure):
+    if isinstance(measure, GridMeasure):
+        points, weights = measure.to_discrete(include_zeros=False)
+        return DiscreteMeasure(points=points, weights=weights, name=getattr(measure, "name", ""))
+    return measure
+
+
 def compute_sinhorn_divergence(source_grid: GridMeasure, target_grid: GridMeasure, batch_size: int = 1000, epsilon: float = 0.001) -> float:
+    source_sparse = _to_sparse_measure(source_grid)
+    target_sparse = _to_sparse_measure(target_grid)
     S = sinkhorn_divergence_with_solver(
-        source_grid, target_grid,
+        source_sparse, target_sparse,
         reg=SINKHORN_DIVERGENCE_REG,
         maxiter=SINKHORN_DIVERGENCE_MAXITER,
         tol=SINKHORN_DIVERGENCE_TOL,
