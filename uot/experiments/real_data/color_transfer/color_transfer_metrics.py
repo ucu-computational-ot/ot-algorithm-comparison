@@ -13,17 +13,36 @@ SINKHORN_DIVERGENCE_REG = 5e-4
 SINKHORN_DIVERGENCE_MAXITER = 50000
 SINKHORN_DIVERGENCE_TOL = 1e-5
 SINKHORN_DIVERGENCE_BATCHSIZE = 8192
+SINKHORN_DIVERGENCE_MAX_POINTS = 8000
 
-def _to_sparse_measure(measure):
+def _prepare_sparse_measure(measure):
     if isinstance(measure, GridMeasure):
         points, weights = measure.to_discrete(include_zeros=False)
-        return DiscreteMeasure(points=points, weights=weights, name=getattr(measure, "name", ""))
-    return measure
+    else:
+        points, weights = measure.to_discrete()
+
+    points_np = np.asarray(points)
+    weights_np = np.asarray(weights, dtype=np.float64)
+
+    if points_np.shape[0] > SINKHORN_DIVERGENCE_MAX_POINTS:
+        rng = np.random.default_rng(0)
+        probs = weights_np / np.sum(weights_np)
+        idx = rng.choice(
+            points_np.shape[0],
+            size=SINKHORN_DIVERGENCE_MAX_POINTS,
+            replace=False,
+            p=probs,
+        )
+        points_np = points_np[idx]
+        weights_np = weights_np[idx]
+        weights_np = weights_np / np.sum(weights_np)
+
+    return DiscreteMeasure(points=points_np, weights=weights_np, name=getattr(measure, "name", ""))
 
 
 def compute_sinhorn_divergence(source_grid: GridMeasure, target_grid: GridMeasure, batch_size: int = 1000, epsilon: float = 0.001) -> float:
-    source_sparse = _to_sparse_measure(source_grid)
-    target_sparse = _to_sparse_measure(target_grid)
+    source_sparse = _prepare_sparse_measure(source_grid)
+    target_sparse = _prepare_sparse_measure(target_grid)
     S = sinkhorn_divergence_with_solver(
         source_sparse, target_sparse,
         reg=SINKHORN_DIVERGENCE_REG,
