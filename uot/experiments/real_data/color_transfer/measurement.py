@@ -1,5 +1,6 @@
 import math
 import time
+import gc
 from typing import Dict, Union, Tuple
 
 import jax
@@ -143,6 +144,8 @@ def measure_color_transfer_metrics(
         combined = dict(entry)
         combined.update(solution)
         results.append(combined)
+        jax.clear_caches()
+        gc.collect()
         logger.info(f"Completed metrics for soft_extension={active_soft}, displacement_alpha={alpha_value}.")
 
     return results
