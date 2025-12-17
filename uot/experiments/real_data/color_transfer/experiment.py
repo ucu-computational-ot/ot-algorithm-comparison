@@ -52,7 +52,9 @@ class ColorTransferExperiment(Experiment):
 
     def run_on_problems(self, problems, solver, progress_callback=None, use_cost_matrix: bool = True, **solver_kwargs) -> pd.DataFrame:
         results = pd.DataFrame()
-        for idx, prob in enumerate(problems, start=1):
+        problem_list = list(problems)
+        total = len(problem_list)
+        for idx, prob in enumerate(problem_list, start=1):
             marginals = prob.get_marginals()
 
             # NOTE: for debugging, saving the initial measures as 2D projections
@@ -70,7 +72,7 @@ class ColorTransferExperiment(Experiment):
                 "Running experiment %s (%d/%d) on problem: %s",
                 solver.__name__,
                 idx,
-                len(problems),
+                total,
                 prob.name,
             )
 
