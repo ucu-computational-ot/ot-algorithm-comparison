@@ -111,7 +111,12 @@ solvers:
     param-grid: epsilons
     jit: true
 
-bin-number: 16
+bin-number:
+  - 16
+  - 32
+soft-extension:
+  - no
+  - yes
 batch-size: 100000
 pair-number: 3
 images-dir: ./datasets/images
@@ -127,7 +132,7 @@ experiment:
   name: Time and test
   function: uot.experiments.measurement.measure_time_and_output
 ```
-For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md).
+For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md). Notably, `soft-extension` can be a single value or a list (e.g. both `no` and `yes`) and the pipeline will run once per option, tagging each row with the applied setting.
 
 The corresponding pixi command example:
 ```

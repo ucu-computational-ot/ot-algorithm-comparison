@@ -12,12 +12,14 @@ class ImageData:
 
     def __init__(self, name: str, bin_num: int = 32):
         self.name = name
-        logger.info('before load_image_as_color_grid')
-        self._np_grid = load_image_as_color_grid(os.path.join(ImageData.images_dir, name), bins_per_channel=bin_num)
-        logger.info('after load_image_as_color_grid')
-        # self._np_image = read_image(os.path.join(ImageData.images_dir, name))
-        im = Image.open(os.path.join(ImageData.images_dir, name))
+        image_path = os.path.join(ImageData.images_dir, name)
+        logger.info("Loading color histogram for %s (bins=%d)...", image_path, bin_num)
+        self._np_grid = load_image_as_color_grid(image_path, bins_per_channel=bin_num)
+        logger.info("Finished loading color histogram for %s", image_path)
+        logger.info("Loading raw image data for %s...", image_path)
+        im = Image.open(image_path)
         self._np_image = jnp.asarray(im, dtype=jnp.float32) / 255.0
+        logger.info("Finished loading raw image data for %s", image_path)
         self._jax_grid = None
         self._jax_image = None
     
@@ -45,4 +47,3 @@ class ImageData:
     def set_image_dir(cls, image_dir: str):
         """Set the directory where images are stored"""
         cls.images_dir = image_dir
-

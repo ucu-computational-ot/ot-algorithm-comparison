@@ -9,10 +9,10 @@ from uot.solvers.sinkhorn import sinkhorn_divergence_with_solver
 
 from uot.data.measure import GridMeasure
 
-SINKHORN_DIVERGENCE_REG = 1e-5
-SINKHORN_DIVERGENCE_MAXITER = 1e6
-SINKHORN_DIVERGENCE_TOL = 1e-7
-SINKHORN_DIVERGENCE_BATCHSIZE = 4096
+SINKHORN_DIVERGENCE_REG = 5e-4
+SINKHORN_DIVERGENCE_MAXITER = 50000
+SINKHORN_DIVERGENCE_TOL = 1e-5
+SINKHORN_DIVERGENCE_BATCHSIZE = 8192
 
 def compute_sinhorn_divergence(source_grid: GridMeasure, target_grid: GridMeasure, batch_size: int = 1000, epsilon: float = 0.001) -> float:
     S = sinkhorn_divergence_with_solver(

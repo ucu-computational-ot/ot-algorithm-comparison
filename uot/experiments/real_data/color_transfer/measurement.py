@@ -28,6 +28,31 @@ def _is_identity_alpha(alpha: float) -> bool:
     return math.isclose(float(alpha), 1.0, rel_tol=1e-9, abs_tol=1e-9)
 
 
+def _build_postprocess_modes(soft_modes, displacement_alphas):
+    soft_specified = soft_modes is not None
+    soft_list = [bool(m) for m in soft_modes] if soft_modes else [False]
+    base_soft = False
+    if soft_list:
+        base_soft = False if False in soft_list else soft_list[0]
+    alpha_list = [float(a) for a in displacement_alphas] if displacement_alphas else [1.0]
+    base_alpha = next(
+        (a for a in alpha_list if _is_identity_alpha(a)),
+        alpha_list[0],
+    )
+    modes: list[tuple[bool, float]] = []
+    modes.append((base_soft, base_alpha))
+    if soft_specified:
+        for soft in soft_list:
+            if soft == base_soft:
+                continue
+            modes.append((soft, base_alpha))
+    for alpha in alpha_list:
+        if math.isclose(alpha, base_alpha, rel_tol=1e-9, abs_tol=1e-9):
+            continue
+        modes.append((base_soft, alpha))
+    return soft_specified, modes
+
+
 def measure_color_transfer_metrics(
     prob,
     solver,
@@ -65,57 +90,60 @@ def measure_color_transfer_metrics(
             mu_nd,
         )
 
-    soft_extension_specified = soft_extension_modes is not None
-    modes = soft_extension_modes if soft_extension_modes else [False]
-    if not displacement_alphas:
-        displacement_alphas = [1.0]
+    soft_extension_specified, postprocess_modes = _build_postprocess_modes(
+        soft_extension_modes,
+        displacement_alphas,
+    )
 
     results: list[Dict[str, Union[float, np.ndarray]]] = []
     base_without_solution = {
         key: value for key, value in base_metrics.items() if key != 'solution'
     }
 
-    for mode in modes:
-        use_soft_extension = bool(mode) if soft_extension_specified else False
-        for alpha in displacement_alphas:
-            alpha_value = float(alpha)
-            transported_image = _process_transported_image(
-                prob,
-                marginals,
-                solution,
-                axes_mu=axes_mu,
-                mu_nd=mu_nd,
-                axes_nu=axes_nu,
-                nu_nd=nu_nd,
-                target_palette=target_palette,
-                use_soft_extension=use_soft_extension,
-                displacement_alpha=alpha_value,
-                plan_grid_map=plan_grid_map,
-                plan_mask=plan_mask,
-            )
-            entry = dict(base_without_solution)
-            entry.update(_compute_distribution_metrics(transported_image, marginals[1]))
-            entry.update(_compute_map_quality_metrics(
-                marginals,
-                solution,
-                axes_mu=axes_mu,
-                mu_nd=mu_nd,
-                axes_nu=axes_nu,
-                nu_nd=nu_nd,
-                target_palette=target_palette,
-                plan_grid_map=plan_grid_map,
-                plan_mask=plan_mask,
-                use_soft_extension=use_soft_extension,
-                displacement_alpha=alpha_value,
-            ))
-            entry.update(_compute_image_quality_metrics(transported_image, prob))
-            if soft_extension_specified:
-                entry['soft_extension'] = use_soft_extension
-            entry['displacement_alpha'] = alpha_value
-            entry['transported_image'] = transported_image
-            combined = dict(entry)
-            combined.update(solution)
-            results.append(combined)
+    for use_soft_extension, alpha_value in postprocess_modes:
+        active_soft = use_soft_extension if soft_extension_specified else False
+        logger.info(f"Transporting image with soft_extension={active_soft}, displacement_alpha={alpha_value}...")
+        transported_image = _process_transported_image(
+            prob,
+            marginals,
+            solution,
+            axes_mu=axes_mu,
+            mu_nd=mu_nd,
+            axes_nu=axes_nu,
+            nu_nd=nu_nd,
+            target_palette=target_palette,
+            use_soft_extension=active_soft,
+            displacement_alpha=alpha_value,
+            plan_grid_map=plan_grid_map,
+            plan_mask=plan_mask,
+        )
+        entry = dict(base_without_solution)
+        logger.info(f"Computing metrics for transported image...")
+        entry.update(_compute_distribution_metrics(transported_image, marginals[1]))
+        logger.info(f"Computing map quality metrics...")
+        entry.update(_compute_map_quality_metrics(
+            marginals,
+            solution,
+            axes_mu=axes_mu,
+            mu_nd=mu_nd,
+            axes_nu=axes_nu,
+            nu_nd=nu_nd,
+            target_palette=target_palette,
+            plan_grid_map=plan_grid_map,
+            plan_mask=plan_mask,
+            use_soft_extension=active_soft,
+            displacement_alpha=alpha_value,
+        ))
+        logger.info(f"Computing image quality metrics...")
+        entry.update(_compute_image_quality_metrics(transported_image, prob))
+        if soft_extension_specified:
+            entry['soft_extension'] = bool(active_soft)
+        entry['displacement_alpha'] = alpha_value
+        entry['transported_image'] = transported_image
+        combined = dict(entry)
+        combined.update(solution)
+        results.append(combined)
+        logger.info(f"Completed metrics for soft_extension={active_soft}, displacement_alpha={alpha_value}.")
 
     return results
 
@@ -220,7 +248,6 @@ def _compute_map_quality_metrics(
     if target_palette is None:
         target_palette, _ = nu_measure.to_discrete()
 
-    X = _grid_coordinates(axes_mu)
     map_array = None
     pushforward_mu = None
     diffuseness = None
@@ -236,7 +263,6 @@ def _compute_map_quality_metrics(
             map_array,
             axes_mu,
             displacement_alpha,
-            coords=X,
             mask=mask,
         )
         if solver_pushforward_mu is not None:
@@ -255,7 +281,6 @@ def _compute_map_quality_metrics(
             map_array,
             axes_mu,
             displacement_alpha,
-            coords=X,
             mask=mask,
         )
         if solver_pushforward_mu is not None:
@@ -266,15 +291,36 @@ def _compute_map_quality_metrics(
     else:
         return {}
 
+    axes_mu_metrics = axes_mu
+    mu_nd_metrics = mu_nd
+    map_metrics = map_array
+    axes_nu_metrics = axes_nu
+    nu_nd_metrics = nu_nd
+    pushforward_metrics = pushforward_mu
+
+    axes_mu_metrics, mu_nd_metrics, map_metrics, bbox = _maybe_crop_source_metrics(
+        axes_mu_metrics,
+        mu_nd_metrics,
+        map_metrics,
+        mask,
+    )
+    axes_nu_metrics, nu_nd_metrics, pushforward_metrics = _maybe_crop_target_metrics(
+        axes_nu_metrics,
+        nu_nd_metrics,
+        pushforward_metrics,
+        bbox=bbox,
+    )
+
     metrics = {}
-    if map_array is not None and pushforward_mu is not None:
+    if map_metrics is not None and pushforward_metrics is not None:
+        X_metrics = _grid_coordinates(axes_mu_metrics)
         grid_metrics = extra_grid_metrics(
-            mu_nd=mu_nd,
-            nu_nd=nu_nd,
-            axes_mu=axes_mu,
-            X=X,
-            T=map_array,
-            pushforward_mu=pushforward_mu,
+            mu_nd=mu_nd_metrics,
+            nu_nd=nu_nd_metrics,
+            axes_mu=axes_mu_metrics,
+            X=X_metrics,
+            T=map_metrics,
+            pushforward_mu=pushforward_metrics,
         )
         metrics.update({
             'tv_mu_to_nu': float(grid_metrics['tv_mu_to_nu']),
@@ -617,6 +663,58 @@ def _soft_extend_map(map_array, mask, axes, sigma: float | None = None):
     filled[~mask_flat] = filled_values
 
     return jnp.asarray(filled.reshape(arr.shape))
+
+def _compute_support_bbox(mask):
+    mask_np = np.asarray(mask, dtype=bool)
+    if not mask_np.any():
+        return None
+    coords = np.stack(np.nonzero(mask_np), axis=1)
+    mins = coords.min(axis=0)
+    maxs = coords.max(axis=0) + 1
+    return [(int(lo), int(hi)) for lo, hi in zip(mins, maxs)]
+
+
+def _slice_axes(axes, bbox):
+    return [ax[start:end] for ax, (start, end) in zip(axes, bbox)]
+
+
+def _slice_array(arr, bbox):
+    if arr is None:
+        return None
+    slices = tuple(slice(start, end) for start, end in bbox)
+    return arr[slices]
+
+
+def _maybe_crop_source_metrics(axes, density, map_array, mask):
+    if axes is None or density is None:
+        return axes, density, map_array, None
+    crop_mask = mask if mask is not None else (np.asarray(density) > 0)
+    bbox = _compute_support_bbox(crop_mask)
+    if bbox is None:
+        return axes, density, map_array, None
+    return (
+        _slice_axes(axes, bbox),
+        _slice_array(density, bbox),
+        _slice_array(map_array, bbox),
+        bbox,
+    )
+
+
+def _maybe_crop_target_metrics(axes, density, pushforward, bbox=None):
+    if axes is None or density is None:
+        return axes, density, pushforward
+    if bbox is None:
+        mask = np.asarray(density) > 0
+        if pushforward is not None:
+            mask = mask | (np.asarray(pushforward) > 0)
+        bbox = _compute_support_bbox(mask)
+        if bbox is None:
+            return axes, density, pushforward
+    return (
+        _slice_axes(axes, bbox),
+        _slice_array(density, bbox),
+        _slice_array(pushforward, bbox),
+    )
 
 
 def _apply_displacement_interpolation(map_array, axes, alpha, coords=None, mask=None):

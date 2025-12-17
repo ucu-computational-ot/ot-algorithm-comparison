@@ -77,7 +77,10 @@ solvers:
   #   use-cost-matrix: False
 
 bin-number:
-  - 6
+  # - 4
+  # - 8
+  # - 16
+  - 32
   # - 64
 # soft-extension:
   #- no
@@ -87,7 +90,7 @@ displacement-interpolation:
   - 0.5
   - 1.0
 batch-size: 100000
-pair-number: 3
+pair-number: 2
 # images-dir: ./adobe5k/rawz
 # images-dir: ./test_images
 images-dir: ./colour_transfer_images
