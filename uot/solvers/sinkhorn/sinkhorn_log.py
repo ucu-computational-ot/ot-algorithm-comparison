@@ -20,7 +20,7 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         reg: float = 1e-3,
         maxiter: int = 1000,
         tol: float = 1e-6,
-        normalize_cost: bool = True,
+        normalize_cost: bool = False,
         *args,
         **kwargs,
     ) -> dict:
@@ -31,7 +31,7 @@ class SinkhornTwoMarginalLogJaxSolver(BaseSolver):
         cost_original = costs[0]
         cost_scale = jnp.max(jnp.abs(cost_original))
         C = cost_original / cost_scale if normalize_cost else cost_original
-        reg = reg * cost_scale if normalize_cost else reg
+        reg = reg / cost_scale if normalize_cost else reg
         mu, nu = marginals[0].to_discrete()[1], marginals[1].to_discrete()[1]
 
         P, cost, phi, psi, n_steps, err = sinkhorn_jax(

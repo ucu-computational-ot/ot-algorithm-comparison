@@ -28,26 +28,49 @@ class SinkhornTwoMarginalSolver(BaseSolver):
             raise ValueError("Cost tensors not defined.")
         mu, nu = marginals[0], marginals[1]
         # with the normalized cost sinkhorn performs MUCH faster
-        C = costs[0] / costs[0].max()
-        u, v, i_final, final_err = _sinkhorn(
-            a=mu.to_discrete()[1],
-            b=nu.to_discrete()[1],
+        # C = costs[0] / costs[0].max()
+        C = costs[0]
+        # u, v, i_final, final_err = _sinkhorn(
+        #     a=mu.to_discrete()[1],
+        #     b=nu.to_discrete()[1],
+        #     cost=C,
+        #     epsilon=reg,
+        #     precision=tol,
+        #     max_iters=maxiter,
+        # )
+
+        # transport_plan = coupling_tensor(u, v, C, reg)
+
+        # return {
+        #     "transport_plan": transport_plan,
+        #     "cost": (transport_plan * costs[0]).sum(),
+        #     "u_final": u,
+        #     "v_final": v,
+        #     "iterations": i_final,
+        #     "error": final_err,
+        # }
+        a = mu.to_discrete()[1]
+        b = nu.to_discrete()[1]
+        u, v, i_final, final_err = _sinkhorn_plain(
+            a=a,
+            b=b,
             cost=C,
             epsilon=reg,
             precision=tol,
             max_iters=maxiter,
         )
 
-        transport_plan = coupling_tensor(u, v, C, reg)
+        transport_plan = coupling_from_scalings(u, v, C, reg)
 
         return {
             "transport_plan": transport_plan,
             "cost": (transport_plan * costs[0]).sum(),
-            "u_final": u,
-            "v_final": v,
+            "u_final": u,  # scaling vector (not log-potential)
+            "v_final": v,  # scaling vector (not log-potential)
             "iterations": i_final,
             "error": final_err,
         }
+
 
 
 @jax.jit
@@ -122,4 +145,94 @@ def _compute_error(
         )
     )
 
+
+@jax.jit
+def coupling_from_scalings(
+    u: jnp.ndarray,
+    v: jnp.ndarray,
+    cost: jnp.ndarray,
+    epsilon: float,
+) -> jnp.ndarray:
+    # Global shift improves numerical range without changing the OT solution:
+    # K' = exp(-(C - c0)/eps) = exp(c0/eps) * exp(-C/eps); the factor is absorbed by scalings.
+    # c0 = jnp.min(cost)
+    # K = jnp.exp(-(cost - c0) / epsilon)
+    K = jnp.exp(-cost / epsilon)
+    return (u[:, None] * K) * v[None, :]
+
+
+@jax.jit
+def _sinkhorn_plain(
+    a: jnp.ndarray,
+    b: jnp.ndarray,
+    cost: jnp.ndarray,
+    epsilon: float = 1e-3,
+    precision: float = 1e-6,
+    max_iters: int = 10_000,
+    check_every: int = 10,
+):
+    n = a.shape[0]
+    m = b.shape[0]
+
+    # Kernel
+    c0 = jnp.min(cost)
+    K = jnp.exp(-(cost - c0) / epsilon)
+
+    # Initialize scaling vectors
+    u = jnp.ones((n,), dtype=a.dtype)
+    v = jnp.ones((m,), dtype=b.dtype)
+
+    tiny = jnp.array(1e-32, dtype=a.dtype)
+
+    def cond_fn(carry):
+        u_, v_, i_, err_ = carry
+        return jnp.logical_and(err_ > precision, i_ < max_iters)
+
+    def body_fn(carry):
+        u_, v_, i_, err_ = carry
+
+        Kv = K @ v_
+        u_new = a / jnp.maximum(Kv, tiny)
+
+        KTu = K.T @ u_new
+        v_new = b / jnp.maximum(KTu, tiny)
+
+        err_new = jax.lax.cond(
+            (i_ % check_every) == 0,
+            lambda _: _compute_error_from_K(u_new, v_new, a, b, K),
+            lambda _: err_,
+            operand=None,
+        )
+
+        return (u_new, v_new, i_ + jnp.array(1, dtype=i_.dtype), err_new)
+
+    init_err = _compute_error_from_K(u, v, a, b, K)
+
+    u_final, v_final, i_final, final_err = jax.lax.while_loop(
+        cond_fn,
+        body_fn,
+        (u, v, jnp.array(0, dtype=jnp.int32), init_err),
+    )
+
+    return u_final, v_final, i_final, final_err
+
+
+@jax.jit
+def _compute_error_from_K(
+    u: jnp.ndarray,
+    v: jnp.ndarray,
+    a: jnp.ndarray,
+    b: jnp.ndarray,
+    K: jnp.ndarray,
+) -> float:
+    P = (u[:, None] * K) * v[None, :]
+    row_marginal, col_marginal = tensor_marginals(P)
+    return jnp.max(
+        jnp.array(
+            [
+                jnp.linalg.norm(a - row_marginal),
+                jnp.linalg.norm(b - col_marginal),
+            ]
+        )
+    )
 
