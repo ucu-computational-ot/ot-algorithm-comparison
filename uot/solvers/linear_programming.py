@@ -16,6 +16,7 @@ class LinearProgrammingTwoMarginalSolver(BaseSolver):
         self,
         marginals: Sequence[DiscreteMeasure],
         costs: Sequence[ArrayLike],
+        numItermax: int = 100_000,
     ) -> dict:
         if len(costs) == 0:
             raise ValueError("Cost tensors not defined.")
@@ -27,7 +28,7 @@ class LinearProgrammingTwoMarginalSolver(BaseSolver):
         nu = np.asarray(nu)
         cost = np.asarray(costs[0])
 
-        coupling, log = ot.emd(mu, nu, cost, log=True)
+        coupling, log = ot.emd(mu, nu, cost, numItermax=numItermax, log=True)
 
         return {
             "transport_plan": coupling,
