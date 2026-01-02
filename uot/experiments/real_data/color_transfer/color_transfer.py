@@ -9,8 +9,7 @@ import datetime
 import logging
 import pandas as pd
 
-from uot.utils.yaml_helpers import load_solvers, load_experiment
-from uot.experiments.runner import run_pipeline
+from uot.utils.yaml_helpers import load_solvers
 from uot.utils.logging import logger
 from uot.experiments.real_data.color_transfer.image_data import ImageData
 from uot.experiments.real_data.color_transfer.utils import (
@@ -19,6 +18,7 @@ from uot.experiments.real_data.color_transfer.utils import (
     sample_image_pairs,
 )
 from uot.experiments.real_data.color_transfer.experiment import ColorTransferExperiment
+from uot.experiments.real_data.color_transfer.runner import run_color_transfer_pipeline
 
 
 if os.environ.get('DEBUG', False):
@@ -75,12 +75,15 @@ if __name__ == "__main__":
         logger.info(f'Sampling and loading image pairs for bin-number={bin_num}...')
         data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
 
-        bin_results = run_pipeline(
+        bin_results = run_color_transfer_pipeline(
             experiment=experiment,
             solvers=solver_configs,
-            iterators=[get_image_problems(data, image_pairs, bins_per_channel=bin_num)],
-            folds=1,
-            progress=True
+            problems=get_image_problems(
+                data,
+                image_pairs,
+                bins_per_channel=bin_num,
+            ),
+            progress=True,
         )
         all_results.append(bin_results)
 
