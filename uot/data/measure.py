@@ -16,7 +16,7 @@ def _any_jax(seq: Sequence) -> bool:
 
 class BaseMeasure(ABC):
     @abstractmethod
-    def to_discrete(self) -> tuple[ArrayLike, ArrayLike]:
+    def to_discrete(self, include_zeros: bool = True) -> tuple[ArrayLike, ArrayLike]:
         """Return (points, weights) that approximate this measure as the discrete one"""
         ...
 

@@ -27,7 +27,7 @@ def get_axes(dim: int,
              n_points: int,
              cell_discretization: CellDiscretization = 'cell-centered',
              use_jax: bool = True,
-             ) -> ArrayLike:
+             ) -> list[ArrayLike]:
     """
     Generate a list of 1D coordinate axes for an n-dimensional grid.
 
