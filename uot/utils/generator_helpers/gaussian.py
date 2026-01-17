@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 from jax import jit, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
-from scipy.stats import multivariate_normal, wishart
+from scipy.stats import wishart
 from collections.abc import Callable
 
 # ——— Constants ———
@@ -88,8 +88,18 @@ def generate_gmm_coefficients(
     means = means.reshape(num_components, dim)
 
     # prepare linspaces
-    diag_space = jnp.linspace(
-        variance_bounds[0], variance_bounds[1], GAUSSIAN_VARIANCE_SAMPLE_GRID_N)
+    if variance_bounds[0] > 0:
+        diag_space = jnp.geomspace(
+            variance_bounds[0],
+            variance_bounds[1],
+            GAUSSIAN_VARIANCE_SAMPLE_GRID_N,
+        )
+    else:
+        diag_space = jnp.linspace(
+            variance_bounds[0],
+            variance_bounds[1],
+            GAUSSIAN_VARIANCE_SAMPLE_GRID_N,
+        )
     half_off = variance_bounds[1]/10.0
     off_space = jnp.linspace(-half_off, half_off,
                              GAUSSIAN_VARIANCE_SAMPLE_GRID_N)
@@ -168,17 +178,25 @@ def build_gmm_pdf_scipy(
     Returns a function pdf(X: np.ndarray) -> np.ndarray of shape (N,), where
     each row of X is evaluated under the mixture.
     """
-    # Pre-construct frozen distributions
-    comps = [
-        multivariate_normal(mean=means[k], cov=covs[k])
-        for k in range(len(weights))
-    ]
+    K, d = means.shape
+    weights = weights / np.sum(weights)
+
+    # Precompute per-component inverse covariances and normalization constants.
+    chol = np.linalg.cholesky(covs)  # (K, d, d)
+    log_dets = 2.0 * np.sum(
+        np.log(np.diagonal(chol, axis1=1, axis2=2)), axis=1
+    )
+    log_norm = -0.5 * (d * np.log(2 * np.pi) + log_dets) + np.log(weights)
+    eye = np.eye(d)
+    inv_chol = np.linalg.solve(chol, eye)  # (K, d, d)
+    inv_cov = np.matmul(inv_chol.transpose(0, 2, 1), inv_chol)  # (K, d, d)
 
     def pdf_np(X: np.ndarray) -> np.ndarray:
-        out = np.zeros(X.shape[0], dtype=float)
-        for w, comp in zip(weights, comps, strict=False):
-            out += w * comp.pdf(X)
-        return out
+        diffs = X[:, None, :] - means[None, :, :]  # (N, K, d)
+        qf = np.einsum("nkd,kde,nke->nk", diffs, inv_cov, diffs)  # (N, K)
+        log_p = log_norm[None, :] - 0.5 * qf
+        m = np.max(log_p, axis=1, keepdims=True)
+        return np.exp(m[:, 0]) * np.sum(np.exp(log_p - m), axis=1)
 
     return pdf_np
 
