@@ -219,6 +219,8 @@ def sample_gmm_params_wishart(
     covs = np.array(covs)
     if covs.ndim == 0:
         covs = covs.reshape(1, 1, 1)
+    if covs.ndim == 1:
+        covs = covs[:, None, None]
     if covs.ndim == 2:
         covs = covs[np.newaxis, :]
 
