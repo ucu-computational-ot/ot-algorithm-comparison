@@ -36,6 +36,7 @@ def _collect_weights(
     grid_mode = getattr(generator, "_measure_mode", None) == "grid"
     support = None
     support_axes = None
+    num_marginals = None
     weights_list = []
     for problem in generator.generate():
         if not isinstance(problem, TwoMarginalProblem):
@@ -43,6 +44,10 @@ def _collect_weights(
                 f"Expected TwoMarginalProblem from generator, got {type(problem).__name__}"
             )
         marginals = problem.get_marginals()
+        if num_marginals is None:
+            num_marginals = len(marginals)
+        elif len(marginals) != num_marginals:
+            raise ValueError("All problems must have the same number of marginals")
         if grid_mode:
             grid_weights = []
             for idx, marginal in enumerate(marginals):
@@ -59,7 +64,8 @@ def _collect_weights(
                         f"All marginals must share the same grid axes; mismatch at index {idx}"
                     )
                 grid_weights.append(weights_nd)
-            weights_list.append(tuple(grid_weights))
+            weights_list.extend(grid_weights)
+            # weights_list.append(tuple(grid_weights))
         else:
             pts_weights = [
                 marginal.to_discrete(include_zeros=include_zeros)
@@ -74,21 +80,24 @@ def _collect_weights(
                     raise ValueError(
                         f"All marginals must share the same support; mismatch at index {idx}"
                     )
-            weights_list.append(weights)
-    return support, weights_list, grid_mode
+            weights_list.extend(weights)
+            # weights_list.append(weights)
+    if num_marginals is None:
+        num_marginals = 0
+    return support, weights_list, grid_mode, num_marginals
 
 
 def generator_to_weights_list(
         generator: ProblemGenerator,
         include_zeros: bool = True,
         ):
-    """Return a shared support array and a list of weight tuples per problem.
+    """Return a shared support array and a flat list of weights.
 
     In grid mode, the support is a stacked meshgrid with shape
     (n0, n1, ..., nd-1, d), and include_zeros is ignored because the grid
     structure is preserved.
     """
-    support, weights_list, _ = _collect_weights(generator, include_zeros=include_zeros)
+    support, weights_list, _, _ = _collect_weights(generator, include_zeros=include_zeros)
     return support, weights_list
 
 
@@ -96,13 +105,14 @@ def generator_to_weights_array(
         generator: ProblemGenerator,
         include_zeros: bool = True,
         ):
-    """Return a shared support array and stacked weights with marginals on the last axis."""
+    """Return a shared support array and stacked weights (mu then nu for each problem)."""
     if include_zeros is False:
         raise ValueError("generator_to_weights_array requires include_zeros=True")
-    support, weights_list, _ = _collect_weights(generator, include_zeros=True)
+    support, weights_list, _, num_marginals = _collect_weights(generator, include_zeros=True)
     if not weights_list:
         return support, np.asarray([])
-    use_jax = _is_jax_array(weights_list[0][0])
+    use_jax = _is_jax_array(weights_list[0])
     xp = jnp if use_jax else np
-    stacked = [xp.stack(weights, axis=-1) for weights in weights_list]
-    return support, xp.stack(stacked, axis=0)
+    if num_marginals != 2:
+        raise ValueError("generator_to_weights_array expects exactly two marginals per problem")
+    return support, xp.stack(weights_list, axis=0)

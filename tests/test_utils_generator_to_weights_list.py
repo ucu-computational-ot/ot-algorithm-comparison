@@ -39,10 +39,9 @@ def test_generator_to_weights_list_includes_zeros():
     support, weights_list = generator_to_weights_list(generator, include_zeros=True)
 
     np.testing.assert_allclose(np.asarray(support), points)
-    assert len(weights_list) == 1
-    weights = weights_list[0]
-    np.testing.assert_allclose(np.asarray(weights[0]), weights_mu)
-    np.testing.assert_allclose(np.asarray(weights[1]), weights_nu)
+    assert len(weights_list) == 2
+    np.testing.assert_allclose(np.asarray(weights_list[0]), weights_mu)
+    np.testing.assert_allclose(np.asarray(weights_list[1]), weights_nu)
 
 
 def test_generator_to_weights_list_excludes_zeros():
@@ -54,9 +53,9 @@ def test_generator_to_weights_list_excludes_zeros():
     support, weights_list = generator_to_weights_list(generator, include_zeros=False)
 
     np.testing.assert_allclose(np.asarray(support), points[[0, 2]])
-    weights = weights_list[0]
-    np.testing.assert_allclose(np.asarray(weights[0]), weights_mu[[0, 2]])
-    np.testing.assert_allclose(np.asarray(weights[1]), weights_nu[[0, 2]])
+    assert len(weights_list) == 2
+    np.testing.assert_allclose(np.asarray(weights_list[0]), weights_mu[[0, 2]])
+    np.testing.assert_allclose(np.asarray(weights_list[1]), weights_nu[[0, 2]])
 
 
 def test_generator_to_weights_list_multiple_problems():
@@ -69,11 +68,9 @@ def test_generator_to_weights_list_multiple_problems():
     support, weights_list = generator_to_weights_list(generator, include_zeros=True)
 
     np.testing.assert_allclose(np.asarray(support), points)
-    assert len(weights_list) == 2
-    weights_0 = weights_list[0]
-    weights_1 = weights_list[1]
-    np.testing.assert_allclose(np.asarray(weights_0[1]), np.array([0.5, 0.5]))
-    np.testing.assert_allclose(np.asarray(weights_1[0]), np.array([0.3, 0.7]))
+    assert len(weights_list) == 4
+    np.testing.assert_allclose(np.asarray(weights_list[1]), np.array([0.5, 0.5]))
+    np.testing.assert_allclose(np.asarray(weights_list[2]), np.array([0.3, 0.7]))
 
 
 def test_generator_to_weights_list_2d_discrete_support():
@@ -85,9 +82,9 @@ def test_generator_to_weights_list_2d_discrete_support():
     support, weights_list = generator_to_weights_list(generator, include_zeros=False)
 
     np.testing.assert_allclose(np.asarray(support), points[[0, 2]])
-    weights = weights_list[0]
-    np.testing.assert_allclose(np.asarray(weights[0]), weights_mu[[0, 2]])
-    np.testing.assert_allclose(np.asarray(weights[1]), weights_nu[[0, 2]])
+    assert len(weights_list) == 2
+    np.testing.assert_allclose(np.asarray(weights_list[0]), weights_mu[[0, 2]])
+    np.testing.assert_allclose(np.asarray(weights_list[1]), weights_nu[[0, 2]])
 
 
 def test_generator_to_weights_list_grid_mode():
@@ -110,10 +107,9 @@ def test_generator_to_weights_list_grid_mode():
     assert support.shape == (2, 3, 2)
     np.testing.assert_allclose(np.asarray(support[0, 0]), np.array([0.0, 10.0]))
     np.testing.assert_allclose(np.asarray(support[1, 2]), np.array([1.0, 30.0]))
-    assert len(weights_list) == 1
-    weights = weights_list[0]
-    np.testing.assert_allclose(np.asarray(weights[0]), weights_mu)
-    np.testing.assert_allclose(np.asarray(weights[1]), weights_nu)
+    assert len(weights_list) == 2
+    np.testing.assert_allclose(np.asarray(weights_list[0]), weights_mu)
+    np.testing.assert_allclose(np.asarray(weights_list[1]), weights_nu)
 
 
 def test_generator_to_weights_list_grid_mode_2d_more_points():
@@ -136,9 +132,9 @@ def test_generator_to_weights_list_grid_mode_2d_more_points():
     assert support.shape == (4, 5, 2)
     np.testing.assert_allclose(np.asarray(support[0, 0]), np.array([-1.0, 0.0]))
     np.testing.assert_allclose(np.asarray(support[3, 4]), np.array([1.0, 3.0]))
-    weights = weights_list[0]
-    np.testing.assert_allclose(np.asarray(weights[0]), weights_mu)
-    np.testing.assert_allclose(np.asarray(weights[1]), weights_nu)
+    assert len(weights_list) == 2
+    np.testing.assert_allclose(np.asarray(weights_list[0]), weights_mu)
+    np.testing.assert_allclose(np.asarray(weights_list[1]), weights_nu)
 
 
 def test_generator_to_weights_array_discrete():
@@ -150,9 +146,9 @@ def test_generator_to_weights_array_discrete():
     support, weights_array = generator_to_weights_array(generator, include_zeros=True)
 
     np.testing.assert_allclose(np.asarray(support), points)
-    assert weights_array.shape == (1, 3, 2)
-    np.testing.assert_allclose(np.asarray(weights_array[0, :, 0]), weights_mu)
-    np.testing.assert_allclose(np.asarray(weights_array[0, :, 1]), weights_nu)
+    assert weights_array.shape == (2, 3)
+    np.testing.assert_allclose(np.asarray(weights_array[0, :]), weights_mu)
+    np.testing.assert_allclose(np.asarray(weights_array[1, :]), weights_nu)
 
 
 def test_generator_to_weights_array_grid_mode():
@@ -173,6 +169,6 @@ def test_generator_to_weights_array_grid_mode():
     support, weights_array = generator_to_weights_array(generator, include_zeros=True)
 
     assert support.shape == (4, 5, 2)
-    assert weights_array.shape == (1, 4, 5, 2)
-    np.testing.assert_allclose(np.asarray(weights_array[0, :, :, 0]), weights_mu)
-    np.testing.assert_allclose(np.asarray(weights_array[0, :, :, 1]), weights_nu)
+    assert weights_array.shape == (2, 4, 5)
+    np.testing.assert_allclose(np.asarray(weights_array[0, :, :]), weights_mu)
+    np.testing.assert_allclose(np.asarray(weights_array[1, :, :]), weights_nu)
