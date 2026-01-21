@@ -92,7 +92,10 @@ class ColorTransferExperiment(Experiment):
                     if 'soft_extension' in metrics:
                         image_params['soft_extension'] = 'yes' if metrics.get('soft_extension') else 'no'
                     image_params['displacement_alpha'] = f"{metrics.get('displacement_alpha', 1.0):.3f}"
-                    filename = self._save_image(metrics['transported_image'], prob, solver, image_params)
+                    image = metrics['transported_image']
+                    if hasattr(prob, "to_rgb_image"):
+                        image = prob.to_rgb_image(image)
+                    filename = self._save_image(image, prob, solver, image_params)
                     metrics["result_image_filename"] = filename
                     metrics.pop('transported_image', None)
 

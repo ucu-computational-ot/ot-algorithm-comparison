@@ -4,6 +4,41 @@ from PIL import Image
 import numpy as np
 import jax.numpy as jnp
 from jax.ops import segment_sum
+from skimage.color import rgb2lab, lab2rgb
+
+
+def _normalize_lab(lab: np.ndarray) -> np.ndarray:
+    lab = np.asarray(lab, dtype=np.float64)
+    l = np.clip(lab[..., 0], 0.0, 100.0) / 100.0
+    a = (lab[..., 1] + 128.0) / 255.0
+    b = (lab[..., 2] + 128.0) / 255.0
+    return np.stack([l, a, b], axis=-1)
+
+
+def _denormalize_lab(norm_lab: np.ndarray) -> np.ndarray:
+    norm_lab = np.asarray(norm_lab, dtype=np.float64)
+    l = np.clip(norm_lab[..., 0], 0.0, 1.0) * 100.0
+    a = np.clip(norm_lab[..., 1], 0.0, 1.0) * 255.0 - 128.0
+    b = np.clip(norm_lab[..., 2], 0.0, 1.0) * 255.0 - 128.0
+    return np.stack([l, a, b], axis=-1)
+
+
+def convert_rgb_to_color_space(rgb: np.ndarray, color_space: str) -> np.ndarray:
+    space = color_space.strip().lower()
+    if space == "rgb":
+        return np.asarray(rgb, dtype=np.float64)
+    if space in {"lab", "cielab"}:
+        return _normalize_lab(rgb2lab(np.asarray(rgb, dtype=np.float64)))
+    raise ValueError(f"Unsupported color space: {color_space}")
+
+
+def convert_color_space_to_rgb(image: np.ndarray, color_space: str) -> np.ndarray:
+    space = color_space.strip().lower()
+    if space == "rgb":
+        return np.asarray(image, dtype=np.float64)
+    if space in {"lab", "cielab"}:
+        return lab2rgb(_denormalize_lab(image))
+    raise ValueError(f"Unsupported color space: {color_space}")
 
 def load_csv_as_discrete(path: str) -> DiscreteMeasure:
     "Loads the discrete measure from the defined path to the data."
@@ -44,7 +79,10 @@ def load_matrix_as_color_grid(pixels: ArrayLike, num_channels: int, bins_per_cha
 def load_image_as_color_grid(
     path: str,
     bins_per_channel: int = 32,
-    use_jax: bool = False
+    use_jax: bool = False,
+    *,
+    color_space: str = "rgb",
+    active_channels: list[int] | None = None,
 ) -> GridMeasure:
     """
     Loads the image at `path` and converts it to a color grid measure.
@@ -53,13 +91,17 @@ def load_image_as_color_grid(
     lib = jnp if use_jax else np
 
     image = Image.open(path)
-    data = lib.asarray(np.asarray(image))
+    data = np.asarray(image)
 
     if data.ndim == 2:
         data = data[:, :, None]
 
-    num_channels = data.shape[2]
-    pixels = data.reshape(-1, num_channels).astype(lib.float64) / 255.0
+    rgb = data.astype(np.float64) / 255.0
+    color_data = convert_rgb_to_color_space(rgb, color_space)
+    if active_channels is not None:
+        color_data = color_data[..., active_channels]
+    num_channels = color_data.shape[2]
+    pixels = color_data.reshape(-1, num_channels).astype(lib.float64)
 
     return load_matrix_as_color_grid(
         pixels=pixels,

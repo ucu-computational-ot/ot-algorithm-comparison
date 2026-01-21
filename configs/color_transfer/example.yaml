@@ -89,6 +89,8 @@ displacement-interpolation:
   - 0.0
   - 0.5
   - 1.0
+color-space: rgb
+# active-channels: [r, g]
 batch-size: 100000
 pair-number: 2
 # images-dir: ./adobe5k/rawz

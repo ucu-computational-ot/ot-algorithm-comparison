@@ -65,6 +65,47 @@ def _coerce_displacement_alphas(option_value):
         return [_to_float(v) for v in option_value]
     return [_to_float(option_value)]
 
+def _coerce_color_space(option_value: str | None) -> str:
+    if option_value is None:
+        return "rgb"
+    space = str(option_value).strip().lower()
+    if space in {"rgb"}:
+        return "rgb"
+    if space in {"lab", "cielab"}:
+        return "lab"
+    raise ValueError(f"Unsupported color-space: {option_value}")
+
+
+def _coerce_active_channels(option_value, color_space: str) -> list[int] | None:
+    if option_value is None:
+        return None
+    if isinstance(option_value, (list, tuple)):
+        entries = list(option_value)
+    else:
+        entries = [option_value]
+    if not entries:
+        raise ValueError("active-channels must not be empty")
+    label_map = {
+        "rgb": {"r": 0, "g": 1, "b": 2},
+        "lab": {"l": 0, "a": 1, "b": 2},
+    }[color_space]
+    indices: list[int] = []
+    for entry in entries:
+        if isinstance(entry, int):
+            idx = entry
+        elif isinstance(entry, str):
+            key = entry.strip().lower()
+            if key not in label_map:
+                raise ValueError(f"Invalid channel '{entry}' for {color_space}")
+            idx = label_map[key]
+        else:
+            raise TypeError("active-channels entries must be ints or strings")
+        if idx not in {0, 1, 2}:
+            raise ValueError("active-channels indices must be in [0, 2]")
+        indices.append(idx)
+    deduped = list(dict.fromkeys(indices))
+    return deduped if len(deduped) < 3 else None
+
 def load_config_info(config: dict)-> tuple:
     """Get miscellaneous info from the config"""
     bin_numbers = _coerce_bin_numbers(config['bin-number'])
@@ -73,6 +114,8 @@ def load_config_info(config: dict)-> tuple:
         if 'soft-extension' in config else None
     )
     displacement_alphas = _coerce_displacement_alphas(config.get('displacement-interpolation', [1.0]))
+    color_space = _coerce_color_space(config.get('color-space'))
+    active_channels = _coerce_active_channels(config.get('active-channels'), color_space)
     return (
         bin_numbers,
         config['batch-size'],
@@ -82,6 +125,8 @@ def load_config_info(config: dict)-> tuple:
         config.get('drop-columns', []),
         soft_extension,
         displacement_alphas,
+        color_space,
+        active_channels,
     )
 
 def get_image_problems(
@@ -100,13 +145,23 @@ def get_image_problems(
             target_image=data[target_name],
             source_image_name=source_name,
             target_image_name=target_name,
+            color_space=data[source_name].color_space,
+            active_channels=data[source_name].active_channels,
             bins_per_channel=bins_per_channel,
         )
         for source_name, target_name in image_pairs
     ]
 
 
-def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int = 42) -> tuple[dict[str, ImageData], set[tuple[str, str]]]:
+def sample_image_pairs(
+    images_dir: str,
+    bin_num: int,
+    pair_num: int,
+    seed: int = 42,
+    *,
+    color_space: str = "rgb",
+    active_channels: list[int] | None = None,
+) -> tuple[dict[str, ImageData], set[tuple[str, str]]]:
 
     rng = np.random.default_rng(seed)
     all_images = os.listdir(images_dir)
@@ -126,10 +181,20 @@ def sample_image_pairs(images_dir: str, bin_num: int, pair_num: int, seed: int =
             pairs.add((source_name, target_name))
 
             if source_name not in data:
-                data[source_name] = ImageData(source_name, bin_num)
+                data[source_name] = ImageData(
+                    source_name,
+                    bin_num,
+                    color_space=color_space,
+                    active_channels=active_channels,
+                )
 
             if target_name not in data:
-                data[target_name] = ImageData(target_name, bin_num)
+                data[target_name] = ImageData(
+                    target_name,
+                    bin_num,
+                    color_space=color_space,
+                    active_channels=active_channels,
+                )
     
     return data, pairs
     

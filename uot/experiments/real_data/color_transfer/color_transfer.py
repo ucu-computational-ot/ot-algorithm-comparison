@@ -52,6 +52,8 @@ if __name__ == "__main__":
         drop_columns,
         soft_extension_options,
         displacement_alphas,
+        color_space,
+        active_channels,
     ) = load_config_info(config)
     output_dir = config['experiment'].get('output-dir', 'output/color_transfer')
 
@@ -73,7 +75,14 @@ if __name__ == "__main__":
     all_results = []
     for bin_num in bin_numbers:
         logger.info(f'Sampling and loading image pairs for bin-number={bin_num}...')
-        data, image_pairs = sample_image_pairs(images_dir, bin_num, pair_num, seed=rng_seed)
+        data, image_pairs = sample_image_pairs(
+            images_dir,
+            bin_num,
+            pair_num,
+            seed=rng_seed,
+            color_space=color_space,
+            active_channels=active_channels,
+        )
 
         bin_results = run_color_transfer_pipeline(
             experiment=experiment,

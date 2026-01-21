@@ -205,10 +205,11 @@ def _process_transported_image(
 def _compute_distribution_metrics(transported_image: np.ndarray, target_measure) -> Dict:
     """Compute distribution-based metrics."""
     bins_per_channel = target_measure.axes[0].shape[0]
+    num_channels = len(target_measure.axes)
 
     transferred_grid = load_matrix_as_color_grid(
-        pixels=transported_image.reshape(-1, 3),
-        num_channels=3,
+        pixels=transported_image.reshape(-1, num_channels),
+        num_channels=num_channels,
         bins_per_channel=bins_per_channel,
         use_jax=False
     )
@@ -342,21 +343,29 @@ def _compute_image_quality_metrics(
     prob
 ) -> Dict[str, float]:
     """Compute image quality and spatial metrics."""
-    source_image = np.clip(np.asarray(prob.source_image), 0, 1)
-    target_image = np.clip(np.asarray(prob.target_image), 0, 1)
+    if hasattr(prob, "to_rgb_image"):
+        transported_rgb = prob.to_rgb_image(transported_image)
+        source_image = prob.source_rgb
+        target_image = prob.target_rgb
+    else:
+        transported_rgb = transported_image
+        source_image = prob.source_image
+        target_image = prob.target_image
+    source_image = np.clip(np.asarray(source_image), 0, 1)
+    target_image = np.clip(np.asarray(target_image), 0, 1)
 
-    c1 = ct_metrics.compute_colorfulness(transported_image)
+    c1 = ct_metrics.compute_colorfulness(transported_rgb)
     c2 = ct_metrics.compute_colorfulness(target_image)
 
     return {
-        'ssim': ct_metrics.compute_ssim_metric(transported_image, source_image),
+        'ssim': ct_metrics.compute_ssim_metric(transported_rgb, source_image),
         # 'delta_e': ct_metrics.compute_delta_e(transported_image, target_image),
         'colorfulness_diff': abs(c1 - c2),
         'gradient_correlation': ct_metrics.compute_gradient_magnitude_correlation(
-            transported_image, source_image
+            transported_rgb, source_image
         ),
         'laplacian_sharpness_diff': (
-            ct_metrics.compute_laplacian_variance(transported_image) -
+            ct_metrics.compute_laplacian_variance(transported_rgb) -
             ct_metrics.compute_laplacian_variance(source_image)
         )
     }
