@@ -302,17 +302,21 @@ def _compute_map_quality_metrics(
     nu_nd_metrics = nu_nd
     pushforward_metrics = pushforward_mu
 
-    axes_mu_metrics, mu_nd_metrics, map_metrics, bbox = _maybe_crop_source_metrics(
+    (
         axes_mu_metrics,
         mu_nd_metrics,
         map_metrics,
-        mask,
-    )
-    axes_nu_metrics, nu_nd_metrics, pushforward_metrics = _maybe_crop_target_metrics(
         axes_nu_metrics,
         nu_nd_metrics,
         pushforward_metrics,
-        bbox=bbox,
+    ) = _maybe_crop_metrics_union(
+        axes_mu_metrics,
+        mu_nd_metrics,
+        map_metrics,
+        axes_nu_metrics,
+        nu_nd_metrics,
+        pushforward_metrics,
+        mask,
     )
 
     metrics = {}
@@ -697,35 +701,44 @@ def _slice_array(arr, bbox):
     return arr[slices]
 
 
-def _maybe_crop_source_metrics(axes, density, map_array, mask):
-    if axes is None or density is None:
-        return axes, density, map_array, None
-    crop_mask = mask if mask is not None else (np.asarray(density) > 0)
-    bbox = _compute_support_bbox(crop_mask)
+def _union_bbox(bbox_a, bbox_b):
+    if bbox_a is None:
+        return bbox_b
+    if bbox_b is None:
+        return bbox_a
+    return [
+        (min(a0, b0), max(a1, b1))
+        for (a0, a1), (b0, b1) in zip(bbox_a, bbox_b)
+    ]
+
+
+def _maybe_crop_metrics_union(
+    axes_mu,
+    mu_nd,
+    map_array,
+    axes_nu,
+    nu_nd,
+    pushforward_mu,
+    mask,
+):
+    if axes_mu is None or mu_nd is None or axes_nu is None or nu_nd is None:
+        return axes_mu, mu_nd, map_array, axes_nu, nu_nd, pushforward_mu
+    source_mask = mask if mask is not None else (np.asarray(mu_nd) > 0)
+    target_mask = np.asarray(nu_nd) > 0
+    if pushforward_mu is not None:
+        target_mask = target_mask | (np.asarray(pushforward_mu) > 0)
+    bbox_source = _compute_support_bbox(source_mask)
+    bbox_target = _compute_support_bbox(target_mask)
+    bbox = _union_bbox(bbox_source, bbox_target)
     if bbox is None:
-        return axes, density, map_array, None
+        return axes_mu, mu_nd, map_array, axes_nu, nu_nd, pushforward_mu
     return (
-        _slice_axes(axes, bbox),
-        _slice_array(density, bbox),
+        _slice_axes(axes_mu, bbox),
+        _slice_array(mu_nd, bbox),
         _slice_array(map_array, bbox),
-        bbox,
-    )
-
-
-def _maybe_crop_target_metrics(axes, density, pushforward, bbox=None):
-    if axes is None or density is None:
-        return axes, density, pushforward
-    if bbox is None:
-        mask = np.asarray(density) > 0
-        if pushforward is not None:
-            mask = mask | (np.asarray(pushforward) > 0)
-        bbox = _compute_support_bbox(mask)
-        if bbox is None:
-            return axes, density, pushforward
-    return (
-        _slice_axes(axes, bbox),
-        _slice_array(density, bbox),
-        _slice_array(pushforward, bbox),
+        _slice_axes(axes_nu, bbox),
+        _slice_array(nu_nd, bbox),
+        _slice_array(pushforward_mu, bbox),
     )
 
 
