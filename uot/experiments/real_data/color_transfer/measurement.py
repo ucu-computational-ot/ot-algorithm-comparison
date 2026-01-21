@@ -144,7 +144,7 @@ def measure_color_transfer_metrics(
         combined = dict(entry)
         combined.update(solution)
         results.append(combined)
-        jax.clear_caches()
+        # jax.clear_caches()
         gc.collect()
         logger.info(f"Completed metrics for soft_extension={active_soft}, displacement_alpha={alpha_value}.")
 

@@ -96,8 +96,10 @@ def get_image_problems(
             mu=data[source_name].get_grid(),
             nu=data[target_name].get_grid(),
             cost_fn=cost_euclid,
-            source_image=data[source_name].get_image(),
-            target_image=data[target_name].get_image(),
+            source_image=data[source_name],
+            target_image=data[target_name],
+            source_image_name=source_name,
+            target_image_name=target_name,
             bins_per_channel=bins_per_channel,
         )
         for source_name, target_name in image_pairs
