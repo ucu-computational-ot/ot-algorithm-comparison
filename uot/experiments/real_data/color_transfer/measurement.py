@@ -483,12 +483,13 @@ def map_pixels_by_palette_monge(image, monge_map):
     returns: (H, W, 3) image after color mapping
     """
     B = monge_map.shape[0]
-    H, W, _ = image.shape
-    pix = jnp.clip(image.reshape(-1, 3), 0.0, 1.0)
+    H, W, C = image.shape
+    pix = jnp.clip(image.reshape(-1, C), 0.0, 1.0)
     idx = jnp.clip(jnp.round(pix * (B - 1)), 0, B - 1).astype(jnp.int32)
-    mapped = monge_map[idx[:, 0], idx[:, 1], idx[:, 2]]
+    indices = tuple(idx[:, i] for i in range(C))
+    mapped = monge_map[indices]
     mapped = jnp.clip(mapped / B, 0.0, 1.0)
-    return mapped.reshape(H, W, 3)
+    return mapped.reshape(H, W, C)
 
 
 def _convert_to_bfloat16(*arrays):
@@ -601,11 +602,12 @@ def _build_plan_grid_map(plan, target_palette, mu_nd):
 def _map_pixels_from_grid_map(image, grid_map):
     grid = jnp.asarray(grid_map)
     B = grid.shape[0]
-    H, W, _ = image.shape
-    pix = jnp.clip(image.reshape(-1, 3), 0.0, 1.0)
+    H, W, C = image.shape
+    pix = jnp.clip(image.reshape(-1, C), 0.0, 1.0)
     idx = jnp.clip(jnp.round(pix * (B - 1)), 0, B - 1).astype(jnp.int32)
-    mapped = grid[idx[:, 0], idx[:, 1], idx[:, 2]]
-    return jnp.clip(mapped, 0.0, 1.0).reshape(H, W, 3)
+    indices = tuple(idx[:, i] for i in range(C))
+    mapped = grid[indices]
+    return jnp.clip(mapped, 0.0, 1.0).reshape(H, W, C)
 
 
 def _map_pixels_via_palette_nearest(pixels, source_palette, target_palette, batch_size=16384):
