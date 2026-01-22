@@ -8,7 +8,7 @@ from jax import lax
 import numpy as np
 from jax import numpy as jnp
 
-from uot.experiments.measurement import _wait_jax_finish, _require
+from uot.experiments.measurement import _wait_jax_finish
 from uot.utils.instantiate_solver import instantiate_solver
 from uot.utils.types import ArrayLike
 from uot.data.dataset_loader import load_matrix_as_color_grid
@@ -17,12 +17,26 @@ from uot.utils.metrics.pushforward_map_metrics import extra_grid_metrics
 from uot.utils.maps import barycentric_map_from_plan, mean_conditional_variance
 from uot.solvers.back_and_forth.forward_pushforward import cic_pushforward_nd
 from uot.solvers.back_and_forth.pushforward import adaptive_pushforward_nd
+from uot.solvers.back_and_forth.map_pushforward import (
+    cic_pushforward_map_nd,
+    adaptive_pushforward_map_nd,
+)
+from uot.solvers.back_and_forth.monge_map import map_index_to_unit
 from uot.utils.logging import logger
+
+from uot.solvers.back_and_forth.solver import BackNForthSqEuclideanSolver
 
 _SOLVER_PUSHFORWARD_REGISTRY = {
     "adaptive_pushforward_nd": adaptive_pushforward_nd,
     "cic_pushforward_nd": cic_pushforward_nd,
 }
+
+_SOLVER_MAP_PUSHFORWARD_REGISTRY = {
+    "adaptive_pushforward_nd": adaptive_pushforward_map_nd,
+    "cic_pushforward_nd": cic_pushforward_map_nd,
+}
+
+_monge_map_index_to_physical = BackNForthSqEuclideanSolver._monge_map_index_to_physical
 
 
 def _is_identity_alpha(alpha: float) -> bool:
@@ -144,7 +158,6 @@ def measure_color_transfer_metrics(
         combined = dict(entry)
         combined.update(solution)
         results.append(combined)
-        # jax.clear_caches()
         gc.collect()
         logger.info(f"Completed metrics for soft_extension={active_soft}, displacement_alpha={alpha_value}.")
 
@@ -159,7 +172,6 @@ def _compute_solution_metrics(solver, marginals, costs, **kwargs) -> Dict:
     start_time = time.perf_counter()
     solution = instance.solve(marginals=marginals, costs=costs, **kwargs)
     _wait_jax_finish(solution)
-    # _require(solution, {'transport_plan', 'u_final', 'v_final', 'cost'})
 
     return {
         "time": (time.perf_counter() - start_time),
@@ -260,16 +272,41 @@ def _compute_map_quality_metrics(
     mask = None
 
     if 'monge_map' in solution:
-        map_array = _monge_map_index_to_physical(solution['monge_map'], axes_mu)
+        map_index = solution['monge_map']
         mask = np.asarray(mu_nd) > 0
-        map_array = _maybe_soft_extend_map(map_array, mask, use_soft_extension, axes_mu)
-        map_array = _apply_displacement_interpolation(
-            map_array,
-            axes_mu,
-            displacement_alpha,
-            mask=mask,
+        if use_soft_extension:
+            # Soft extension needs physical coordinates; displacement commutes with
+            # index->physical conversion, but soft extension does not.
+            map_array = _monge_map_index_to_physical(map_index, axes_mu)
+            map_array = _maybe_soft_extend_map(map_array, mask, True, axes_mu)
+            map_array = _apply_displacement_interpolation(
+                map_array,
+                axes_mu,
+                displacement_alpha,
+                mask=mask,
+            )
+        else:
+            map_index = _displacement_interpolate_index_map(
+                map_index,
+                displacement_alpha,
+                mask,
+            )
+            map_array = _monge_map_index_to_physical(map_index, axes_mu)
+        use_postprocess = use_soft_extension or not _is_identity_alpha(displacement_alpha)
+        if use_postprocess:
+            if use_soft_extension:
+                map_pushforward_mu = _apply_map_pushforward(mu_nd, map_array, axes_mu, solution)
+            else:
+                map_pushforward_mu = _apply_map_pushforward_index(mu_nd, map_index, solution)
+        else:
+            map_pushforward_mu = None
+        use_solver_pushforward = (
+            solver_pushforward_mu is not None
+            and not use_postprocess
         )
-        if solver_pushforward_mu is not None:
+        if map_pushforward_mu is not None:
+            pushforward_mu = map_pushforward_mu
+        elif use_solver_pushforward:
             pushforward_mu = solver_pushforward_mu
         else:
             pushforward_mu = _pushforward_density_via_map(mu_nd, map_array, axes_nu)
@@ -287,7 +324,12 @@ def _compute_map_quality_metrics(
             displacement_alpha,
             mask=mask,
         )
-        if solver_pushforward_mu is not None:
+        use_solver_pushforward = (
+            solver_pushforward_mu is not None
+            and not use_soft_extension
+            and _is_identity_alpha(displacement_alpha)
+        )
+        if use_solver_pushforward:
             pushforward_mu = solver_pushforward_mu
         else:
             pushforward_mu = _reconstruct_target_density(plan, nu_nd)
@@ -492,35 +534,9 @@ def map_pixels_by_palette_monge(image, monge_map):
     return mapped.reshape(H, W, C)
 
 
-def _convert_to_bfloat16(*arrays):
-    """Convert arrays to bfloat16."""
-    return tuple(arr.astype(jnp.bfloat16) for arr in arrays)
-
-
 def _grid_coordinates(axes):
     grids = jnp.meshgrid(*axes, indexing='ij')
     return jnp.stack(grids, axis=-1)
-
-
-def _monge_map_index_to_physical(monge_map, axes):
-    arr = jnp.asarray(monge_map)
-    spatial_shape = tuple(len(ax) for ax in axes)
-    d = len(spatial_shape)
-    if arr.shape[:len(spatial_shape)] != spatial_shape:
-        if arr.shape[0] == d:
-            arr = jnp.moveaxis(arr, 0, -1)
-        else:
-            arr = arr.reshape(spatial_shape + (-1,))
-    if arr.shape[-1] != d:
-        raise ValueError(f"Expected monge_map last dimension {d}, got {arr.shape[-1]}")
-    spacings = jnp.array(
-        [float(ax[1] - ax[0]) if ax.shape[0] > 1 else 1.0 for ax in axes],
-        dtype=arr.dtype,
-    )
-    origins = jnp.array([float(ax[0]) for ax in axes], dtype=arr.dtype)
-    reshape = (1,) * len(spatial_shape) + (d,)
-    return origins.reshape(reshape) + arr * spacings.reshape(reshape)
-
 
 def _pushforward_density_via_map(source_density, map_array, axes_target):
     """Scatter the source density through a map onto the target grid."""
@@ -788,7 +804,58 @@ def _apply_solver_pushforward(mu_nd, solution):
     if fn is None:
         return None
     psi_arr = jnp.asarray(psi).reshape(mu_nd.shape)
-    pushed, _ = fn(mu_nd, psi_arr)
+    pushed, _ = fn(mu_nd, -psi_arr)
+    return pushed
+
+
+def _normalize_map_to_unit(map_array, axes):
+    arr = jnp.asarray(map_array)
+    spatial_shape = tuple(len(ax) for ax in axes)
+    d = len(spatial_shape)
+    if arr.shape[:len(spatial_shape)] != spatial_shape:
+        if arr.shape[0] == d:
+            arr = jnp.moveaxis(arr, 0, -1)
+        else:
+            arr = arr.reshape(spatial_shape + (d,))
+    spacings = jnp.array(
+        [float(ax[1] - ax[0]) if ax.shape[0] > 1 else 1.0 for ax in axes],
+        dtype=arr.dtype,
+    )
+    origins = jnp.array([float(ax[0]) for ax in axes], dtype=arr.dtype)
+    n_vec = jnp.array(spatial_shape, dtype=arr.dtype)
+    reshape = (1,) * len(spatial_shape) + (d,)
+    min_edge = origins - 0.5 * spacings
+    max_edge = origins + spacings * (n_vec - 0.5)
+    denom = jnp.maximum(max_edge - min_edge, 1e-12)
+    unit = (arr - min_edge.reshape(reshape)) / denom.reshape(reshape)
+    return jnp.clip(unit, 0.0, 1.0)
+
+
+def _apply_map_pushforward_index(mu_nd, map_array, solution):
+    name = solution.get('pushforward_fn_name')
+    if name is None:
+        return None
+    fn = _SOLVER_MAP_PUSHFORWARD_REGISTRY.get(name)
+    if fn is None:
+        return None
+    map_unit = map_index_to_unit(
+        jnp.moveaxis(jnp.asarray(map_array), -1, 0),
+        center_offset=(name == "adaptive_pushforward_nd"),
+    )
+    map_unit = jnp.clip(jnp.moveaxis(map_unit, 0, -1), 0.0, 1.0)
+    pushed, _ = fn(mu_nd, map_unit)
+    return pushed
+
+
+def _apply_map_pushforward(mu_nd, map_array, axes, solution):
+    name = solution.get('pushforward_fn_name')
+    if name is None:
+        return None
+    fn = _SOLVER_MAP_PUSHFORWARD_REGISTRY.get(name)
+    if fn is None:
+        return None
+    map_unit = _normalize_map_to_unit(map_array, axes)
+    pushed, _ = fn(mu_nd, map_unit)
     return pushed
 
 

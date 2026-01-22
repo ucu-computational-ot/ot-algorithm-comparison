@@ -164,6 +164,19 @@ def unit_to_index(U: jnp.ndarray) -> jnp.ndarray:
     return U * n_vec
 
 
+def map_index_to_unit(T: jnp.ndarray, *, center_offset: bool = False) -> jnp.ndarray:
+    """
+    Convert a Monge map from index coordinates to unit coordinates on [0,1]^d.
+    If center_offset is True, treat index coordinates as cell centers.
+    """
+    d = T.shape[0]
+    shape = T.shape[1:]
+    n_vec = jnp.array(shape, dtype=jnp.float32).reshape((d,) + (1,) * len(shape))
+    if center_offset:
+        return (T + 0.5) / n_vec
+    return T / n_vec
+
+
 def monge_map_cic_from_psi_nd(psi: jnp.ndarray) -> jnp.ndarray:
     """
     Build a Monge map in index coordinates using the same displacement rule
