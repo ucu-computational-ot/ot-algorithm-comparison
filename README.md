@@ -117,22 +117,33 @@ bin-number:
 soft-extension:
   - no
   - yes
+displacement-interpolation:
+  - 0.0
+  - 1.0
+color-space: rgb
+# active-channels: [r, g]
 batch-size: 100000
 pair-number: 3
 images-dir: ./datasets/images
-output-dir: ./outputs/color_transfer
 rng-seed: 42
 
 drop-columns:
   - transport_plan
+  - monge_map
   - u_final
   - v_final
 
 experiment: 
   name: Time and test
-  function: uot.experiments.measurement.measure_time_and_output
+  output-dir: ./outputs/color_transfer
 ```
-For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md). Notably, `soft-extension` can be a single value or a list (e.g. both `no` and `yes`) and the pipeline will run once per option, tagging each row with the applied setting.
+For detailed explanation of the parameters, please refer to [docs/color_transfer.md](docs/color_transfer.md). Notably, `soft-extension` and `displacement-interpolation` can be single values or lists (e.g. both `no` and `yes`) and the pipeline will run once per option, tagging each row with the applied setting.
+
+Example: Lab space with selected channels.
+```yaml
+color-space: lab
+active-channels: [l, a]
+```
 
 The corresponding pixi command example:
 ```
