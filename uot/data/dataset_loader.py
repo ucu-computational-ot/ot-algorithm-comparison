@@ -15,6 +15,12 @@ def _normalize_lab(lab: np.ndarray) -> np.ndarray:
     return np.stack([l, a, b], axis=-1)
 
 
+def _sanitize_rgb(rgb: np.ndarray) -> np.ndarray:
+    rgb = np.asarray(rgb, dtype=np.float64)
+    rgb = np.nan_to_num(rgb, nan=0.0, posinf=1.0, neginf=0.0)
+    return np.clip(rgb, 0.0, 1.0)
+
+
 def _denormalize_lab(norm_lab: np.ndarray) -> np.ndarray:
     norm_lab = np.asarray(norm_lab, dtype=np.float64)
     l = np.clip(norm_lab[..., 0], 0.0, 1.0) * 100.0
@@ -26,9 +32,12 @@ def _denormalize_lab(norm_lab: np.ndarray) -> np.ndarray:
 def convert_rgb_to_color_space(rgb: np.ndarray, color_space: str) -> np.ndarray:
     space = color_space.strip().lower()
     if space == "rgb":
-        return np.asarray(rgb, dtype=np.float64)
+        return _sanitize_rgb(rgb)
     if space in {"lab", "cielab"}:
-        return _normalize_lab(rgb2lab(np.asarray(rgb, dtype=np.float64)))
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            lab = rgb2lab(_sanitize_rgb(rgb))
+        lab = np.nan_to_num(lab, nan=0.0, posinf=0.0, neginf=0.0)
+        return _normalize_lab(lab)
     raise ValueError(f"Unsupported color space: {color_space}")
 
 
@@ -90,7 +99,7 @@ def load_image_as_color_grid(
     """
     lib = jnp if use_jax else np
 
-    image = Image.open(path)
+    image = Image.open(path).convert("RGB")
     data = np.asarray(image)
 
     if data.ndim == 2:

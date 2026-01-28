@@ -63,7 +63,7 @@ class ImageData:
     def _load_rgb_image(self):
         if self._np_rgb_image is None:
             logger.info("Loading raw image data for %s...", self._image_path)
-            im = Image.open(self._image_path)
+            im = Image.open(self._image_path).convert("RGB")
             self._np_rgb_image = np.asarray(im, dtype=np.float64) / 255.0
             logger.info("Finished loading raw image data for %s", self._image_path)
         return self._np_rgb_image
