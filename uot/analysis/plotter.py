@@ -1,9 +1,7 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from IPython.display import display, HTML
-from uot.analysis import get_agg_table, get_mean_comparison_table, get_std_comparison_table, display_mean_and_std, display_all_metrics
+from uot.analysis import get_mean_comparison_table, get_std_comparison_table
 
 plt.style.use('ggplot')
 sns.set_palette("colorblind")
@@ -172,9 +170,7 @@ for group_name, datasets in dataset_groups.items():
     print(f"\n### {group_name} Coupling Error Analysis ###")
     plot_coupling_err_distributions(datasets, results_df, algorithms, save_path='coupling_err_distributions')
 
-import os
 import matplotlib.pyplot as plt
-from IPython.display import HTML
 import dataframe_image as dfi
 
 def save_analysis_tables_by_dimension(results_df, metrics, output_dir="analysis_tables"):
@@ -202,7 +198,7 @@ def save_analysis_tables_by_dimension(results_df, metrics, output_dir="analysis_
                     'background-color: lightgreen' if f else
                     'background-color: lightblue' if s_ else
                     ''
-                    for f, s_ in zip(is_first, is_second)
+                    for f, s_ in zip(is_first, is_second, strict=False)
                 ]
             
             mean_styled = mean_table.style.apply(highlight_top_two, axis=1, subset=mean_table.columns[1:])
